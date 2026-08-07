@@ -1,6 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.services.SubscriptionGroupMembershipCleaner
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
 import dev.typetype.server.services.SubscriptionGroupWriteResult
 import dev.typetype.server.services.SubscriptionGroupsService
@@ -94,6 +96,19 @@ class SubscriptionGroupsServiceTest {
         assertTrue(subscriptions.delete("user", channel("one")))
 
         assertEquals(emptyList<String>(), groups.getChannelUrls("user", group.id))
+    }
+
+    @Test
+    fun `replacement imports retain only memberships for subscriptions still present`() = runTest {
+        val group = groups.create("user", "Group").createdGroup()
+        subscriptions.add("user", subscription("one"))
+        subscriptions.add("user", subscription("two"))
+        groups.addSubscription("user", group.id, channel("one"))
+        groups.addSubscription("user", group.id, channel("two"))
+
+        DatabaseFactory.query { SubscriptionGroupMembershipCleaner.retain("user", listOf(channel("one"))) }
+
+        assertEquals(listOf(channel("one")), groups.getChannelUrls("user", group.id))
     }
 
     private fun SubscriptionGroupWriteResult.createdGroup() =

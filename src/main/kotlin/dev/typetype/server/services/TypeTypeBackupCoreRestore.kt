@@ -4,7 +4,6 @@ import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
-import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.models.HistoryItem
 import dev.typetype.server.models.PlaylistItem
 import dev.typetype.server.models.SubscriptionItem
@@ -15,7 +14,6 @@ import java.util.UUID
 
 internal object TypeTypeBackupCoreRestore {
     fun subscriptions(userId: String, items: List<SubscriptionItem>): Int {
-        SubscriptionGroupMembershipsTable.deleteWhere { SubscriptionGroupMembershipsTable.userId eq userId }
         SubscriptionsTable.deleteWhere { SubscriptionsTable.userId eq userId }
         SubscriptionsTable.batchInsert(items, shouldReturnGeneratedValues = false) { item ->
             this[SubscriptionsTable.userId] = userId
@@ -24,6 +22,7 @@ internal object TypeTypeBackupCoreRestore {
             this[SubscriptionsTable.avatarUrl] = item.avatarUrl
             this[SubscriptionsTable.subscribedAt] = item.subscribedAt
         }
+        SubscriptionGroupMembershipCleaner.retain(userId, items.map(SubscriptionItem::channelUrl))
         return items.size
     }
 
