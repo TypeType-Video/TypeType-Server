@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.models.SubscriptionItem
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -13,13 +14,21 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class SubscriptionsService {
 
-    suspend fun getAll(userId: String): List<SubscriptionItem> = DatabaseFactory.query {
+    suspend fun getAll(
+        userId: String,
+        selection: SubscriptionSelection = SubscriptionSelection.All,
+    ): List<SubscriptionItem> = DatabaseFactory.query {
+        val selectedUrls = selectedChannelUrls(userId, selection)
         val items = SubscriptionsTable.selectAll()
             .where { SubscriptionsTable.userId eq userId }
             .orderBy(SubscriptionsTable.subscribedAt to SortOrder.DESC)
             .map { it.toItem() }
+            .filter { selection == SubscriptionSelection.All || it.channelUrl in selectedUrls }
         SubscriptionAvatarRepairer.repair(userId = userId, items = items)
     }
+
+    suspend fun getChannelUrls(userId: String, selection: SubscriptionSelection): Set<String> =
+        DatabaseFactory.query { selectedChannelUrls(userId, selection) }
 
     suspend fun add(userId: String, item: SubscriptionItem): SubscriptionItem {
         val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(item.channelUrl)
@@ -38,7 +47,32 @@ class SubscriptionsService {
 
     suspend fun delete(userId: String, channelUrl: String): Boolean = DatabaseFactory.query {
         val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(channelUrl)
+        SubscriptionGroupMembershipsTable.deleteWhere {
+            (SubscriptionGroupMembershipsTable.userId eq userId) and
+                (SubscriptionGroupMembershipsTable.channelUrl eq canonicalUrl)
+        }
         SubscriptionsTable.deleteWhere { SubscriptionsTable.channelUrl eq canonicalUrl and (SubscriptionsTable.userId eq userId) } > 0
+    }
+
+    private fun selectedChannelUrls(userId: String, selection: SubscriptionSelection): Set<String> {
+        val all = SubscriptionsTable.selectAll()
+            .where { SubscriptionsTable.userId eq userId }
+            .mapTo(linkedSetOf()) { ChannelUrlCanonicalizer.canonicalize(it[SubscriptionsTable.channelUrl]) }
+        if (selection == SubscriptionSelection.All) return all
+        val memberships = SubscriptionGroupMembershipsTable.selectAll().where {
+            when (selection) {
+                SubscriptionSelection.All -> SubscriptionGroupMembershipsTable.userId eq userId
+                SubscriptionSelection.Ungrouped -> SubscriptionGroupMembershipsTable.userId eq userId
+                is SubscriptionSelection.Group ->
+                    (SubscriptionGroupMembershipsTable.userId eq userId) and
+                        (SubscriptionGroupMembershipsTable.groupId eq selection.id)
+            }
+        }.mapTo(mutableSetOf()) { it[SubscriptionGroupMembershipsTable.channelUrl] }
+        return when (selection) {
+            SubscriptionSelection.All -> all
+            SubscriptionSelection.Ungrouped -> all - memberships
+            is SubscriptionSelection.Group -> all intersect memberships
+        }
     }
 
     private fun ResultRow.toItem() = SubscriptionItem(

@@ -7,6 +7,7 @@ import dev.typetype.server.db.tables.PlaylistsTable
 import dev.typetype.server.db.tables.ProgressTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SubscriptionsTable
+import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.models.RestorePipePipeResultItem
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -38,6 +39,7 @@ class PipePipeBackupPersisterService {
 
     private fun clearUserData(userId: String) {
         HistoryTable.deleteWhere { HistoryTable.userId eq userId }
+        SubscriptionGroupMembershipsTable.deleteWhere { SubscriptionGroupMembershipsTable.userId eq userId }
         SubscriptionsTable.deleteWhere { SubscriptionsTable.userId eq userId }
         PlaylistVideosTable.deleteWhere { PlaylistVideosTable.userId eq userId }
         PlaylistsTable.deleteWhere { PlaylistsTable.userId eq userId }

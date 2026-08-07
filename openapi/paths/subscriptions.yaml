@@ -1,8 +1,161 @@
+Subscriptions:
+  get:
+    tags: [user-data]
+    summary: List the current user's subscriptions
+    description: Omit both filters for the global list. Use groupId for one named group or ungrouped=true for subscriptions in no groups.
+    parameters:
+      - name: groupId
+        in: query
+        required: false
+        schema: { type: string, format: uuid }
+      - name: ungrouped
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: The selected subscription projection.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/subscriptions.yaml#/SubscriptionItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  post:
+    tags: [user-data]
+    summary: Subscribe to a channel
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionItem }
+    responses:
+      '201':
+        description: Subscription created.
+        content:
+          application/json:
+            schema: { $ref: ../components/subscriptions.yaml#/SubscriptionItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [user-data]
+    summary: Unsubscribe from a channel
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '204': { description: Subscription deleted. }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+SubscriptionGroups:
+  get:
+    tags: [user-data]
+    summary: List the current user's subscription groups
+    responses:
+      '200':
+        description: Account-scoped named groups.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupItem }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+  post:
+    tags: [user-data]
+    summary: Create a subscription group
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupRequest }
+    responses:
+      '201':
+        description: Group created.
+        content:
+          application/json:
+            schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+SubscriptionGroup:
+  parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  put:
+    tags: [user-data]
+    summary: Rename a subscription group
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupRequest }
+    responses:
+      '204': { description: Group renamed. }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [user-data]
+    summary: Delete a subscription group
+    responses:
+      '204': { description: Group and its memberships deleted. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+SubscriptionGroupChannels:
+  parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  put:
+    tags: [user-data]
+    summary: Add a subscribed channel to a group
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+    responses:
+      '204': { description: Membership exists. }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [user-data]
+    summary: Remove a subscribed channel from a group
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '204': { description: Membership deleted. }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
 SubscriptionFeed:
   get:
     tags: [user-data]
     summary: Read a stable page from the current user's subscription feed snapshot
     parameters:
+      - name: groupId
+        in: query
+        required: false
+        description: Restrict the snapshot projection to subscriptions in one account-owned group.
+        schema: { type: string, format: uuid }
+      - name: ungrouped
+        in: query
+        required: false
+        description: Restrict the snapshot projection to subscriptions in no groups.
+        schema: { type: boolean, default: false }
       - name: page
         in: query
         required: false
@@ -16,7 +169,7 @@ SubscriptionFeed:
       - name: cursor
         in: query
         required: false
-        description: Opaque continuation returned in nextpage.
+        description: Opaque continuation returned in nextpage and bound to the selected subscription filter.
         schema: { type: string }
     responses:
       '200':
@@ -44,6 +197,8 @@ SubscriptionFeed:
       '400':
         $ref: ../components/common.yaml#/JsonError
       '401':
+        $ref: ../components/common.yaml#/JsonError
+      '404':
         $ref: ../components/common.yaml#/JsonError
       '409':
         description: The cursor references a snapshot generation that is no longer retained.

@@ -20,6 +20,8 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
+import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
+import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
@@ -94,6 +96,8 @@ object TestDatabase {
         HistoryTable.deleteAll()
         FavoritesTable.deleteAll()
         SettingsTable.deleteAll()
+        SubscriptionGroupMembershipsTable.deleteAll()
+        SubscriptionGroupsTable.deleteAll()
         SubscriptionsTable.deleteAll()
         WatchLaterTable.deleteAll()
         ProgressTable.deleteAll()

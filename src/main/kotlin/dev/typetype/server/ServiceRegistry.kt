@@ -27,6 +27,7 @@ import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
+import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
 import dev.typetype.server.services.TypeTypeBackupService
@@ -80,6 +81,7 @@ internal class ServiceRegistry(
     val sabrSessionStore = extraction.sabrSessionStore
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
+    val subscriptionGroupsService = SubscriptionGroupsService()
     val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
     val subscriptionShortsFeedService = SubscriptionShortsFeedService(
         subscriptionsService,
