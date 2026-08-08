@@ -22,6 +22,7 @@ internal object TypeTypeBackupCoreRestore {
             this[SubscriptionsTable.avatarUrl] = item.avatarUrl
             this[SubscriptionsTable.subscribedAt] = item.subscribedAt
         }
+        SubscriptionGroupMembershipCleaner.retain(userId, items.map(SubscriptionItem::channelUrl))
         return items.size
     }
 

@@ -42,6 +42,10 @@ paths:
   /playlist: { $ref: ./openapi/paths/playlists.yaml#/Playlist }
   /saved-playlists: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists }
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
+  /subscriptions: { $ref: ./openapi/paths/subscriptions.yaml#/Subscriptions }
+  /subscriptions/groups: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroups }
+  /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
+  /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
@@ -136,6 +140,10 @@ components:
       $ref: ./openapi/components/media.yaml#/PublicPlaylistItem
     SavedPlaylistItem: { $ref: ./openapi/components/media.yaml#/SavedPlaylistItem }
     SavedPlaylistRequest: { $ref: ./openapi/components/media.yaml#/SavedPlaylistRequest }
+    SubscriptionItem: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionItem }
+    SubscriptionGroupItem: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupItem }
+    SubscriptionGroupRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupRequest }
+    SubscriptionGroupMembershipRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
     SettingsItem: { $ref: ./openapi/components/access-control.yaml#/SettingsItem }

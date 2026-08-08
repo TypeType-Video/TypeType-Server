@@ -22,6 +22,7 @@ class PipePipeBackupPersisterService {
             .toMap()
         val history = insertHistory(userId, snapshot.history, avatarsByChannel)
         val subscriptions = insertSubscriptions(userId, snapshot.subscriptions)
+        SubscriptionGroupMembershipCleaner.retain(userId, snapshot.subscriptions.map { it.url })
         val (playlists, playlistVideos) = insertPlaylists(userId, snapshot.playlists)
         val progress = insertProgress(userId, snapshot.progress)
         val searchHistory = insertSearchHistory(userId, snapshot.searchHistory)

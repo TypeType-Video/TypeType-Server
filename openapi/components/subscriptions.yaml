@@ -1,3 +1,30 @@
+SubscriptionItem:
+  type: object
+  required: [channelUrl, name, avatarUrl, subscribedAt]
+  properties:
+    channelUrl: { type: string, minLength: 1 }
+    name: { type: string }
+    avatarUrl: { type: string }
+    subscribedAt: { type: integer, format: int64 }
+SubscriptionGroupItem:
+  type: object
+  required: [id, name, channelCount, createdAt, updatedAt]
+  properties:
+    id: { type: string, format: uuid }
+    name: { type: string, minLength: 1, maxLength: 100 }
+    channelCount: { type: integer, minimum: 0 }
+    createdAt: { type: integer, format: int64 }
+    updatedAt: { type: integer, format: int64 }
+SubscriptionGroupRequest:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string, minLength: 1, maxLength: 100 }
+SubscriptionGroupMembershipRequest:
+  type: object
+  required: [channelUrl]
+  properties:
+    channelUrl: { type: string, minLength: 1 }
 SubscriptionFeedResponse:
   type: object
   required: [videos, nextpage, generation, generatedAt, refreshing]

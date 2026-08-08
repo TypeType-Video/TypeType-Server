@@ -5,6 +5,8 @@ import dev.typetype.server.models.SubscriptionFeedPreparingResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionFeedPageResult
 import dev.typetype.server.services.SubscriptionFeedService
+import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.SubscriptionSelection
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -13,14 +15,29 @@ import io.ktor.server.routing.get
 
 private const val MAX_FEED_PAGE = 10_000
 
-fun Route.subscriptionFeedRoutes(feedService: SubscriptionFeedService, authService: AuthService) {
+fun Route.subscriptionFeedRoutes(
+    feedService: SubscriptionFeedService,
+    authService: AuthService,
+    groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
+) {
     get("/subscriptions/feed") {
         call.withJwtAuth(authService) { userId ->
+            val parsed = call.parseSubscriptionSelection()
+            if (parsed !is SubscriptionSelectionParseResult.Valid) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid subscription filter"))
+            }
+            val selection = parsed.selection
+            if (selection is SubscriptionSelection.Group && !groupsService.exists(userId, selection.id)) {
+                return@withJwtAuth call.respond(
+                    HttpStatusCode.NotFound,
+                    ErrorResponse("Subscription group not found", "subscription_group_not_found"),
+                )
+            }
             val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceIn(0, MAX_FEED_PAGE) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
             val cursor = call.request.queryParameters["cursor"]
             call.response.headers.append(HttpHeaders.CacheControl, "no-store")
-            when (val result = feedService.getPage(userId, page, limit, cursor)) {
+            when (val result = feedService.getPage(userId, page, limit, cursor, selection = selection)) {
                 is SubscriptionFeedPageResult.Ready -> call.respond(result.response)
                 is SubscriptionFeedPageResult.Preparing -> {
                     call.response.headers.append(HttpHeaders.RetryAfter, "1")

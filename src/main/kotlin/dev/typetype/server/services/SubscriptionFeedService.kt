@@ -36,6 +36,7 @@ class SubscriptionFeedService(
         page: Int,
         limit: Int,
         cursor: String?,
+        selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
         val current = store.current(userId)
@@ -49,6 +50,9 @@ class SubscriptionFeedService(
         val cursorState = cursor?.let(SubscriptionFeedCursorCodec::decode)
         if (cursor != null && cursorState == null) return SubscriptionFeedPageResult.InvalidCursor
         if (cursorState != null && cursorState.limit != limit) return SubscriptionFeedPageResult.InvalidCursor
+        if (cursorState != null && cursorState.filterKey != selection.cursorKey) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
         val snapshot = when {
             cursorState == null -> current
             cursorState.generation == current.generation -> current
@@ -56,7 +60,12 @@ class SubscriptionFeedService(
                 ?: return SubscriptionFeedPageResult.StaleGeneration
         }
         val offset = cursorState?.offset ?: page * limit
-        return SubscriptionFeedPageResult.Ready(snapshot.page(offset, limit, isRefreshing(userId)))
+        val selectedChannelUrls = if (selection == SubscriptionSelection.All) null else {
+            subscriptionsService.getChannelUrls(userId, selection)
+        }
+        return SubscriptionFeedPageResult.Ready(
+            snapshot.page(offset, limit, isRefreshing(userId), selection, selectedChannelUrls),
+        )
     }
 
     suspend fun getFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse =
@@ -139,6 +148,7 @@ class SubscriptionFeedService(
             stale = false,
             videos = ordering.videos,
             livePromotedAt = ordering.livePromotedAt,
+            sourceChannelUrls = result.sourceChannelUrls,
         )
         runCatching { store.publish(userId, snapshot) }.onFailure {
             logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)
