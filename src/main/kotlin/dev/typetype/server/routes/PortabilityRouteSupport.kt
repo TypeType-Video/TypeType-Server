@@ -17,6 +17,11 @@ internal fun parsePortabilityFormat(value: String?): PortabilityFormat? {
 }
 
 internal suspend fun ApplicationCall.respondPortabilityError(error: Exception) {
+    if (error is kotlinx.coroutines.CancellationException) throw error
+    if (error.isMultipartSizeLimit()) {
+        respondPortabilityError(PortabilityUploadTooLargeException())
+        return
+    }
     val status = when (error) {
         is PortabilityJobNotFoundException -> HttpStatusCode.NotFound
         is PortabilityUploadTooLargeException -> HttpStatusCode.PayloadTooLarge

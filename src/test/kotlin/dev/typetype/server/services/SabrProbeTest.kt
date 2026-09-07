@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.SabrAdapter
+import dev.typetype.server.sabr.YoutubeSabrSession
 
 @EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
 @Tag("network")
@@ -39,7 +39,7 @@ class SabrProbeTest {
             try {
                 val token = tokenClient.fetch(videoId) ?: error("No SABR token")
                 val info = TypetypeYoutubeSessionPoTokenProvider.withToken(token) {
-                    YoutubeSabrProbe.fetchSabrInfo(videoId, profile, loc, country)
+                    SabrAdapter.fetchSabrInfo(videoId, profile, loc, country)
                 }
                 println("serverAbrStreamingUrl present: ${!info.serverAbrStreamingUrl.isNullOrEmpty()}")
                 println("videoPlaybackUstreamerConfig present: ${!info.videoPlaybackUstreamerConfig.isNullOrEmpty()}")

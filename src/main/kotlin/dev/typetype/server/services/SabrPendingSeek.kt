@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 internal fun SabrSessionHolder.consumeMatchingSeek(request: SabrSegmentRequest): Boolean {
     pendingRefetchRequest()?.takeIf { it.matches(request) }?.let {

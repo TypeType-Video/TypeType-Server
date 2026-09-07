@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrMediaSegment
 
 internal data class SabrProbeFetchResult(
     val segment: SabrMediaSegment?,

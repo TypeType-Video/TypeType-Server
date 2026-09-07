@@ -1,9 +1,9 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrSession
 
 internal fun YoutubeSabrSession.findCachedMediaAt(
     format: YoutubeSabrFormat,

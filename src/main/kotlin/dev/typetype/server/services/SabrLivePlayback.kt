@@ -1,7 +1,7 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal data class SabrLivePlaybackSnapshot(
     val active: Boolean,
@@ -120,7 +120,7 @@ internal fun SabrSessionHolder.isHistoricalLiveRequest(request: SabrSegmentReque
 internal fun SabrSessionHolder.liveRetryAfterMs(blockedRequests: List<SabrSegmentRequest> = emptyList()): Long =
     DEFAULT_PLAYBACK_RETRY_MS
 
-private fun org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState.observedEndMs(
+private fun dev.typetype.server.sabr.YoutubeSabrStreamState.observedEndMs(
     format: YoutubeSabrFormat,
 ): Long {
     val sequence = runCatching { getMaxSegment(format) }.getOrDefault(0)

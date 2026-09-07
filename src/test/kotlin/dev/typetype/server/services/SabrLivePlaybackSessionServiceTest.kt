@@ -12,12 +12,12 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import dev.typetype.server.sabr.SabrMediaHeader
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 

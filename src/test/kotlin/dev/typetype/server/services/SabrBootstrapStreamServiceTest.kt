@@ -8,8 +8,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class SabrBootstrapStreamServiceTest {
     @Test

@@ -1,8 +1,8 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackSessionService(private val sessionStore: SabrSessionStore) {
     private val mediaFetcher = SabrPlaybackMediaFetcher(sessionStore)

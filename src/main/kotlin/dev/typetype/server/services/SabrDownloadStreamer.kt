@@ -6,8 +6,8 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.io.OutputStream

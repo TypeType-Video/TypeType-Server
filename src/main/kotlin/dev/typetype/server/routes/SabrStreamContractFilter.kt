@@ -4,8 +4,8 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import dev.typetype.server.services.SabrSessionStore
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 internal suspend fun StreamResponse.withPlayableSabrStreams(
     url: String,

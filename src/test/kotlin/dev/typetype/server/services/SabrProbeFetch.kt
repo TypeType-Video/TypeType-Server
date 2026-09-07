@@ -2,8 +2,8 @@ package dev.typetype.server.services
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 internal suspend fun fetchSabrProbeSegment(
     store: SabrSessionStore,

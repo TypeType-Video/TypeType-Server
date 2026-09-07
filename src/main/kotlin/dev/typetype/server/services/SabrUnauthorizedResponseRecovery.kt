@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
+import dev.typetype.server.sabr.SabrRecoverableException
 
 internal class SabrUnauthorizedResponseRecovery(
     private val refreshPoToken: (SabrSessionHolder) -> SabrTokenBundle?,

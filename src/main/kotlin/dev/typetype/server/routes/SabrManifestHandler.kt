@@ -13,7 +13,7 @@ import dev.typetype.server.services.SabrSessionPurpose
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.bothFormatsKnown
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrFormat
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond

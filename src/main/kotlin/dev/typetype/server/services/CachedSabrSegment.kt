@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrMediaSegment
 import java.util.Base64
 
 internal class CachedSabrSegment(

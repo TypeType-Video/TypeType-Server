@@ -43,6 +43,7 @@ fun metricPath(path: String): String = when {
     path.startsWith("/downloader/jobs/") && path.endsWith("/artifact") -> "/downloader/jobs/{id}/artifact"
     path.startsWith("/downloader/jobs/") && path.endsWith("/cancel") -> "/downloader/jobs/{id}/cancel"
     path.startsWith("/downloader/jobs/") -> "/downloader/jobs/{id}"
+    path == "/progress/batch" -> path
     path.startsWith("/progress/") -> "/progress/{videoUrl}"
     path.startsWith("/favorites/") -> "/favorites/{videoUrl}"
     path.startsWith("/watch-later/") -> "/watch-later/{videoUrl}"

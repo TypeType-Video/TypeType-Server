@@ -1,7 +1,7 @@
 package dev.typetype.server.routes
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 internal object SabrFormatSelector {
     fun video(info: YoutubeSabrInfo, itag: Int?): YoutubeSabrFormat? {
@@ -23,7 +23,7 @@ internal object SabrFormatSelector {
     }
 
     private fun YoutubeSabrFormat.matchesAudio(itag: Int?, trackId: String?, requireAac: Boolean): Boolean =
-        itag != null && isAudio && getItag() == itag && (!requireAac || isAac()) &&
+        itag != null && isAudio && this.itag == itag && (!requireAac || isAac()) &&
             (trackId.isNullOrBlank() || audioTrackId == trackId)
 
     private fun YoutubeSabrFormat.isAac(): Boolean =

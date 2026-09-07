@@ -1,8 +1,8 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.sync.withLock
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
 import org.slf4j.LoggerFactory
 import java.time.Instant
 

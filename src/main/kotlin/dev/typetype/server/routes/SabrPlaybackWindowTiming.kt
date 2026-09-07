@@ -4,7 +4,7 @@ import dev.typetype.server.services.CachedSabrSegment
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.livePlaybackSnapshot
 import dev.typetype.server.services.playbackSegmentDurationMs
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.durationMs(): Long {
     livePlaybackSnapshot()?.let { live ->

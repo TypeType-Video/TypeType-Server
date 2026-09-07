@@ -2,8 +2,8 @@ package dev.typetype.server.services
 
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
-import org.schabi.newpipe.extractor.services.youtube.sabr.TypeTypeYoutubeSabrInfoFactory
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.SabrAdapter
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 internal object SabrSessionIdentity {
     fun fresh(info: YoutubeSabrInfo): YoutubeSabrInfo {
@@ -14,7 +14,7 @@ internal object SabrSessionIdentity {
             .setQueryParameter("cpn", cpn)
             .build()
             .toString()
-        return TypeTypeYoutubeSabrInfoFactory.withPlaybackIdentity(
+        return SabrAdapter.withPlaybackIdentity(
             info,
             url,
             info.clientVersion,

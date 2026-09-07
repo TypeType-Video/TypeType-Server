@@ -1,9 +1,9 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrPoTokenProvider
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import dev.typetype.server.sabr.SabrPoTokenProvider
+import dev.typetype.server.sabr.SabrRecoverableException
+import dev.typetype.server.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 
 internal class TypetypeTokenSabrPoTokenProvider(
     private val tokenClient: TypetypeTokenSabrTokenClient,

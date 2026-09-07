@@ -11,7 +11,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 internal class SabrSegmentHandler(
     private val sabrSessionStore: SabrSessionStore,

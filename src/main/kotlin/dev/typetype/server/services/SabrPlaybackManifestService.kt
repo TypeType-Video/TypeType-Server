@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackManifestService {
     fun build(holder: SabrSessionHolder, mediaBasePath: String): SabrPlaybackManifestResult {

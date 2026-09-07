@@ -5,10 +5,10 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrRecoverableException
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import dev.typetype.server.sabr.SabrRecoverableException
+import dev.typetype.server.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 
 class SabrUnauthorizedResponseRecoveryTest {
     @Test

@@ -6,9 +6,12 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile as PipeProfile
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat as PipeFormat
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo as PipeInfo
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class SabrPlaybackSessionIsolationTest {
     @Test
@@ -61,6 +64,16 @@ class SabrPlaybackSessionIsolationTest {
         every { info.serverAbrStreamingUrl } returns "https://example.com/sabr"
         every { info.videoPlaybackUstreamerConfig } returns "config"
         every { info.formats } returns emptyList()
+        val pipeInfo = mockk<PipeInfo>(relaxed = true)
+        every { info.delegate } returns pipeInfo
+        every { pipeInfo.profile } returns PipeProfile.WEB
+        every { pipeInfo.videoId } returns "video"
+        every { pipeInfo.cpn } returns "source-cpn"
+        every { pipeInfo.clientVersion } returns "1.2.3"
+        every { pipeInfo.visitorData } returns "visitor"
+        every { pipeInfo.serverAbrStreamingUrl } returns "https://example.com/sabr"
+        every { pipeInfo.videoPlaybackUstreamerConfig } returns "config"
+        every { pipeInfo.formats } returns emptyList()
         return info
     }
 
@@ -70,6 +83,11 @@ class SabrPlaybackSessionIsolationTest {
         every { format.isAudio } returns isAudio
         every { format.isVideo } returns !isAudio
         every { format.audioTrackId } returns null
+        val pipeFormat = mockk<PipeFormat>(relaxed = true)
+        every { format.delegate } returns pipeFormat
+        every { pipeFormat.itag } returns itag
+        every { pipeFormat.isAudio } returns isAudio
+        every { pipeFormat.isVideo } returns !isAudio
         return format
     }
 

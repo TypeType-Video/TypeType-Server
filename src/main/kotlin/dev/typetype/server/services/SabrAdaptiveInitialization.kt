@@ -4,7 +4,7 @@ import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal object SabrAdaptiveInitialization {
     private val localization = Localization("en", "US")

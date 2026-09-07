@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal fun splitMime(mime: String): Pair<String, String> {
     val parts = mime.split(";", limit = 2)

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class AuthenticatedSabrTimeoutTest {
     @Test

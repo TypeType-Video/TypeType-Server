@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 internal class SabrPreparedInfo(
     val info: YoutubeSabrInfo,

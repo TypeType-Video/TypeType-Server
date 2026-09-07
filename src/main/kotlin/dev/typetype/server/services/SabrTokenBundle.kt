@@ -2,7 +2,7 @@ package dev.typetype.server.services
 
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.util.Base64
 
 internal class SabrTokenBundle(

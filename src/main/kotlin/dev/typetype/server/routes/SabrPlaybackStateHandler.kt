@@ -8,7 +8,7 @@ import dev.typetype.server.services.livePlaybackSnapshot
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 internal class SabrPlaybackStateHandler(private val sabrSessionStore: SabrSessionStore) {
     suspend fun get(call: ApplicationCall, sessionId: String) {

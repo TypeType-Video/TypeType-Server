@@ -1,7 +1,7 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.isLiveDemandOutsideRecoverableWindow(request: SabrSegmentRequest): Boolean {
     if (request.isInitializationSegment) return false

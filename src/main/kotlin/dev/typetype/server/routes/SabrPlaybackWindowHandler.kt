@@ -12,7 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 internal class SabrPlaybackWindowHandler(private val sabrSessionStore: SabrSessionStore) {
     private val windowBuilder = SabrPlaybackWindowBuilder(sabrSessionStore)

@@ -10,8 +10,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class SabrStreamContractFilterTest {
     @Test
@@ -109,7 +109,6 @@ class SabrStreamContractFilterTest {
     private fun sabrFormat(itag: Int, isAudio: Boolean, mimeType: String): YoutubeSabrFormat {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
-        every { format.getItag() } returns itag
         every { format.isAudio } returns isAudio
         every { format.isVideo } returns !isAudio
         every { format.mimeType } returns mimeType

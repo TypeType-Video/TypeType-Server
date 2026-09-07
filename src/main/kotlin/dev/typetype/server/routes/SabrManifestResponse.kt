@@ -58,7 +58,7 @@ internal suspend fun ApplicationCall.respondSabrManifest(
     respondText(manifest, if (hls) HLS_CONTENT_TYPE else DASH_CONTENT_TYPE)
 }
 
-private fun SabrSessionHolder.startSegment(format: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat): Int =
+private fun SabrSessionHolder.startSegment(format: dev.typetype.server.sabr.YoutubeSabrFormat): Int =
     key.startTimeMs.takeIf { it > 0L }
         ?.let { playbackStartSequence(format, it) }
         ?: 1

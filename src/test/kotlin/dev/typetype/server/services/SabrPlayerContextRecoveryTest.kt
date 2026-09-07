@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrProtocolException
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.SabrProtocolException
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.io.IOException
 
 class SabrPlayerContextRecoveryTest {

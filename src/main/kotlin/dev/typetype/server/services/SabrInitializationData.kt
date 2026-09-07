@@ -3,8 +3,8 @@ package dev.typetype.server.services
 import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.sync.withLock
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 import java.security.MessageDigest
 import java.time.Duration
 import java.util.Base64

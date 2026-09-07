@@ -4,7 +4,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 @EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
 @Tag("network")
@@ -63,8 +63,8 @@ class SabrSessionStoreTest {
 
     private fun mediaRequestsForProbe(
         holder: SabrSessionHolder,
-        video: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat,
-        audio: org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat,
+        video: dev.typetype.server.sabr.YoutubeSabrFormat,
+        audio: dev.typetype.server.sabr.YoutubeSabrFormat,
         playerTimeMs: Long,
     ): List<SabrSegmentRequest> {
         val videoSequence = System.getenv("SABR_PROBE_VIDEO_SEQUENCE")?.toIntOrNull()

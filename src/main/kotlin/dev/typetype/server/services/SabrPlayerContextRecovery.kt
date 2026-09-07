@@ -2,9 +2,9 @@ package dev.typetype.server.services
 
 import kotlinx.coroutines.CancellationException
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrProtocolException
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.SabrProtocolException
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrInfo
 
 internal class SabrPlayerContextRecovery(
     private val videoId: String,

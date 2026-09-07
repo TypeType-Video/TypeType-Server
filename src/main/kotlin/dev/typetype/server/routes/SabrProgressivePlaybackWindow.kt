@@ -4,9 +4,9 @@ import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.findCachedMediaAt
 import dev.typetype.server.services.playbackSegmentDurationMs
 import dev.typetype.server.services.playbackSegmentStartMs
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal data class SabrProgressiveWindowSegment(
     val sequence: Int,

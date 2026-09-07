@@ -5,6 +5,7 @@ import dev.typetype.server.db.tables.ProgressTable
 import dev.typetype.server.models.ProgressItem
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -36,6 +37,23 @@ class ProgressService {
                     updatedAt = it[ProgressTable.updatedAt],
                 )
             }
+    }
+
+    suspend fun getMany(userId: String, videoUrls: List<String>): List<ProgressItem> = DatabaseFactory.query {
+        val orderedUrls = videoUrls.distinct()
+        if (orderedUrls.isEmpty()) return@query emptyList()
+        val progressByUrl = ProgressTable.selectAll()
+            .where { (ProgressTable.userId eq userId) and (ProgressTable.videoUrl inList orderedUrls) }
+            .associate { row ->
+                row[ProgressTable.videoUrl] to ProgressItem(
+                    videoUrl = row[ProgressTable.videoUrl],
+                    position = row[ProgressTable.position],
+                    updatedAt = row[ProgressTable.updatedAt],
+                )
+            }
+        orderedUrls.map { videoUrl ->
+            progressByUrl[videoUrl] ?: ProgressItem(videoUrl = videoUrl, position = 0L)
+        }
     }
 
     suspend fun upsert(userId: String, videoUrl: String, position: Long): ProgressItem {

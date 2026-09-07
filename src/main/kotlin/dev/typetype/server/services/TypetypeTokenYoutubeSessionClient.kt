@@ -10,10 +10,9 @@ import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
-import org.schabi.newpipe.extractor.services.youtube.sabr.TypeTypeYoutubeSabrInfoFactory
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import dev.typetype.server.sabr.SabrAdapter
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.io.IOException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -107,7 +106,7 @@ internal class TypetypeTokenYoutubeSessionClient(
                     ),
                 ),
             )
-        val info = YoutubeSabrProbe.fromPlayerResponse(
+        val info = SabrAdapter.fromPlayerResponse(
             videoId,
             YoutubeSabrClientProfile.MWEB,
             YoutubeParsingHelper.generateContentPlaybackNonce(),
@@ -122,7 +121,7 @@ internal class TypetypeTokenYoutubeSessionClient(
             ?.queryParameter("cpn")
             ?.takeIf { it.isNotBlank() }
         if (playbackUrl != null && clientVersion != null) {
-            TypeTypeYoutubeSabrInfoFactory.withPlaybackIdentity(
+            SabrAdapter.withPlaybackIdentity(
                 info,
                 playbackUrl,
                 clientVersion,

@@ -2,9 +2,9 @@ package dev.typetype.server.services
 
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.SabrAdapter
 
 internal fun interface SabrPlayerInfoProbe {
     fun fetch(
@@ -23,6 +23,6 @@ internal object PipePipeSabrPlayerInfoProbe : SabrPlayerInfoProbe {
         profile: YoutubeSabrClientProfile,
         token: SabrTokenBundle,
     ): YoutubeSabrInfo = TypetypeYoutubeSessionPoTokenProvider.withToken(token) {
-        YoutubeSabrProbe.fetchSabrInfo(videoId, profile, localization, contentCountry)
+        SabrAdapter.fetchSabrInfo(videoId, profile, localization, contentCountry)
     }
 }

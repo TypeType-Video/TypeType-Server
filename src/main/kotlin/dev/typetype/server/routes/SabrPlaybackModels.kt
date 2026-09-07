@@ -1,7 +1,7 @@
 package dev.typetype.server.routes
 
 import kotlinx.serialization.Serializable
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.SabrSegmentRequest
 
 @Serializable
 internal data class SabrPlaybackRequest(

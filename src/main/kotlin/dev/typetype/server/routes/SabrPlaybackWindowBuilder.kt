@@ -12,8 +12,8 @@ import dev.typetype.server.services.livePlaybackSnapshot
 import dev.typetype.server.services.playbackContinuationSequence
 import dev.typetype.server.services.playbackSegmentStartMs
 import dev.typetype.server.services.resolvePlaybackStartMs
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 private const val MAX_SEGMENTS_PER_TRACK = 12
 

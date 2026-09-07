@@ -1,8 +1,8 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
+import dev.typetype.server.sabr.YoutubeSabrSession
 
 internal object SabrDemandAttemptFinisher {
     fun interruptCompletedInFlightDemand(holder: SabrSessionHolder, demand: SabrInFlightDemand): Boolean =

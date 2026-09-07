@@ -1,8 +1,8 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.cache.CacheService
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.time.Duration
 
 internal class SabrInfoRepository(

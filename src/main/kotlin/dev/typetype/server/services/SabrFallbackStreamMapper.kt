@@ -3,8 +3,8 @@ package dev.typetype.server.services
 import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 

@@ -1,0 +1,30 @@
+ProgressItem:
+  type: object
+  required: [videoUrl, position, updatedAt]
+  properties:
+    videoUrl:
+      type: string
+      format: uri
+    position:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Playback position in milliseconds.
+    updatedAt:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Unix timestamp in milliseconds.
+
+ProgressBatchRequest:
+  type: object
+  required: [videoUrls]
+  properties:
+    videoUrls:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items:
+        type: string
+        format: uri
+        maxLength: 2048

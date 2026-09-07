@@ -16,6 +16,11 @@ PortabilityImports:
   post:
     tags: [portability]
     summary: Upload and analyze an account backup
+    description: |
+      Accepts one backup of at most 512 MiB. For large YouTube Takeout exports,
+      clients can package only the YouTube CSV, HTML and JSON metadata, preserving
+      entry paths and excluding uploaded media and unrelated Google products.
+      The server still validates the archive and parses all imported records.
     parameters:
       - name: format
         in: query
@@ -39,7 +44,8 @@ PortabilityImports:
             schema: { $ref: ../components/portability.yaml#/PortabilityJobSnapshot }
       '400': { description: Invalid or unrecognized backup }
       '401': { description: Missing or invalid token }
-      '413': { description: Upload exceeds the configured limit }
+      '413':
+        description: Upload exceeds 512 MiB (portability_upload_too_large)
 PortabilityExports:
   post:
     tags: [portability]

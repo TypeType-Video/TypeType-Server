@@ -8,9 +8,9 @@ import kotlinx.coroutines.runInterruptible
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
+import dev.typetype.server.sabr.YoutubeSabrClientProfile
+import dev.typetype.server.sabr.YoutubeSabrInfo
+import dev.typetype.server.sabr.SabrAdapter
 import org.slf4j.LoggerFactory
 
 internal class AuthenticatedSabrInfoService(
@@ -87,7 +87,7 @@ private object PipePipeAuthenticatedSabrProbe : AuthenticatedSabrProbe {
     private val contentCountry = ContentCountry("US")
 
     override fun fetch(videoId: String, token: YoutubeSessionPoToken): YoutubeSabrInfo =
-        YoutubeSabrProbe.fetchSabrInfo(
+        SabrAdapter.fetchSabrInfo(
             videoId,
             YoutubeSabrClientProfile.WEB,
             localization,

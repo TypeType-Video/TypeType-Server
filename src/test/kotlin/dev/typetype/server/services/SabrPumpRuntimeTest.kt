@@ -6,9 +6,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrNextRequestPolicy
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState
+import dev.typetype.server.sabr.SabrNextRequestPolicy
+import dev.typetype.server.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 
 class SabrPumpRuntimeTest {
     @Test

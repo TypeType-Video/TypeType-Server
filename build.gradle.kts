@@ -145,8 +145,29 @@ tasks.jacocoTestCoverageVerification {
     }
 }
 
+val verifySabrBoundary = tasks.register("verifySabrBoundary") {
+    doLast {
+        val adapterRoot = file("src/main/kotlin/dev/typetype/server/sabr")
+            .canonicalFile
+            .toPath()
+        val violations = fileTree("src/main/kotlin")
+            .matching { include("**/*.kt") }
+            .files
+            .filterNot { it.canonicalFile.toPath().startsWith(adapterRoot) }
+            .flatMap { source ->
+                source.readLines().withIndex()
+                    .filter { it.value.contains("org.schabi.newpipe.extractor.services.youtube.sabr") }
+                    .map { "${source.path}:${it.index + 1}" }
+            }
+        check(violations.isEmpty()) {
+            "PipePipe SABR imports must stay in the TypeType adapter: ${violations.joinToString()}"
+        }
+    }
+}
+
 tasks.check {
     dependsOn(tasks.jacocoTestCoverageVerification)
+    dependsOn(verifySabrBoundary)
 }
 
 kotlin {

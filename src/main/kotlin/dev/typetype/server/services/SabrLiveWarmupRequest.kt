@@ -1,8 +1,8 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat
+import dev.typetype.server.sabr.SabrBufferedRange
+import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal data class SabrLiveWarmupTarget(
     val sequence: Int,

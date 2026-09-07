@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   coverage:
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || fromJSON('["self-hosted","Linux","X64","arko"]') }}
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-24.04' || fromJSON('["self-hosted","Linux","X64","r730"]') }}
     steps:
       - uses: actions/checkout@v7
 

@@ -1,6 +1,6 @@
 package dev.typetype.server.services
 
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrMediaSegment
 import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackWarmer {

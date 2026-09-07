@@ -1,0 +1,33 @@
+ProgressBatch:
+  post:
+    tags: [user-data]
+    summary: Read playback progress for multiple videos
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/progress.yaml#/ProgressBatchRequest
+    responses:
+      '200':
+        description: Progress entries in request order. Videos without saved progress have position and updatedAt set to zero.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../components/progress.yaml#/ProgressItem
+      '400':
+        description: Invalid request body or video URL list.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '401':
+        description: Authentication required.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
