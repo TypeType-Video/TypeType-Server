@@ -70,7 +70,7 @@ class RssFeedReaderRoutesTest {
         assertEquals(HttpStatusCode.OK, first.status)
         assertEquals("application/rss+xml; charset=utf-8", first.headers[HttpHeaders.ContentType])
         assertEquals("private, max-age=300, must-revalidate", first.headers[HttpHeaders.CacheControl])
-        assertTrue(first.bodyAsText().contains("<rss version=\"2.0\">"))
+        assertTrue(first.bodyAsText().contains("<rss version=\"2.0\""))
         assertTrue(first.bodyAsText().contains("https://video.example/watch?v="))
         val etag = first.headers[HttpHeaders.ETag]!!
         val lastModified = first.headers[HttpHeaders.LastModified]!!

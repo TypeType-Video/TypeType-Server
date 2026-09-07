@@ -108,7 +108,7 @@ RssFeedDocument:
       - { name: token, in: query, required: true, schema: { type: string } }
     responses:
       '200':
-        description: RSS document
+        description: RSS 2.0 document. Video items include a media:thumbnail element when a HTTP(S) thumbnail URL is available.
         headers:
           ETag: { schema: { type: string } }
           Last-Modified: { schema: { type: string } }
