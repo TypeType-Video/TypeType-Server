@@ -11,14 +11,17 @@ import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 
-class AccountIdentityService {
-    suspend fun get(userId: String): AccountIdentityItem? = DatabaseFactory.query {
-        UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()?.let {
+class AccountIdentityService(private val profileAccountService: ProfileAccountService? = null) {
+    suspend fun get(userId: String): AccountIdentityItem? {
+        val identityUserId = profileAccountService?.ownerUserId(userId) ?: userId
+        return DatabaseFactory.query {
+            UsersTable.selectAll().where { UsersTable.id eq identityUserId }.singleOrNull()?.let {
             AccountIdentityItem(
                 email = it[UsersTable.email],
                 name = it[UsersTable.name],
                 managedByOidc = it[UsersTable.oidcIssuer] != null,
             )
+            }
         }
     }
 
@@ -29,8 +32,9 @@ class AccountIdentityService {
         currentPassword: String,
     ): AccountIdentityUpdateResult {
         val normalized = validate(email, name) ?: return AccountIdentityUpdateResult.InvalidInput
+        val identityUserId = profileAccountService?.ownerUserId(userId) ?: userId
         val credentials = DatabaseFactory.query {
-            UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()?.let {
+            UsersTable.selectAll().where { UsersTable.id eq identityUserId }.singleOrNull()?.let {
                 Credentials(it[UsersTable.passwordHash], it[UsersTable.oidcIssuer] != null)
             }
         } ?: return AccountIdentityUpdateResult.UserNotFound
@@ -38,7 +42,7 @@ class AccountIdentityService {
         if (!Password.check(currentPassword, credentials.passwordHash).withArgon2()) {
             return AccountIdentityUpdateResult.InvalidPassword
         }
-        return update(userId, normalized)
+        return update(identityUserId, normalized)
     }
 
     suspend fun updateAdmin(userId: String, email: String, name: String): AccountIdentityUpdateResult {

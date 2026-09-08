@@ -13,7 +13,7 @@ import java.util.UUID
 class OidcUserService(private val authService: AuthService) {
     suspend fun login(identity: OidcIdentity): AuthSessionTokens {
         val userId = transaction { resolveUserId(identity) }
-        return authService.issueSession(userId) ?: throw IllegalStateException("Failed to create session")
+        return authService.issueSessionForOwner(userId) ?: throw IllegalStateException("Failed to create session")
     }
 
     private fun resolveUserId(identity: OidcIdentity): String {
