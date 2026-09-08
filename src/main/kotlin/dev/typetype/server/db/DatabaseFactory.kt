@@ -25,10 +25,18 @@ import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.ProfileAccountsTable
+import dev.typetype.server.db.tables.RecommendationEventsTable
+import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
+import dev.typetype.server.db.tables.RecommendationFeedbackTable
+import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
+import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.RssFeedChannelsTable
 import dev.typetype.server.db.tables.RssFeedServicesTable
 import dev.typetype.server.db.tables.RssFeedsTable
 import dev.typetype.server.db.tables.RssUserPoliciesTable
+import dev.typetype.server.db.tables.UserChannelInterestTable
+import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
@@ -57,6 +65,7 @@ object DatabaseFactory {
         transaction {
             SchemaUtils.create(
                 UsersTable,
+                ProfileAccountsTable,
                 UserAvatarsTable,
                 SessionsTable,
                 AdminSettingsTable,
@@ -84,6 +93,13 @@ object DatabaseFactory {
                 YoutubeSessionPairingsTable,
                 BugReportsTable,
                 NotificationStatesTable,
+                UserChannelInterestTable,
+                UserTopicInterestTable,
+                RecommendationEventsTable,
+                RecommendationFeedHistoryTable,
+                RecommendationFeedbackTable,
+                RecommendationOnboardingPreferencesTable,
+                RecommendationOnboardingStateTable,
                 RssFeedsTable,
                 RssFeedChannelsTable,
                 RssFeedServicesTable,
@@ -130,6 +146,7 @@ object DatabaseFactory {
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
             DatabaseSessionAuthMigration.apply()
             DatabaseOidcMigration.apply()
+            DatabaseProfileAccountsMigration.apply()
             DatabaseYoutubeRemoteLoginMigration.apply()
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")
             DatabasePrimaryKeyMigrations.apply()

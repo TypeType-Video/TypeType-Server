@@ -32,7 +32,15 @@ import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserChannelInterestTable
+import dev.typetype.server.db.tables.UserTopicInterestTable
+import dev.typetype.server.db.tables.RecommendationEventsTable
+import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
+import dev.typetype.server.db.tables.RecommendationFeedbackTable
+import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
+import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.WatchLaterTable
+import dev.typetype.server.db.tables.ProfileAccountsTable
 import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -126,6 +134,14 @@ object TestDatabase {
         YoutubeSessionsTable.deleteAll()
         BugReportsTable.deleteAll()
         NotificationStatesTable.deleteAll()
+        UserChannelInterestTable.deleteAll()
+        UserTopicInterestTable.deleteAll()
+        RecommendationEventsTable.deleteAll()
+        RecommendationFeedHistoryTable.deleteAll()
+        RecommendationFeedbackTable.deleteAll()
+        RecommendationOnboardingPreferencesTable.deleteAll()
+        RecommendationOnboardingStateTable.deleteAll()
+        ProfileAccountsTable.deleteAll()
         AdminSettingsService.clearCache()
     }
 }
