@@ -33,6 +33,8 @@ UnifiedPushNotificationPayload:
   required:
     - version
     - eventType
+    - serviceId
+    - serviceName
     - eventId
     - videoId
     - videoUrl
@@ -46,6 +48,8 @@ UnifiedPushNotificationPayload:
   properties:
     version: { type: integer, minimum: 1 }
     eventType: { type: string, enum: [subscription_new_video] }
+    serviceId: { type: integer, minimum: 0 }
+    serviceName: { type: string }
     eventId: { type: string }
     videoId: { type: string }
     videoUrl: { type: string }

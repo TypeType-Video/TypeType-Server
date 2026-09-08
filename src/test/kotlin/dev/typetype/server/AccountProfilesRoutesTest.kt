@@ -127,6 +127,23 @@ class AccountProfilesRoutesTest {
         assertEquals(ProfileMutationResult.CannotDeleteActive, profileService.delete(profile.id, profile.id))
     }
 
+    @Test
+    fun `deleting the default profile promotes the owner profile`() = withApp {
+        val created = client.post("/profiles") {
+            bearer()
+            contentTypeJson()
+            setBody("{\"name\":\"Temporary\"}")
+        }
+        val profile = Json.decodeFromString<AccountProfileItem>(created.bodyAsText())
+        assertEquals(HttpStatusCode.OK, client.post("/profiles/${profile.id}/default") { bearer() }.status)
+        assertEquals(HttpStatusCode.OK, client.post("/profiles/${profile.id}/switch") { bearer() }.status)
+        assertEquals(HttpStatusCode.OK, client.post("/profiles/$TEST_USER_ID/switch") { bearer() }.status)
+
+        assertEquals(ProfileMutationResult.Deleted, profileService.delete(TEST_USER_ID, profile.id))
+        val listed = profileService.list(TEST_USER_ID)
+        assertEquals(TEST_USER_ID, listed?.defaultProfileId)
+    }
+
     private fun withApp(block: suspend io.ktor.server.testing.ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }

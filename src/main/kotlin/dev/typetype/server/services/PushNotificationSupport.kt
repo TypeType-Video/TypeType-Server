@@ -30,6 +30,8 @@ internal object PushNotificationSupport {
         UnifiedPushNotificationPayload.serializer(),
         UnifiedPushNotificationPayload(
             eventType = "subscription_new_video",
+            serviceId = candidate.serviceId,
+            serviceName = serviceName(candidate.serviceId),
             eventId = eventId,
             videoId = candidate.videoId,
             videoUrl = candidate.video.url,
@@ -49,4 +51,13 @@ internal object PushNotificationSupport {
 
     private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { byte -> "%02x".format(byte) }
+
+    private fun serviceName(serviceId: Int): String = when (serviceId) {
+        YOUTUBE_SERVICE_ID -> "YouTube"
+        BILIBILI_SERVICE_ID -> "BiliBili"
+        NICONICO_SERVICE_ID -> "NicoNico"
+        SOUNDCLOUD_SERVICE_ID -> "SoundCloud"
+        MEDIA_CCC_SERVICE_ID -> "MediaCCC"
+        else -> "Video service"
+    }
 }

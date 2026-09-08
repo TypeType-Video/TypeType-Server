@@ -67,6 +67,10 @@ open class AuthService(
             query.singleOrNull()
         } ?: return null
 
+        if (profileAccountService != null && !profileAccountService.isOwnerProfile(user[UsersTable.id])) {
+            return null
+        }
+
         val hashed = user[UsersTable.passwordHash]
         val verified = withContext(passwordDispatcher) { Password.check(password, hashed).withArgon2() }
         if (!verified) return null

@@ -38,9 +38,6 @@ class NotificationsService(
     }
 
     suspend fun getUnreadCount(userId: String): UnreadCountResponse {
-        val cached = unreadCache[userId]
-        val now = System.currentTimeMillis()
-        if (cached != null && cached.expiresAt > now) return UnreadCountResponse(cached.value, true)
         val feed = loadFeed(userId)
         if (!feed.available) return UnreadCountResponse(cachedUnread(userId), false)
         val value = unreadCount(withReadState(buildItems(feed.videos), userId), userId)
@@ -75,7 +72,7 @@ class NotificationsService(
                 }
             }
         }
-        unreadCache[userId] = CachedUnread(0, now + UNREAD_CACHE_TTL_MS)
+        unreadCache[userId] = CachedUnread(0)
         return MarkNotificationsReadResponse(now, 0, true)
     }
 
@@ -113,7 +110,7 @@ class NotificationsService(
                 .singleOrNull()?.get(NotificationStatesTable.subscriptionLastSeenUploaded) ?: 0L
         }
         return items.map { item ->
-            item.copy(read = item.id in readIds || (readIds.isEmpty() && item.createdAt <= legacyWatermark))
+            item.copy(read = item.id in readIds || item.createdAt <= legacyWatermark)
         }
     }
 
@@ -127,7 +124,7 @@ class NotificationsService(
 
     private suspend fun unreadCount(items: List<NotificationItem>, userId: String): Int {
         val value = items.count { !it.read }
-        unreadCache[userId] = CachedUnread(value, System.currentTimeMillis() + UNREAD_CACHE_TTL_MS)
+        unreadCache[userId] = CachedUnread(value)
         return value
     }
 
@@ -165,11 +162,9 @@ class NotificationsService(
         MessageDigest.getInstance("SHA-256").digest(notificationKey(video).toByteArray())
             .joinToString("") { byte -> "%02x".format(byte) }
 
-    private data class CachedUnread(val value: Int, val expiresAt: Long)
+    private data class CachedUnread(val value: Int)
 
     private companion object {
-        const val UNREAD_CACHE_TTL_MS = 30_000L
-
         fun serviceName(serviceId: Int): String = when (serviceId) {
             YOUTUBE_SERVICE_ID -> "YouTube"
             BILIBILI_SERVICE_ID -> "BiliBili"

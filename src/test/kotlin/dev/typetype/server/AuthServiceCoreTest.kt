@@ -4,6 +4,8 @@ import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthSessionConfig
+import dev.typetype.server.services.ProfileAccountService
+import dev.typetype.server.services.ProfileMutationResult
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -109,6 +111,18 @@ class AuthServiceCoreTest {
         val byUsername = service.login("InfinityLoop1308", "secret-1")
         assertNotNull(byUsername)
         assertEquals(userId, byUsername?.let { service.verify(it.accessToken) })
+    }
+
+    @Test
+    fun `secondary profile credentials cannot be used as a local login`() = runTest {
+        val profiles = ProfileAccountService()
+        val service = AuthService("test-secret", profileAccountService = profiles)
+        val ownerSession = service.register("profile-owner@test.local", "secret-1", "Owner")
+        val ownerId = service.verify(ownerSession.accessToken) ?: error("missing owner id")
+        val child = profiles.create(ownerId, "Child")
+        val childId = (child as ProfileMutationResult.Success).profile.id
+
+        assertNull(service.login("profile-$childId@profiles.invalid", "profile:$childId"))
     }
 
     @Test

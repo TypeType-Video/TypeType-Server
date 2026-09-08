@@ -87,6 +87,7 @@ internal object ProfileDataDeletionService {
             { BlockedChannelsTable.deleteWhere { BlockedChannelsTable.userId eq userId } },
             { BlockedKeywordsTable.deleteWhere { BlockedKeywordsTable.userId eq userId } },
             { BlockedVideosTable.deleteWhere { BlockedVideosTable.userId eq userId } },
+            { BugReportsTable.deleteWhere { BugReportsTable.userId eq userId } },
             { NotificationStatesTable.deleteWhere { NotificationStatesTable.userId eq userId } },
             { NotificationReadItemsTable.deleteWhere { NotificationReadItemsTable.userId eq userId } },
             { PushNotificationDeliveriesTable.deleteWhere { PushNotificationDeliveriesTable.userId eq userId } },

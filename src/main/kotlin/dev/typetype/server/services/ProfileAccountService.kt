@@ -18,8 +18,15 @@ class ProfileAccountService {
         ownerIdInTransaction(profileId)
     }
 
+    suspend fun isOwnerProfile(profileId: String): Boolean = DatabaseFactory.query {
+        if (profileId.startsWith("guest:")) return@query false
+        ProfileAccountsTable.selectAll().where { ProfileAccountsTable.profileId eq profileId }
+            .singleOrNull()?.let { it[ProfileAccountsTable.ownerUserId] == profileId } ?: true
+    }
+
     suspend fun list(activeProfileId: String): AccountProfilesResponse? = DatabaseFactory.query {
         val ownerId = ownerIdInTransaction(activeProfileId) ?: return@query null
+        ensureDefaultInTransaction(ownerId)
         val rows = ProfileAccountsTable.selectAll().where { ProfileAccountsTable.ownerUserId eq ownerId }
             .map { row -> profileRow(row, activeProfileId) }
             .sortedWith(compareByDescending<AccountProfileItem> { it.isDefault }.thenBy { it.name.lowercase() })
@@ -29,6 +36,7 @@ class ProfileAccountService {
 
     suspend fun resolveSignInProfile(ownerUserId: String): String = DatabaseFactory.query {
         val ownerId = ownerIdInTransaction(ownerUserId) ?: return@query ownerUserId
+        ensureDefaultInTransaction(ownerId)
         val rows = ProfileAccountsTable.selectAll().where { ProfileAccountsTable.ownerUserId eq ownerId }.toList()
         val selected = rows.filter { it[ProfileAccountsTable.lastUsedAt] > 0L }
             .maxByOrNull { it[ProfileAccountsTable.lastUsedAt] }
@@ -102,6 +110,7 @@ class ProfileAccountService {
         if (target == activeProfileId) return@query ProfileMutationResult.CannotDeleteActive
         ProfileDataDeletionService.deleteUser(target)
         ProfileAccountsTable.deleteWhere { ProfileAccountsTable.profileId eq target }
+        ensureDefaultInTransaction(ownerId)
         ProfileMutationResult.Deleted
     }
 
@@ -151,6 +160,22 @@ class ProfileAccountService {
 
     private fun markUsedInTransaction(profileId: String, now: Long) {
         ProfileAccountsTable.update({ ProfileAccountsTable.profileId eq profileId }) { it[lastUsedAt] = now }
+    }
+
+    private fun ensureDefaultInTransaction(ownerId: String) {
+        val rows = ProfileAccountsTable.selectAll().where { ProfileAccountsTable.ownerUserId eq ownerId }.toList()
+        if (rows.isEmpty()) return
+        val selected = rows.filter { it[ProfileAccountsTable.isDefault] }
+            .maxByOrNull { it[ProfileAccountsTable.lastUsedAt] }
+            ?: rows.minByOrNull { it[ProfileAccountsTable.createdAt] }
+            ?: return
+        val selectedId = selected[ProfileAccountsTable.profileId]
+        ProfileAccountsTable.update({ ProfileAccountsTable.ownerUserId eq ownerId }) {
+            it[isDefault] = false
+        }
+        ProfileAccountsTable.update({ ProfileAccountsTable.profileId eq selectedId }) {
+            it[isDefault] = true
+        }
     }
 
     private fun normalizeName(value: String): String? = value.trim().takeIf { it.length in 1..40 }

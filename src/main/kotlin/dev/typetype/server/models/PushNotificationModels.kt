@@ -44,6 +44,8 @@ data class ChannelNotificationPreference(
 data class UnifiedPushNotificationPayload(
     val version: Int = 1,
     val eventType: String,
+    val serviceId: Int,
+    val serviceName: String,
     val eventId: String,
     val videoId: String,
     val videoUrl: String,
