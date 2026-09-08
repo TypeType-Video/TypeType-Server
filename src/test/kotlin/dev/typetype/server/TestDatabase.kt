@@ -20,6 +20,13 @@ import dev.typetype.server.db.tables.RssFeedsTable
 import dev.typetype.server.db.tables.RssUserPoliciesTable
 import dev.typetype.server.db.tables.SavedPlaylistsTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.NotificationReadItemsTable
+import dev.typetype.server.db.tables.ChannelNotificationPreferencesTable
+import dev.typetype.server.db.tables.PushDevicesTable
+import dev.typetype.server.db.tables.PushNotificationBaselinesTable
+import dev.typetype.server.db.tables.PushNotificationSeenVideosTable
+import dev.typetype.server.db.tables.PushNotificationEventsTable
+import dev.typetype.server.db.tables.PushNotificationDeliveriesTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
@@ -134,6 +141,13 @@ object TestDatabase {
         YoutubeSessionsTable.deleteAll()
         BugReportsTable.deleteAll()
         NotificationStatesTable.deleteAll()
+        NotificationReadItemsTable.deleteAll()
+        PushNotificationDeliveriesTable.deleteAll()
+        PushNotificationEventsTable.deleteAll()
+        PushNotificationSeenVideosTable.deleteAll()
+        PushNotificationBaselinesTable.deleteAll()
+        PushDevicesTable.deleteAll()
+        ChannelNotificationPreferencesTable.deleteAll()
         UserChannelInterestTable.deleteAll()
         UserTopicInterestTable.deleteAll()
         RecommendationEventsTable.deleteAll()

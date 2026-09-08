@@ -8,6 +8,7 @@ import dev.typetype.server.models.InstanceResponse
 import dev.typetype.server.models.OidcPublicConfig
 import dev.typetype.server.models.YoutubeRemoteLoginStatus
 import dev.typetype.server.models.RssInstanceCapability
+import dev.typetype.server.models.PushNotificationCapability
 
 class InstanceService(
     private val authService: AuthService,
@@ -21,6 +22,7 @@ class InstanceService(
             else -> YoutubeRemoteLoginStatus.NotConfigured
         }
     },
+    private val pushNotificationCapabilityProvider: () -> PushNotificationCapability = { PushNotificationCapability() },
 ) {
 
     suspend fun getInstance(): InstanceResponse {
@@ -56,6 +58,7 @@ class InstanceService(
                 minimumPollMinutes = settings.rssMinimumPollMinutes,
                 rateLimitPerMinute = settings.rssRateLimitPerMinute,
             ),
+            pushNotifications = pushNotificationCapabilityProvider(),
         )
     }
 

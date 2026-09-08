@@ -1,0 +1,58 @@
+PushDeviceRegistrationRequest:
+  type: object
+  required: [deviceId, endpoint]
+  properties:
+    deviceId: { type: string, minLength: 1, maxLength: 128 }
+    platform: { type: string, enum: [android], default: android }
+    endpoint: { type: string, format: uri, minLength: 1, maxLength: 2048 }
+    expiresAt: { type: integer, format: int64, nullable: true }
+PushDeviceRegistrationResponse:
+  type: object
+  required: [id, deviceId, platform, expiresAt, updatedAt]
+  properties:
+    id: { type: string }
+    deviceId: { type: string }
+    platform: { type: string, enum: [android] }
+    expiresAt: { type: integer, format: int64, nullable: true }
+    updatedAt: { type: integer, format: int64 }
+ChannelNotificationPreferenceRequest:
+  type: object
+  required: [channelUrl, enabled]
+  properties:
+    channelUrl: { type: string, minLength: 1 }
+    enabled: { type: boolean }
+ChannelNotificationPreference:
+  type: object
+  required: [channelUrl, enabled, updatedAt]
+  properties:
+    channelUrl: { type: string }
+    enabled: { type: boolean }
+    updatedAt: { type: integer, format: int64 }
+UnifiedPushNotificationPayload:
+  type: object
+  required:
+    - version
+    - eventType
+    - eventId
+    - videoId
+    - videoUrl
+    - channelId
+    - channelName
+    - channelAvatarUrl
+    - instanceId
+    - accountId
+    - publishedAt
+    - title
+  properties:
+    version: { type: integer, minimum: 1 }
+    eventType: { type: string, enum: [subscription_new_video] }
+    eventId: { type: string }
+    videoId: { type: string }
+    videoUrl: { type: string }
+    channelId: { type: string }
+    channelName: { type: string }
+    channelAvatarUrl: { type: string }
+    instanceId: { type: string }
+    accountId: { type: string }
+    publishedAt: { type: integer, format: int64 }
+    title: { type: string }

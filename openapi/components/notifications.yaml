@@ -1,7 +1,8 @@
 NotificationItem:
   type: object
-  required: [type, title, createdAt, publishedAt, channelUrl, channelName, channelAvatarUrl, serviceId, serviceName, video]
+  required: [id, type, title, createdAt, publishedAt, channelUrl, channelName, channelAvatarUrl, serviceId, serviceName, read, video]
   properties:
+    id: { type: string }
     type: { type: string }
     title: { type: string }
     createdAt: { type: integer, format: int64 }
@@ -11,6 +12,7 @@ NotificationItem:
     channelAvatarUrl: { type: string }
     serviceId: { type: integer, format: int32, minimum: 0 }
     serviceName: { type: string }
+    read: { type: boolean }
     video: { $ref: ./media.yaml#/VideoItem }
 NotificationsResponse:
   type: object

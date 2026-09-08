@@ -16,6 +16,8 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
+import dev.typetype.server.services.ChannelNotificationPreferenceService
+import dev.typetype.server.services.PushNotificationService
 import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
@@ -47,6 +49,8 @@ internal class ServiceRegistry(
     adminSettingsService: AdminSettingsService,
     youtubeProxySelector: ProxySelector? = null,
     profileAccountService: ProfileAccountService? = null,
+    private val instanceId: String = "typetype",
+    private val pushNotificationsEnabled: Boolean = true,
 ) {
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
     val accountIdentityService = AccountIdentityService(profileAccountService)
@@ -101,6 +105,14 @@ internal class ServiceRegistry(
         )
     }
     val notificationsService = NotificationsService(subscriptionFeedService)
+    val channelNotificationPreferenceService = ChannelNotificationPreferenceService(subscriptionsService)
+    val pushNotificationService = PushNotificationService(
+        subscriptionsService = subscriptionsService,
+        subscriptionFeedService = subscriptionFeedService,
+        preferenceService = channelNotificationPreferenceService,
+        instanceId = instanceId,
+        enabled = pushNotificationsEnabled,
+    )
     val playlistService = PlaylistService()
     val videoMetadataRepairService = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
     val savedPlaylistService = SavedPlaylistService()

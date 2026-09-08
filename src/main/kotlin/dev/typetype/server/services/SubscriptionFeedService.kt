@@ -121,6 +121,9 @@ class SubscriptionFeedService(
         )
     }
 
+    internal suspend fun getAllWithSources(userId: String): SubscriptionFeedWithSources =
+        getAllWithAvailability(userId).let { SubscriptionFeedWithSources(it.videos, it.available, store.current(userId)?.sourceChannelUrls.orEmpty()) }
+
     suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
         val snapshot = store.current(userId) ?: return null
         return snapshot.page(page * limit, limit, isRefreshing(userId))
@@ -214,8 +217,3 @@ class SubscriptionFeedService(
         private val logger = LoggerFactory.getLogger(SubscriptionFeedService::class.java)
     }
 }
-
-data class SubscriptionFeedAvailability(
-    val videos: List<VideoItem>,
-    val available: Boolean,
-)

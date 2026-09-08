@@ -45,3 +45,22 @@ NotificationsReadAll:
           application/json:
             schema: { $ref: ../components/notifications.yaml#/MarkNotificationsReadResponse }
       '401': { $ref: ../components/common.yaml#/JsonError }
+
+NotificationsRead:
+  post:
+    tags: [user-data]
+    summary: Mark one current-profile notification as read
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Read marker and resulting unread count.
+        content:
+          application/json:
+            schema: { $ref: ../components/notifications.yaml#/MarkNotificationsReadResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }

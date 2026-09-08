@@ -9,6 +9,12 @@ import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.NotificationReadItemsTable
+import dev.typetype.server.db.tables.ChannelNotificationPreferencesTable
+import dev.typetype.server.db.tables.PushDevicesTable
+import dev.typetype.server.db.tables.PushNotificationBaselinesTable
+import dev.typetype.server.db.tables.PushNotificationSeenVideosTable
+import dev.typetype.server.db.tables.PushNotificationDeliveriesTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.PlaylistsTable
@@ -82,6 +88,12 @@ internal object ProfileDataDeletionService {
             { BlockedKeywordsTable.deleteWhere { BlockedKeywordsTable.userId eq userId } },
             { BlockedVideosTable.deleteWhere { BlockedVideosTable.userId eq userId } },
             { NotificationStatesTable.deleteWhere { NotificationStatesTable.userId eq userId } },
+            { NotificationReadItemsTable.deleteWhere { NotificationReadItemsTable.userId eq userId } },
+            { PushNotificationDeliveriesTable.deleteWhere { PushNotificationDeliveriesTable.userId eq userId } },
+            { PushNotificationSeenVideosTable.deleteWhere { PushNotificationSeenVideosTable.userId eq userId } },
+            { PushNotificationBaselinesTable.deleteWhere { PushNotificationBaselinesTable.userId eq userId } },
+            { PushDevicesTable.deleteWhere { PushDevicesTable.userId eq userId } },
+            { ChannelNotificationPreferencesTable.deleteWhere { ChannelNotificationPreferencesTable.userId eq userId } },
             { PasswordResetTable.deleteWhere { PasswordResetTable.userId eq userId } },
             { SessionsTable.deleteWhere { SessionsTable.userId eq userId } },
             { UserAvatarsTable.deleteWhere { UserAvatarsTable.userId eq userId } },

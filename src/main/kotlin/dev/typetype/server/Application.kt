@@ -25,6 +25,7 @@ import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserConfig
 import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.services.YoutubeRemoteLoginReadinessService
+import dev.typetype.server.services.PushNotificationScheduler
 import dev.typetype.server.portability.PortabilityEngineFactory
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
@@ -71,7 +72,12 @@ fun Application.module() {
         adminSettingsService,
         youtubeProxySelector,
         profileAccountService,
+        instanceId = System.getenv("TYPE_TYPE_INSTANCE_ID")?.trim().takeUnless { it.isNullOrBlank() } ?: "typetype",
+        pushNotificationsEnabled = System.getenv("TYPE_TYPE_PUSH_NOTIFICATIONS_ENABLED")?.toBooleanStrictOrNull() ?: true,
     )
+    val pushNotificationScheduler = PushNotificationScheduler(svc.pushNotificationService)
+    pushNotificationScheduler.start()
+    monitor.subscribe(ApplicationStopped) { pushNotificationScheduler.close() }
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,
@@ -82,6 +88,7 @@ fun Application.module() {
         adminSettingsService,
         youtubeRemoteLoginStatusProvider = youtubeRemoteLoginReadinessService::status,
         oidcConfigProvider = oidcAuthService::publicConfig,
+        pushNotificationCapabilityProvider = svc.pushNotificationService::capability,
     )
     val youtubeRemoteBrowserService = YoutubeRemoteBrowserService(
         youtubeRemoteBrowserConfig,

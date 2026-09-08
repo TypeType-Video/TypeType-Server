@@ -29,4 +29,15 @@ fun Route.notificationsRoutes(notificationsService: NotificationsService, authSe
             call.respond(notificationsService.markAllRead(userId))
         }
     }
+
+    post("/notifications/{notificationId}/read") {
+        call.withJwtAuth(authService) { userId ->
+            val notificationId = call.parameters["notificationId"]
+            if (notificationId.isNullOrBlank()) {
+                call.respond(io.ktor.http.HttpStatusCode.BadRequest, dev.typetype.server.models.ErrorResponse("Missing notificationId"))
+                return@withJwtAuth
+            }
+            call.respond(notificationsService.markRead(userId, notificationId))
+        }
+    }
 }

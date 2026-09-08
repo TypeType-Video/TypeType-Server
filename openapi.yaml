@@ -57,6 +57,10 @@ paths:
   /notifications: { $ref: ./openapi/paths/notifications.yaml#/Notifications }
   /notifications/unread-count: { $ref: ./openapi/paths/notifications.yaml#/NotificationsUnreadCount }
   /notifications/read-all: { $ref: ./openapi/paths/notifications.yaml#/NotificationsReadAll }
+  /notifications/{notificationId}/read: { $ref: ./openapi/paths/notifications.yaml#/NotificationsRead }
+  /notifications/channel-preferences: { $ref: ./openapi/paths/push-notifications.yaml#/ChannelNotificationPreferences }
+  /notifications/push/devices: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevices }
+  /notifications/push/devices/{deviceId}: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevice }
   /rss/feeds: { $ref: ./openapi/paths/rss.yaml#/RssFeeds }
   /rss/feeds/{id}: { $ref: ./openapi/paths/rss.yaml#/RssFeed }
   /rss/feeds/{id}/enabled: { $ref: ./openapi/paths/rss.yaml#/RssFeedEnabled }
@@ -189,6 +193,12 @@ components:
     NotificationsResponse: { $ref: ./openapi/components/notifications.yaml#/NotificationsResponse }
     UnreadCountResponse: { $ref: ./openapi/components/notifications.yaml#/UnreadCountResponse }
     MarkNotificationsReadResponse: { $ref: ./openapi/components/notifications.yaml#/MarkNotificationsReadResponse }
+    PushNotificationCapability: { $ref: ./openapi/components/instance.yaml#/PushNotificationCapability }
+    PushDeviceRegistrationRequest: { $ref: ./openapi/components/push-notifications.yaml#/PushDeviceRegistrationRequest }
+    PushDeviceRegistrationResponse: { $ref: ./openapi/components/push-notifications.yaml#/PushDeviceRegistrationResponse }
+    ChannelNotificationPreferenceRequest: { $ref: ./openapi/components/push-notifications.yaml#/ChannelNotificationPreferenceRequest }
+    ChannelNotificationPreference: { $ref: ./openapi/components/push-notifications.yaml#/ChannelNotificationPreference }
+    UnifiedPushNotificationPayload: { $ref: ./openapi/components/push-notifications.yaml#/UnifiedPushNotificationPayload }
     RssFeedRequest: { $ref: ./openapi/components/rss.yaml#/RssFeedRequest }
     RssFeedItem: { $ref: ./openapi/components/rss.yaml#/RssFeedItem }
     RssFeedSecretItem: { $ref: ./openapi/components/rss.yaml#/RssFeedSecretItem }

@@ -9,6 +9,7 @@ import dev.typetype.server.services.NoopHomeRecommendationWarmup
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionSelection
+import dev.typetype.server.services.PushNotificationService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -21,11 +22,12 @@ import io.ktor.server.routing.post
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-fun Route.subscriptionsRoutes(
+internal fun Route.subscriptionsRoutes(
     subscriptionsService: SubscriptionsService,
     authService: AuthService,
     warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup,
     groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
+    pushNotificationService: PushNotificationService? = null,
 ) {
     get("/subscriptions/group-memberships") {
         call.withJwtAuth(authService) { userId ->
@@ -65,14 +67,14 @@ fun Route.subscriptionsRoutes(
         call.withJwtAuth(authService) { userId ->
             val channelUrl = call.request.queryParameters["url"]?.takeIf { it.isNotBlank() }
                 ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
-            call.respondDeleteResult(subscriptionsService, warmupService, userId, channelUrl)
+            call.respondDeleteResult(subscriptionsService, warmupService, pushNotificationService, userId, channelUrl)
         }
     }
     delete("/subscriptions/{channelUrl...}") {
         call.withJwtAuth(authService) { userId ->
             val channelUrl = call.extractDeleteChannelUrl()
                 ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing channelUrl"))
-            call.respondDeleteResult(subscriptionsService, warmupService, userId, channelUrl)
+            call.respondDeleteResult(subscriptionsService, warmupService, pushNotificationService, userId, channelUrl)
         }
     }
 }
@@ -80,11 +82,15 @@ fun Route.subscriptionsRoutes(
 private suspend fun ApplicationCall.respondDeleteResult(
     subscriptionsService: SubscriptionsService,
     warmupService: HomeRecommendationWarmup,
+    pushNotificationService: PushNotificationService?,
     userId: String,
     channelUrl: String,
 ) {
     val deleted = subscriptionsService.delete(userId, channelUrl)
-    if (deleted) warmupService.invalidateAndWarm(userId)
+    if (deleted) {
+        warmupService.invalidateAndWarm(userId)
+        pushNotificationService?.onSubscriptionRemoved(userId, channelUrl)
+    }
     if (deleted) respond(HttpStatusCode.NoContent) else respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
 }
 

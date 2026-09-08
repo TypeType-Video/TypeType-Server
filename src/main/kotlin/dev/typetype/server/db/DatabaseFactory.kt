@@ -25,6 +25,13 @@ import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.PasswordResetTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.NotificationReadItemsTable
+import dev.typetype.server.db.tables.ChannelNotificationPreferencesTable
+import dev.typetype.server.db.tables.PushDevicesTable
+import dev.typetype.server.db.tables.PushNotificationBaselinesTable
+import dev.typetype.server.db.tables.PushNotificationSeenVideosTable
+import dev.typetype.server.db.tables.PushNotificationEventsTable
+import dev.typetype.server.db.tables.PushNotificationDeliveriesTable
 import dev.typetype.server.db.tables.ProfileAccountsTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
@@ -93,6 +100,13 @@ object DatabaseFactory {
                 YoutubeSessionPairingsTable,
                 BugReportsTable,
                 NotificationStatesTable,
+                NotificationReadItemsTable,
+                ChannelNotificationPreferencesTable,
+                PushDevicesTable,
+                PushNotificationBaselinesTable,
+                PushNotificationSeenVideosTable,
+                PushNotificationEventsTable,
+                PushNotificationDeliveriesTable,
                 UserChannelInterestTable,
                 UserTopicInterestTable,
                 RecommendationEventsTable,

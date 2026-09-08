@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class NotificationItem(
+    val id: String = "",
     val type: String,
     val title: String,
     val createdAt: Long,
@@ -13,5 +14,6 @@ data class NotificationItem(
     val channelAvatarUrl: String,
     val serviceId: Int,
     val serviceName: String,
+    val read: Boolean = false,
     val video: VideoItem,
 )
