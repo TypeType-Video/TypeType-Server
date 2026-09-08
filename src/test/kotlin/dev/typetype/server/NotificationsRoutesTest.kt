@@ -64,17 +64,26 @@ class NotificationsRoutesTest {
     }
 
     @Test
-    fun `GET notifications returns latest per channel with unread count`() = withApp {
+    fun `GET notifications returns every new video with service identity`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/a", "A"))
         subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/b", "B"))
-        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(video(1000L, "A"), video(3000L, "A"))
-        coEvery { channelService.getChannel("https://yt.com/c/b", null) } returns channel(video(2000L, "B"))
+        coEvery { channelService.getChannel("https://yt.com/c/a", null) } returns channel(
+            video(1000L, "A", "https://www.youtube.com/watch?v=yt-old"),
+            video(3000L, "A", "https://www.youtube.com/watch?v=yt-new"),
+        )
+        coEvery { channelService.getChannel("https://yt.com/c/b", null) } returns channel(
+            video(2000L, "A", "https://www.bilibili.com/video/av2000"),
+            video(4000L, "A", "https://www.nicovideo.jp/watch/sm4000"),
+        )
         val body = client.get("/notifications?page=0&limit=10") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
         }.bodyAsText()
-        assertTrue(body.contains("\"unreadCount\":2"))
-        assertTrue(body.indexOf("3000") < body.indexOf("2000"))
-        assertTrue(!body.contains("1000"))
+        assertTrue(body.contains("\"unreadCount\":4"))
+        assertTrue(body.indexOf("4000") < body.indexOf("3000"))
+        assertTrue(body.contains("yt-new"))
+        assertTrue(body.contains("yt-old"))
+        assertTrue(body.contains("\"serviceName\":\"BiliBili\""))
+        assertTrue(body.contains("\"serviceName\":\"NicoNico\""))
     }
 
     @Test

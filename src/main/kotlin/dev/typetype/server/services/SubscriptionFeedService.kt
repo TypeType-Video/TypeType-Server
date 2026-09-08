@@ -99,13 +99,26 @@ class SubscriptionFeedService(
         }
 
     suspend fun getAll(userId: String): List<VideoItem> {
+        return getAllWithAvailability(userId).videos
+    }
+
+    suspend fun getAllWithAvailability(userId: String): SubscriptionFeedAvailability {
         val snapshot = store.current(userId)
         if (snapshot == null || snapshot.stale || clock() - snapshot.generatedAt >= FRESHNESS_MS) {
             scheduleRefresh(userId, currentRequestId())
         }
-        if (snapshot != null) return snapshot.videos
+        if (snapshot != null) {
+            return SubscriptionFeedAvailability(
+                videos = snapshot.videos,
+                available = !snapshot.stale && clock() - snapshot.generatedAt < FRESHNESS_MS,
+            )
+        }
         withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
-        return store.current(userId)?.videos.orEmpty()
+        val refreshed = store.current(userId)
+        return SubscriptionFeedAvailability(
+            videos = refreshed?.videos.orEmpty(),
+            available = refreshed != null && !refreshed.stale,
+        )
     }
 
     suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
@@ -201,3 +214,8 @@ class SubscriptionFeedService(
         private val logger = LoggerFactory.getLogger(SubscriptionFeedService::class.java)
     }
 }
+
+data class SubscriptionFeedAvailability(
+    val videos: List<VideoItem>,
+    val available: Boolean,
+)

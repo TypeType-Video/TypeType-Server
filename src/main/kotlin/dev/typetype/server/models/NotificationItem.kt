@@ -11,5 +11,7 @@ data class NotificationItem(
     val channelUrl: String,
     val channelName: String,
     val channelAvatarUrl: String,
+    val serviceId: Int,
+    val serviceName: String,
     val video: VideoItem,
 )

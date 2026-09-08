@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class MarkNotificationsReadResponse(
     val readAt: Long,
     val unreadCount: Int,
+    val available: Boolean = true,
 )
