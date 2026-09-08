@@ -11,6 +11,7 @@ import dev.typetype.server.services.DownloaderGatewayService
 import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
@@ -44,7 +45,8 @@ fun Application.module() {
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
     val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
     val authSessionConfig = AuthSessionConfig.fromEnvironment()
-    val authService = AuthService(jwtSecret, sessionConfig = authSessionConfig)
+    val profileAccountService = ProfileAccountService()
+    val authService = AuthService(jwtSecret, sessionConfig = authSessionConfig, profileAccountService = profileAccountService)
     val oidcAuthService = OidcAuthService(OidcConfigLoader.fromEnvironment(), jwtSecret, authService)
     val userAdminService = UserAdminService()
     val passwordResetService = PasswordResetService()
@@ -68,6 +70,7 @@ fun Application.module() {
         jwtSecret,
         adminSettingsService,
         youtubeProxySelector,
+        profileAccountService,
     )
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
@@ -107,6 +110,7 @@ fun Application.module() {
         oidcAuthService = oidcAuthService,
         passwordResetService = passwordResetService,
         profileService = profileService,
+        profileAccountService = profileAccountService,
         userAdminService = userAdminService,
         avatarService = avatarService,
         openMojiProxyService = openMojiProxyService,

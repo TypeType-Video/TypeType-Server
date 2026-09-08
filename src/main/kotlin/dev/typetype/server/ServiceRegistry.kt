@@ -16,6 +16,7 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
+import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
 import dev.typetype.server.services.RssFeedManagementService
@@ -45,9 +46,10 @@ internal class ServiceRegistry(
     jwtSecret: String,
     adminSettingsService: AdminSettingsService,
     youtubeProxySelector: ProxySelector? = null,
+    profileAccountService: ProfileAccountService? = null,
 ) {
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
-    val accountIdentityService = AccountIdentityService()
+    val accountIdentityService = AccountIdentityService(profileAccountService)
     val customAvatarService = CustomAvatarService()
     val deArrowService = DeArrowService(cache)
     private val extraction = ExtractionServiceRegistry(
