@@ -163,6 +163,21 @@ class NotificationsRoutesTest {
     }
 
     @Test
+    fun `cached notifications remain visible when refresh fails`() = runTest {
+        val feed = mockk<SubscriptionFeedService>()
+        coEvery { feed.getAllWithAvailability(TEST_USER_ID) } returns
+            SubscriptionFeedAvailability(listOf(video(1000L, "A")), false)
+        val service = NotificationsService(feed)
+        val response = service.getNotifications(TEST_USER_ID, 0, 20)
+        assertEquals(1, response.items.size)
+        assertEquals(1, response.unreadCount)
+        assertTrue(!response.available)
+        val count = service.getUnreadCount(TEST_USER_ID)
+        assertEquals(1, count.unreadCount)
+        assertTrue(!count.available)
+    }
+
+    @Test
     fun `unread count reports unavailable instead of trusting a fresh cache`() = runTest {
         val feed = mockk<SubscriptionFeedService>()
         val availableVideo = video(1000L, "A")

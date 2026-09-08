@@ -23,7 +23,7 @@ class NotificationsService(
 
     suspend fun getNotifications(userId: String, page: Int, limit: Int): NotificationsResponse {
         val feed = loadFeed(userId)
-        if (!feed.available) {
+        if (!feed.available && feed.videos.isEmpty()) {
             return NotificationsResponse(emptyList(), cachedUnread(userId), null, false)
         }
         val items = withReadState(buildItems(feed.videos), userId)
@@ -34,14 +34,14 @@ class NotificationsService(
         }
         val to = minOf(from + limit, items.size)
         val nextpage = if (to < items.size) (page + 1).toString() else null
-        return NotificationsResponse(items.subList(from, to), unreadCount, nextpage, true)
+        return NotificationsResponse(items.subList(from, to), unreadCount, nextpage, feed.available)
     }
 
     suspend fun getUnreadCount(userId: String): UnreadCountResponse {
         val feed = loadFeed(userId)
-        if (!feed.available) return UnreadCountResponse(cachedUnread(userId), false)
+        if (!feed.available && feed.videos.isEmpty()) return UnreadCountResponse(cachedUnread(userId), false)
         val value = unreadCount(withReadState(buildItems(feed.videos), userId), userId)
-        return UnreadCountResponse(value, true)
+        return UnreadCountResponse(value, feed.available)
     }
 
     suspend fun markAllRead(userId: String): MarkNotificationsReadResponse {

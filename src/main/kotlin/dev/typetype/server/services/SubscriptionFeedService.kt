@@ -110,7 +110,7 @@ class SubscriptionFeedService(
         if (snapshot != null) {
             return SubscriptionFeedAvailability(
                 videos = snapshot.videos,
-                available = !snapshot.stale && clock() - snapshot.generatedAt < FRESHNESS_MS,
+                available = !snapshot.stale,
             )
         }
         withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
@@ -176,6 +176,7 @@ class SubscriptionFeedService(
         if (store.invalidationToken(userId) != invalidation) return true
         val valid = result.successfulSources > 0 || subscriptions.isEmpty()
         if (!valid) {
+            if (previous != null) store.markStale(userId)
             logger.warn(
                 "subscription_feed event=refresh_kept_previous user={} durationMs={} failedSources={}",
                 userKey(userId), clock() - startedAt, result.failedSources,
