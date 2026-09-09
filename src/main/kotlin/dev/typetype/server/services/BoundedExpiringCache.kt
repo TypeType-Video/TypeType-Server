@@ -13,6 +13,8 @@ internal class BoundedExpiringCache<K, V>(
     private val ttlMs = ttl.toMillis()
     private val entries = LinkedHashMap<K, Entry<V>>(maxEntries.coerceAtMost(64), 0.75f, true)
     private var weight = 0L
+    // Removals may leave an earlier bound, causing one extra scan but never delaying expiry.
+    private var nextExpiryMs = Long.MAX_VALUE
 
     init {
         require(maxEntries > 0) { "maxEntries must be positive" }
@@ -33,7 +35,9 @@ internal class BoundedExpiringCache<K, V>(
         removeEntry(key)
         val entryWeight = weigher(value).coerceAtLeast(0L)
         if (entryWeight > maxWeight) return
-        entries[key] = Entry(value, expiresAt(now), entryWeight)
+        val expiry = expiresAt(now)
+        entries[key] = Entry(value, expiry, entryWeight)
+        nextExpiryMs = minOf(nextExpiryMs, expiry)
         weight += entryWeight
         trim()
     }
@@ -61,6 +65,7 @@ internal class BoundedExpiringCache<K, V>(
     fun clear() {
         entries.clear()
         weight = 0L
+        nextExpiryMs = Long.MAX_VALUE
     }
 
     @Synchronized
@@ -73,10 +78,15 @@ internal class BoundedExpiringCache<K, V>(
         if (Long.MAX_VALUE - now < ttlMs) Long.MAX_VALUE else now + ttlMs
 
     private fun evictExpired(now: Long) {
+        if (now < nextExpiryMs) return
+        nextExpiryMs = Long.MAX_VALUE
         val iterator = entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next().value
-            if (entry.expiresAtMs > now) continue
+            if (entry.expiresAtMs > now) {
+                nextExpiryMs = minOf(nextExpiryMs, entry.expiresAtMs)
+                continue
+            }
             weight -= entry.weight
             iterator.remove()
         }

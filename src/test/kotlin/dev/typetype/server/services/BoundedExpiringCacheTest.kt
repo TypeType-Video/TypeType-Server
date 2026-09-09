@@ -7,6 +7,54 @@ import java.time.Duration
 
 class BoundedExpiringCacheTest {
     @Test
+    fun `reads expire entries independently of access order`() {
+        var now = 0L
+        val cache = BoundedExpiringCache<String, String>(10, ttl = Duration.ofMillis(10), clock = { now })
+        cache.put("first", "1")
+        now = 5L
+        cache.put("second", "2")
+        assertEquals("1", cache.get("first"))
+        now = 10L
+
+        assertEquals("2", cache.get("second"))
+        assertNull(cache.get("first"))
+        assertEquals(1, cache.size())
+        assertEquals(1L, cache.weight())
+        now = 15L
+        assertNull(cache.get("second"))
+        assertEquals(0L, cache.weight())
+    }
+
+    @Test
+    fun `replacement keeps its new expiry when the original expiry passes`() {
+        var now = 0L
+        val cache = BoundedExpiringCache<String, String>(10, ttl = Duration.ofMillis(10), clock = { now })
+        cache.put("key", "old")
+        now = 5L
+        cache.put("key", "new")
+        now = 10L
+        cache.evictExpired()
+        assertEquals("new", cache.get("key"))
+        now = 15L
+        assertNull(cache.get("key"))
+    }
+
+    @Test
+    fun `new entries honor their expiry after clear and a backward clock change`() {
+        var now = 100L
+        val cache = BoundedExpiringCache<String, String>(10, ttl = Duration.ofMillis(10), clock = { now })
+        cache.put("old", "1")
+        cache.clear()
+        cache.put("later", "2")
+        now = 50L
+        cache.put("earlier", "3")
+        now = 60L
+        assertNull(cache.get("earlier"))
+        assertEquals("2", cache.get("later"))
+        assertEquals(1, cache.size())
+    }
+
+    @Test
     fun `least recently used entry is removed at capacity`() {
         val cache = BoundedExpiringCache<String, String>(
             maxEntries = 2,
