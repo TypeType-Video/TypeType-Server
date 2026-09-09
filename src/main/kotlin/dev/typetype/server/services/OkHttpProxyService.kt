@@ -3,6 +3,8 @@ package dev.typetype.server.services
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ProxyResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -24,8 +26,9 @@ internal fun rewriteHlsManifest(manifest: String): String =
 class OkHttpProxyService(client: OkHttpClient) : ProxyService {
     private val executor = ProxyHttpExecutor(client)
 
-    override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> =
-        withContext(Dispatchers.IO) {
+    override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> {
+        val requestContext = currentCoroutineContext()
+        return withContext(Dispatchers.IO) {
             val hashIdx = url.indexOf('#')
             val fetchUrl = if (hashIdx >= 0) url.substring(0, hashIdx) else url
             val fragment = if (hashIdx >= 0) url.substring(hashIdx + 1) else ""
@@ -46,7 +49,7 @@ class OkHttpProxyService(client: OkHttpClient) : ProxyService {
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 val request = builder.build()
                 if (bilibili && rangeHeader != null) {
-                    return@withContext readBilibiliRangeWithRetry(executor::execute, request)
+                    return@withContext readBilibiliRangeWithRetry(executor::execute, request, requestContext::ensureActive)
                 }
                 executor.execute(request)
             }.fold(
@@ -98,9 +101,13 @@ class OkHttpProxyService(client: OkHttpClient) : ProxyService {
                         }
                     }
                 },
-                onFailure = { ExtractionResult.Failure(it.message ?: "Proxy fetch failed") }
+                onFailure = {
+                    requestContext.ensureActive()
+                    ExtractionResult.Failure(it.message ?: "Proxy fetch failed")
+                }
             )
         }
+    }
 
     private fun isBilibili(url: String): Boolean {
         val host = runCatching { java.net.URI(url).host ?: "" }.getOrElse { "" }
