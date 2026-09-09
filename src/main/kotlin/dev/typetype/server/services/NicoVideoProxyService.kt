@@ -113,6 +113,7 @@ class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
                             acceptRanges = response.header("Accept-Ranges"),
                             stream = body.byteStream(),
                             close = response::close,
+                            cacheControl = response.header("Cache-Control"),
                         ))
                     }
                 },
