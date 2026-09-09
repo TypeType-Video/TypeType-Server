@@ -29,6 +29,7 @@ paths:
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
   /subtitles/youtube/{videoId}: { $ref: ./openapi/paths/subtitles.yaml#/YoutubeSubtitle }
   /proxy: { $ref: ./openapi/paths/proxy.yaml#/Proxy }
+  /media/{handle}: { $ref: ./openapi/paths/media.yaml#/ProviderMedia }
   /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }

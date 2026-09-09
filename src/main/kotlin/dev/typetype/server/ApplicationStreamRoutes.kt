@@ -5,6 +5,7 @@ import dev.typetype.server.routes.audioOnlySourceRoutes
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.routes.nicoVideoProxyRoutes
 import dev.typetype.server.routes.proxyRoutes
+import dev.typetype.server.routes.providerMediaHandleRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.routes.withPlayableSabrStreams
@@ -30,6 +31,7 @@ internal fun Route.installStreamRoutes(
             adminSettingsService = adminSettingsService,
             blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
+            providerMediaHandleService = svc.providerMediaHandleService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
@@ -62,6 +64,7 @@ internal fun Route.installStreamRoutes(
 internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
     rateLimit(PROXY_ZONE) {
         proxyRoutes(svc.proxyService, svc.youtubeSubtitleDeliveryService)
+        providerMediaHandleRoutes(svc.providerMediaHandleService, svc.proxyService)
         youtubeSubtitleRoutes(svc.youtubeSubtitleDeliveryService)
         audioOnlySourceRoutes(
             streamService = svc.streamService,
