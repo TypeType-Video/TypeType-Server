@@ -10,6 +10,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.net.InetAddress
@@ -28,7 +29,7 @@ class BilibiliRangeProxyTest {
             assertEquals(OkHttpProxyService.BILIBILI_USER_AGENT, request.header("User-Agent"))
             assertEquals("https://www.bilibili.com", request.header("Referer"))
             assertEquals("*/*", request.header("Accept"))
-            assertEquals("close", request.header("Connection"))
+            assertNull(request.header("Connection"))
             assertEquals("bytes=0-3", request.header("Range"))
             if (calls == 1) throw IOException("unexpected end of stream")
             Response.Builder()

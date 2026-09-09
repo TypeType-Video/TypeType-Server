@@ -62,7 +62,6 @@ class OkHttpProxyService(
                 if (bilibili) {
                     builder.header("Referer", BILIBILI_REFERER)
                     builder.header("Accept", ACCEPT_ANY)
-                    if (rangeHeader != null) builder.header("Connection", "close")
                 }
                 if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", "domand_bid=$resolvedDomandBid")
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
