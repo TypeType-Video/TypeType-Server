@@ -23,6 +23,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import kotlinx.coroutines.CancellationException
 
 private const val STREAMS_CACHE_CONTROL = "public, max-age=21600, stale-while-revalidate=3600"
 private const val AUTHENTICATED_STREAMS_CACHE_CONTROL = "no-store"
@@ -137,6 +138,8 @@ private fun Route.streamRoute(
                     dependencies.providerMediaHandleService?.let { service ->
                         providerMediaType(deliveryMode)?.let { service.materialize(data, it) }
                     } ?: data
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (error: Exception) {
                     return@get call.respond(
                         HttpStatusCode.BadGateway,
