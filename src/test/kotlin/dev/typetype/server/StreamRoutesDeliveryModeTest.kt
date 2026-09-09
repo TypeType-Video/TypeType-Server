@@ -4,8 +4,10 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.ProviderMediaHandleService
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -107,6 +109,31 @@ class StreamRoutesDeliveryModeTest {
     }
 
     @Test
+    fun `provider endpoints expose opaque media handles`() = testApplication {
+        val bilibiliVideo = "https://upos-hz-mirrorakam.akamaized.net/video.m4s?deadline=9999999999"
+        val nicoVideo = "https://asset.domand.nicovideo.jp/video/01.cmfv?Expires=9999999999"
+        coEvery { nicoNicoService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(videoOnlyStreams = listOf(testVideoStream(nicoVideo))),
+        )
+        coEvery { bilibiliService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            testStreamResponse(videoOnlyStreams = listOf(testVideoStream(bilibiliVideo))),
+        )
+        application { installRoutes(providerMediaHandleService = ProviderMediaHandleService(FakeCacheService())) }
+
+        val nicoResponse = client.get("/streams/niconico?url=$NICONICO_URL")
+        val bilibiliResponse = client.get("/streams/bilibili?url=$BILIBILI_URL")
+        val nicoBody = nicoResponse.bodyAsText()
+        val bilibiliBody = bilibiliResponse.bodyAsText()
+
+        assertTrue(nicoBody.contains("\"/media/m1_"))
+        assertTrue(bilibiliBody.contains("\"/media/m1_"))
+        assertFalse(nicoBody.contains("domand.nicovideo.jp"))
+        assertFalse(bilibiliBody.contains("akamaized.net"))
+        assertEquals("no-store", nicoResponse.headers[HttpHeaders.CacheControl])
+        assertEquals("no-store", bilibiliResponse.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
     fun `provider endpoints reject mismatched urls`() = testApplication {
         application { installRoutes() }
 
@@ -119,6 +146,7 @@ class StreamRoutesDeliveryModeTest {
     }
 
     private fun Application.installRoutes(
+        providerMediaHandleService: ProviderMediaHandleService? = null,
         sabrFilter: suspend (String, StreamResponse) -> StreamResponse = { _, data -> data },
     ) {
         install(ContentNegotiation) { json() }
@@ -127,6 +155,7 @@ class StreamRoutesDeliveryModeTest {
                 streamService = sabrService,
                 nicoNicoStreamService = nicoNicoService,
                 bilibiliStreamService = bilibiliService,
+                providerMediaHandleService = providerMediaHandleService,
                 sabrStreamContractFilter = sabrFilter,
             )
         }

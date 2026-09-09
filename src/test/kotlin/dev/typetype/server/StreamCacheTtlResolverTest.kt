@@ -36,6 +36,12 @@ class StreamCacheTtlResolverTest {
         assertEquals(0L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
     }
 
+    @Test
+    fun `niconico stream ttl follows signed expiry`() {
+        val url = "https://asset.domand.nicovideo.jp/video/01.cmfv?Expires=10000"
+        assertEquals(1_700L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
+    }
+
     private fun response(url: String, dislikeCount: Long = 0L): StreamResponse = StreamResponse(
         id = "id",
         title = "title",
