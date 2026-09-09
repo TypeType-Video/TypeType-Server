@@ -17,7 +17,7 @@ object AppMetrics {
         totalRequests.incrementAndGet()
         totalDurationMs.addAndGet(call.requestDurationMs())
         statusCounts.getOrPut(status) { AtomicLong() }.incrementAndGet()
-        routeCounts.getOrPut("$route|$status") { AtomicLong() }.incrementAndGet()
+        recordRoute(route, status)
     }
 
     fun snapshot(): String {
@@ -35,6 +35,18 @@ object AppMetrics {
             }
         }
     }
+
+    private fun recordRoute(route: String, status: Int) {
+        val key = "$route|$status"
+        if (routeCounts.size < MAX_ROUTE_METRICS) {
+            routeCounts.computeIfAbsent(key) { AtomicLong() }.incrementAndGet()
+            return
+        }
+        routeCounts.getOrPut("$OTHER_ROUTE|$status") { AtomicLong() }.incrementAndGet()
+    }
+
+    private const val MAX_ROUTE_METRICS = 512
+    private const val OTHER_ROUTE = "/__other__"
 
 }
 

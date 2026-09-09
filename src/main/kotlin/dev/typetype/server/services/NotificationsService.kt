@@ -8,7 +8,7 @@ import dev.typetype.server.models.NotificationItem
 import dev.typetype.server.models.NotificationsResponse
 import dev.typetype.server.models.UnreadCountResponse
 import dev.typetype.server.models.VideoItem
-import java.util.concurrent.ConcurrentHashMap
+import java.time.Duration
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -19,7 +19,10 @@ import java.security.MessageDigest
 class NotificationsService(
     private val subscriptionFeedService: SubscriptionFeedService,
 ) {
-    private val unreadCache = ConcurrentHashMap<String, CachedUnread>()
+    private val unreadCache = BoundedExpiringCache<String, Int>(
+        maxEntries = 2048,
+        ttl = Duration.ofHours(1),
+    )
 
     suspend fun getNotifications(userId: String, page: Int, limit: Int): NotificationsResponse {
         val feed = loadFeed(userId)
@@ -72,7 +75,7 @@ class NotificationsService(
                 }
             }
         }
-        unreadCache[userId] = CachedUnread(0)
+        unreadCache.put(userId, 0)
         return MarkNotificationsReadResponse(now, 0, true)
     }
 
@@ -124,11 +127,11 @@ class NotificationsService(
 
     private suspend fun unreadCount(items: List<NotificationItem>, userId: String): Int {
         val value = items.count { !it.read }
-        unreadCache[userId] = CachedUnread(value)
+        unreadCache.put(userId, value)
         return value
     }
 
-    private fun cachedUnread(userId: String): Int = unreadCache[userId]?.value ?: 0
+    private fun cachedUnread(userId: String): Int = unreadCache.get(userId) ?: 0
 
     private fun notificationKey(video: VideoItem): String {
         val serviceId = RssVideoMetadata.serviceId(video)
@@ -161,8 +164,6 @@ class NotificationsService(
     private fun notificationId(video: VideoItem): String =
         MessageDigest.getInstance("SHA-256").digest(notificationKey(video).toByteArray())
             .joinToString("") { byte -> "%02x".format(byte) }
-
-    private data class CachedUnread(val value: Int)
 
     private companion object {
         fun serviceName(serviceId: Int): String = when (serviceId) {
