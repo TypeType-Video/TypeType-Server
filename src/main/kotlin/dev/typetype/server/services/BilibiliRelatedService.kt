@@ -18,6 +18,10 @@ private val BVID_REGEX = Regex("""/(BV[0-9A-Za-z]+)""")
 internal class BilibiliRelatedService {
 
     suspend fun patchRelatedStreams(response: StreamResponse, videoUrl: String): StreamResponse {
+        val missingUploaderUrls = response.relatedStreams.filter { it.uploaderUrl.isBlank() }
+        if (missingUploaderUrls.isEmpty()) return response
+        val relatedBvids = missingUploaderUrls.mapNotNull { BVID_REGEX.find(it.url)?.groupValues?.get(1) }
+        if (relatedBvids.isEmpty()) return response
         val uploaderUrls = fetchUploaderUrls(videoUrl)
         return response.copy(
             relatedStreams = response.relatedStreams.map { item ->
