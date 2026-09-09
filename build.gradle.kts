@@ -1,8 +1,8 @@
 import java.time.Instant
 
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("io.ktor.plugin") version "3.5.2"
     id("jacoco")
 }
@@ -29,7 +29,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.17.Final"))
     constraints {
-        implementation("org.jsoup:jsoup:1.23.1") {
+        implementation("org.jsoup:jsoup:1.23.2") {
             because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
         }
     }
@@ -55,7 +55,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.13")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
     implementation("com.password4j:password4j:1.8.4")
-    implementation("com.auth0:java-jwt:4.6.0")
+    implementation("com.auth0:java-jwt:4.6.1")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")
