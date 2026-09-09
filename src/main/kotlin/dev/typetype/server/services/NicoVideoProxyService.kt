@@ -40,7 +40,45 @@ internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: S
     }
 }
 
-class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
+internal suspend fun rewriteNicoManifestWith(
+    manifest: String,
+    baseUrl: String,
+    mapUrl: suspend (String) -> String,
+): String {
+    val base = URI(baseUrl)
+    val uriAttr = Regex("""URI="([^"]+)"""")
+    suspend fun toMapped(url: String): String {
+        val resolved = if (url.startsWith("http://", ignoreCase = true) ||
+            url.startsWith("https://", ignoreCase = true)
+        ) url else base.resolve(url).toString()
+        return if (resolved.startsWith("http://", ignoreCase = true) ||
+            resolved.startsWith("https://", ignoreCase = true)
+        ) mapUrl(resolved) else resolved
+    }
+    val rewritten = ArrayList<String>()
+    for (line in manifest.lines()) {
+        val trimmed = line.trim()
+        when {
+            trimmed.isBlank() -> rewritten += line
+            trimmed.startsWith("#") -> {
+                val builder = StringBuilder(trimmed)
+                val matches = uriAttr.findAll(trimmed).toList()
+                for (match in matches.asReversed()) {
+                    val mapped = toMapped(match.groupValues[1])
+                    builder.replace(match.range.first, match.range.last + 1, "URI=\"$mapped\"")
+                }
+                rewritten += builder.toString()
+            }
+            else -> rewritten += toMapped(trimmed)
+        }
+    }
+    return rewritten.joinToString("\n")
+}
+
+class NicoVideoProxyService(
+    client: OkHttpClient = defaultNicoProxyClient(),
+    private val mediaHandleService: ProviderMediaHandleService? = null,
+) {
     private val executor = ProxyHttpExecutor(client)
 
     companion object {
@@ -72,7 +110,15 @@ class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
                     } else {
                         val text = body.string()
                         response.close()
-                        val rewritten = rewriteNicoManifest(text, manifestUrl, resolvedBid)
+                        val rewritten = if (mediaHandleService == null) {
+                            rewriteNicoManifest(text, manifestUrl, resolvedBid)
+                        } else {
+                            rewriteNicoManifestWith(text, manifestUrl) { target ->
+                                mediaHandleService.relativeManifestPath(
+                                    mediaHandleService.createPath(target, resolvedBid),
+                                )
+                            }
+                        }
                         ExtractionResult.Success(ProxyResponse(
                             status = 200,
                             contentType = "application/vnd.apple.mpegurl",
