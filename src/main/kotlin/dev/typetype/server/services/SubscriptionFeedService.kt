@@ -24,8 +24,10 @@ class SubscriptionFeedService(
     channelService: ChannelService,
     cache: CacheService,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val refreshScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    refreshScope: CoroutineScope? = null,
 ) {
+    private val refreshScope = refreshScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val ownsRefreshScope = refreshScope == null
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
     private val selections = SubscriptionFeedSelectionStore(cache, subscriptionsService)
     private val builder = SubscriptionFeedBuilder(channelService)
@@ -152,7 +154,7 @@ class SubscriptionFeedService(
     fun close() {
         refreshJobs.values.forEach(Job::cancel)
         refreshJobs.clear()
-        refreshScope.cancel()
+        if (ownsRefreshScope) refreshScope.cancel()
     }
 
     private fun scheduleRefresh(userId: String, requestId: String?) {
