@@ -53,6 +53,6 @@ class BilibiliRangeProxyTest {
         assertEquals(2, calls)
         assertEquals(206, result.data.status)
         assertEquals("bytes 0-3/4", result.data.contentRange)
-        assertArrayEquals(bytes, result.data.stream.readBytes())
+        result.data.stream.use { assertArrayEquals(bytes, it.readBytes()) }
     }
 }
