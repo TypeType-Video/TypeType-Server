@@ -163,7 +163,7 @@ internal class ServiceRegistry(
         streamService = streamService,
         cache = cache,
     )
-    private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
+    val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
     val homeRecommendationService = homeRecommendationServices.recommendationService
     val homeRecommendationWarmupService = homeRecommendationServices.warmupService
 }

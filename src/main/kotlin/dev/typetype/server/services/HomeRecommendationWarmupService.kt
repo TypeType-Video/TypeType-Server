@@ -4,6 +4,7 @@ import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -11,7 +12,7 @@ import kotlinx.coroutines.launch
 class HomeRecommendationWarmupService(
     private val recommendationService: HomeRecommendationService,
     private val cache: CacheService,
-) : HomeRecommendationWarmup {
+) : HomeRecommendationWarmup, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tracker = HomeWarmupTracker(WARMUP_THROTTLE_MS, ACTIVE_TTL_MS)
     private val poolCache = HomeRecommendationPoolCache(cache)
@@ -71,6 +72,10 @@ class HomeRecommendationWarmupService(
             deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
         ),
     )
+
+    override fun close() {
+        scope.cancel()
+    }
 
     companion object {
         private const val WARMUP_LIMIT = 20

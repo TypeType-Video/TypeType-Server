@@ -6,11 +6,12 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class HomeRecommendationPoolResolver(
     private val dependencies: HomeRecommendationPoolResolverDependencies,
-) {
+) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val state = HomeRecommendationPoolResolverState()
     private val poolCache = HomeRecommendationPoolCache(dependencies.cache)
@@ -89,6 +90,10 @@ class HomeRecommendationPoolResolver(
             runCatching { build.await() }.getOrNull()?.let { poolCache.write(key, it) }
             state.pendingPersistence.remove(key)
         }
+    }
+
+    override fun close() {
+        scope.cancel()
     }
 
 }

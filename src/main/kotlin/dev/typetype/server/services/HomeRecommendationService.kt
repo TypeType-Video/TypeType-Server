@@ -4,7 +4,7 @@ import dev.typetype.server.models.HomeRecommendationsResponse
 
 class HomeRecommendationService(
     private val poolResolver: HomeRecommendationPoolResolver,
-) {
+) : AutoCloseable {
     private fun args(
         userId: String,
         serviceId: Int,
@@ -46,4 +46,8 @@ class HomeRecommendationService(
         mode = HomeRecommendationPoolMode.SHORTS,
         poolResolver = poolResolver,
     )
+
+    override fun close() {
+        poolResolver.close()
+    }
 }

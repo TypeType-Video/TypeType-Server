@@ -78,6 +78,7 @@ fun Application.module() {
     val pushNotificationScheduler = PushNotificationScheduler(svc.pushNotificationService)
     pushNotificationScheduler.start()
     monitor.subscribe(ApplicationStopped) { pushNotificationScheduler.close() }
+    monitor.subscribe(ApplicationStopped) { svc.homeRecommendationServices.close() }
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,
