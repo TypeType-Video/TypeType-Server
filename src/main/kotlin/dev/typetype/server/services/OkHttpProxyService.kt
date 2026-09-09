@@ -13,10 +13,12 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 internal val GOOGLEVIDEO_URL_REGEX = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
+private val CPN_TRACKING_PARAM_REGEX = Regex("[&?]cpn=[^&]*")
+private val PPPID_TRACKING_PARAM_REGEX = Regex("[&?]pppid=[^&]*")
 
 internal fun stripTrackingParams(url: String): String =
-    url.replace(Regex("[&?]cpn=[^&]*"), "")
-        .replace(Regex("[&?]pppid=[^&]*"), "")
+    url.replace(CPN_TRACKING_PARAM_REGEX, "")
+        .replace(PPPID_TRACKING_PARAM_REGEX, "")
 
 internal fun rewriteHlsManifest(manifest: String): String =
     manifest.replace(GOOGLEVIDEO_URL_REGEX) { match ->

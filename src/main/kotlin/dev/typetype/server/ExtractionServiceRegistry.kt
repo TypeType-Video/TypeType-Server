@@ -82,15 +82,16 @@ internal class ExtractionServiceRegistry(
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
     val youtubeSubtitleService = YouTubeSubtitleService(httpClient, subtitleServiceUrl)
+    private val bilibiliRelatedService = BilibiliRelatedService()
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
-        BilibiliRelatedService(),
+        bilibiliRelatedService,
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
-        BilibiliRelatedService(),
+        bilibiliRelatedService,
         sabrSessionStore::rememberExtractedInfo,
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
