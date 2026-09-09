@@ -92,7 +92,7 @@ class OkHttpProxyService(
                         val cleanFetchUrl = stripTrackingParams(fetchUrl)
                         if (isHls(contentType, cleanFetchUrl)) {
                             val rewritten = if (providerMediaManifest && mediaHandleService != null && isNicoNico(cleanFetchUrl)) {
-                                rewriteNicoManifestWith(body.string(), cleanFetchUrl) { target ->
+                                rewriteProviderHlsManifest(body.string(), cleanFetchUrl) { target ->
                                     mediaHandleService.relativeManifestPath(
                                         mediaHandleService.createPath(target, resolvedDomandBid),
                                     )

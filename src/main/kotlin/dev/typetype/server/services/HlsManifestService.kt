@@ -115,7 +115,7 @@ class HlsManifestService(
                         val text = body.string()
                         response.close()
                         val rewritten = if (providerMediaHandleService != null && isNicoNicoManifest(fetchUrl)) {
-                            rewriteNicoManifestWith(text, fetchUrl) { target ->
+                            rewriteProviderHlsManifest(text, fetchUrl) { target ->
                                 providerMediaHandleService.relativeManifestPath(
                                     providerMediaHandleService.createPath(target, domandBid),
                                 )
