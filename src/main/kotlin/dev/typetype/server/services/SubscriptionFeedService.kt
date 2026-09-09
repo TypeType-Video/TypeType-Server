@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -147,6 +148,12 @@ class SubscriptionFeedService(
     }
 
     internal fun isRefreshing(userId: String): Boolean = refreshJobs[userId]?.isActive == true
+
+    fun close() {
+        refreshJobs.values.forEach(Job::cancel)
+        refreshJobs.clear()
+        refreshScope.cancel()
+    }
 
     private fun scheduleRefresh(userId: String, requestId: String?) {
         val job = refreshScope.launch(start = CoroutineStart.LAZY) {
