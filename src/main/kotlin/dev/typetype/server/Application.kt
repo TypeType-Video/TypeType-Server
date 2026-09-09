@@ -104,6 +104,10 @@ fun Application.module() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO),
     )
     monitor.subscribe(ApplicationStopped) { portabilityEngine.close() }
+    monitor.subscribe(ApplicationStopped) {
+        svc.sabrSessionStore.release()
+        cache.close()
+    }
     configurePlugins(authService)
     installApplicationRoutes(
         svc = svc,
