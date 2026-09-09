@@ -84,6 +84,8 @@ class YoutubeTakeoutImportJobService(
             privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
         } catch (e: Exception) {
             statusStore.failStatus(jobId, "import_failed", e.importErrorMessage())
+        } finally {
+            cache.remove(jobId)
         }
     }
 
