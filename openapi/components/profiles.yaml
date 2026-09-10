@@ -1,0 +1,33 @@
+AccountProfileItem:
+  type: object
+  required: [id, name, isActive, isDefault, lastUsedAt]
+  properties:
+    id: { type: string, format: uuid }
+    name: { type: string, minLength: 1, maxLength: 40 }
+    isActive: { type: boolean }
+    isDefault: { type: boolean }
+    lastUsedAt: { type: integer, format: int64 }
+    publicUsername: { type: string, nullable: true }
+    avatarUrl: { type: string, nullable: true }
+    avatarType: { type: string, nullable: true }
+    avatarCode: { type: string, nullable: true }
+AccountProfilesResponse:
+  type: object
+  required: [profiles, activeProfileId, defaultProfileId]
+  properties:
+    profiles:
+      type: array
+      items: { $ref: '#/AccountProfileItem' }
+    activeProfileId: { type: string, format: uuid }
+    defaultProfileId: { type: string, format: uuid }
+ProfileNameRequest:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string, minLength: 1, maxLength: 40 }
+ProfileSwitchResponse:
+  type: object
+  required: [accessToken, profile]
+  properties:
+    accessToken: { type: string }
+    profile: { $ref: '#/AccountProfileItem' }

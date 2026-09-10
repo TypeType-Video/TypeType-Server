@@ -17,6 +17,7 @@ class HlsManifestService(
     cache: CacheService? = null,
     private val signManifestUrl: ((String) -> String)? = null,
     private val attestedYoutubeHls: suspend (String) -> String? = { null },
+    private val providerMediaHandleService: ProviderMediaHandleService? = null,
 ) {
     private val proxyHttp = ProxyHttpExecutor(httpClient)
     private val manifestCache = cache?.let(::HlsManifestCache)
@@ -48,19 +49,20 @@ class HlsManifestService(
     }
 
     private suspend fun cachedOrFetch(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> {
+        val cache = manifestCache.takeUnless { isProviderManifestUrl(manifestUrl) }
         val cacheKey = if (signManifestLinks) "signed:$manifestUrl" else manifestUrl
-        manifestCache?.get(cacheKey)?.let { return ExtractionResult.Success(it) }
+        cache?.get(cacheKey)?.let { return ExtractionResult.Success(it) }
         val pending = CompletableDeferred<ExtractionResult<String>>()
         val existing = inFlight.putIfAbsent(cacheKey, pending)
         if (existing != null) return existing.await()
         return try {
-            manifestCache?.get(cacheKey)?.let {
+            cache?.get(cacheKey)?.let {
                 val result = ExtractionResult.Success(it)
                 pending.complete(result)
                 return result
             }
             val result = fetchAndRewrite(manifestUrl, signManifestLinks)
-            if (result is ExtractionResult.Success) manifestCache?.set(cacheKey, result.data)
+            if (result is ExtractionResult.Success) cache?.set(cacheKey, result.data)
             pending.complete(result)
             result
         } catch (error: Throwable) {
@@ -112,7 +114,19 @@ class HlsManifestService(
                     } else {
                         val text = body.string()
                         response.close()
-                        val rewritten = if (isNicoNicoManifest(fetchUrl)) {
+                        val rewritten = if (providerMediaHandleService != null && isNicoNicoManifest(fetchUrl)) {
+                            rewriteProviderHlsManifest(text, fetchUrl) { target ->
+                                providerMediaHandleService.relativeManifestPath(
+                                    providerMediaHandleService.createPath(target, domandBid),
+                                )
+                            }
+                        } else if (providerMediaHandleService != null && isBilibiliManifest(fetchUrl)) {
+                            rewriteProviderHlsManifest(text, fetchUrl) { target ->
+                                providerMediaHandleService.relativeManifestPath(
+                                    providerMediaHandleService.createPath(target),
+                                )
+                            }
+                        } else if (isNicoNicoManifest(fetchUrl)) {
                             rewriteNicoManifest(text, fetchUrl, domandBid, "../proxy")
                         } else {
                             rewriteYouTubeHlsManifest(text) { target ->
@@ -128,5 +142,13 @@ class HlsManifestService(
         }
 
     private fun isNicoNicoManifest(url: String): Boolean =
-        runCatching { URI(url).host.orEmpty().endsWith("nicovideo.jp") }.getOrDefault(false)
+        runCatching { providerForProxyHost(URI(url).host.orEmpty()) == ProxyProvider.NICONICO }
+            .getOrDefault(false)
+
+    private fun isBilibiliManifest(url: String): Boolean =
+        runCatching { providerForProxyHost(URI(url).host.orEmpty()) == ProxyProvider.BILIBILI }
+            .getOrDefault(false)
+
+    private fun isProviderManifestUrl(url: String): Boolean =
+        isNicoNicoManifest(url) || isBilibiliManifest(url)
 }

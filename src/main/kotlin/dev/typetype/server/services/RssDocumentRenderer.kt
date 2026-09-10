@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.models.RssFeedItem
 import dev.typetype.server.models.VideoItem
 import java.io.ByteArrayOutputStream
+import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -23,6 +24,7 @@ internal object RssDocumentRenderer {
         writer.writeStartDocument(StandardCharsets.UTF_8.name(), "1.0")
         writer.writeStartElement("rss")
         writer.writeAttribute("version", "2.0")
+        writer.writeNamespace("media", MEDIA_NAMESPACE)
         writer.writeStartElement("channel")
         writer.element("title", feed.name)
         writer.element("link", publicBaseUrl)
@@ -52,6 +54,11 @@ internal object RssDocumentRenderer {
         writeEndElement()
         element("author", video.uploaderName)
         video.shortDescription?.takeIf(String::isNotBlank)?.let { element("description", it) }
+        video.thumbnailUrl.httpUrlOrNull()?.let { thumbnailUrl ->
+            writeStartElement("media", "thumbnail", MEDIA_NAMESPACE)
+            writeAttribute("url", thumbnailUrl)
+            writeEndElement()
+        }
         RssVideoMetadata.publishedAtMillis(video).takeIf { it > 0 }
             ?.let { element("pubDate", RFC_1123.format(Instant.ofEpochMilli(it))) }
         writeEndElement()
@@ -63,5 +70,14 @@ internal object RssDocumentRenderer {
         writeEndElement()
     }
 
+    private fun String.httpUrlOrNull(): String? = runCatching {
+        URI(this).takeIf { uri ->
+            uri.isAbsolute && uri.host != null &&
+                (uri.scheme.equals("http", ignoreCase = true) ||
+                uri.scheme.equals("https", ignoreCase = true))
+        }?.toString()
+    }.getOrNull()
+
+    private const val MEDIA_NAMESPACE = "http://search.yahoo.com/mrss/"
     private val RFC_1123 = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneOffset.UTC)
 }

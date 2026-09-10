@@ -6,7 +6,10 @@ import dev.typetype.server.models.VideoStreamItem
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-class ManifestService(private val streamService: StreamService) {
+class ManifestService(
+    private val streamService: StreamService,
+    private val providerMediaHandleService: ProviderMediaHandleService? = null,
+) {
     suspend fun dashManifest(videoUrl: String): ExtractionResult<String> {
         val result = streamService.getStreamInfo(videoUrl)
         if (result !is ExtractionResult.Success) return result.recast()
@@ -32,7 +35,7 @@ class ManifestService(private val streamService: StreamService) {
         else -> 2
     }
 
-    private fun buildMpd(videos: List<VideoStreamItem>, audios: List<AudioStreamItem>, duration: Long): String {
+    private suspend fun buildMpd(videos: List<VideoStreamItem>, audios: List<AudioStreamItem>, duration: Long): String {
         val sb = StringBuilder()
         sb.appendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
         sb.appendLine("<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\"")
@@ -54,7 +57,7 @@ class ManifestService(private val streamService: StreamService) {
         return sb.toString()
     }
 
-    private fun appendVideoAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<VideoStreamItem>) {
+    private suspend fun appendVideoAdaptationSet(sb: StringBuilder, mimeType: String, streams: List<VideoStreamItem>) {
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\" startWithSAP=\"1\">")
         streams.forEachIndexed { i, s ->
             val height = if (s.height > 0) s.height else resolutionHeight(s.resolution)
@@ -62,7 +65,7 @@ class ManifestService(private val streamService: StreamService) {
             val bandwidth = (s.bitrate ?: bwFromUrl(s.url) ?: (height * 1000)).coerceAtLeast(1)
             val sizeAttr = if (width > 0 && height > 0) " width=\"$width\" height=\"$height\"" else ""
             sb.appendLine("      <Representation id=\"${s.manifestRepresentationId(i)}\" bandwidth=\"$bandwidth\"$sizeAttr codecs=\"${s.codec ?: ""}\">")
-            sb.appendLine("        <BaseURL>../proxy?url=${encode(s.url)}</BaseURL>")
+            sb.appendLine("        <BaseURL>${mediaUrl(s.url)}</BaseURL>")
             if (s.indexStart > 0L && s.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${s.indexStart}-${s.indexEnd}\">")
                 sb.appendLine("          <Initialization range=\"${s.initStart}-${s.initEnd}\"/>")
@@ -73,12 +76,12 @@ class ManifestService(private val streamService: StreamService) {
         sb.appendLine("    </AdaptationSet>")
     }
 
-    private fun appendAudioAdaptationSet(sb: StringBuilder, mimeType: String, lang: String?, label: String?, streams: List<AudioStreamItem>) {
+    private suspend fun appendAudioAdaptationSet(sb: StringBuilder, mimeType: String, lang: String?, label: String?, streams: List<AudioStreamItem>) {
         val attrs = "${if (lang != null) " lang=\"$lang\"" else ""}${if (label != null) " label=\"$label\"" else ""}"
         sb.appendLine("    <AdaptationSet mimeType=\"$mimeType\"$attrs>")
         streams.forEachIndexed { i, a ->
             sb.appendLine("      <Representation id=\"${a.manifestRepresentationId(i)}\" bandwidth=\"${((a.bitrate ?: 128) * 1000).coerceAtLeast(1)}\" codecs=\"${normalizeAudioCodec(a.codec)}\">")
-            sb.appendLine("        <BaseURL>../proxy?url=${encode(a.url)}</BaseURL>")
+            sb.appendLine("        <BaseURL>${mediaUrl(a.url)}</BaseURL>")
             if (a.indexStart > 0L && a.indexEnd > 0L) {
                 sb.appendLine("        <SegmentBase indexRange=\"${a.indexStart}-${a.indexEnd}\">")
                 sb.appendLine("          <Initialization range=\"${a.initStart}-${a.initEnd}\"/>")
@@ -109,6 +112,18 @@ class ManifestService(private val streamService: StreamService) {
 
     private fun bwFromUrl(url: String): Int? =
         Regex("[?&]bw=(\\d+)").find(url)?.groupValues?.get(1)?.toIntOrNull()
+
+    private suspend fun mediaUrl(url: String): String {
+        val service = providerMediaHandleService
+        if (service == null) return "../proxy?url=${encode(url)}"
+        if (url.startsWith("/media/")) return service.relativeManifestPath(url)
+        val provider = runCatching { requireProxyTarget(url).provider }.getOrNull()
+        return if (provider == ProxyProvider.BILIBILI || provider == ProxyProvider.NICONICO) {
+            service.relativeManifestPath(service.createPath(url))
+        } else {
+            "../proxy?url=${encode(url)}"
+        }
+    }
 
     private fun encode(url: String): String =
         URLEncoder.encode(url, StandardCharsets.UTF_8)

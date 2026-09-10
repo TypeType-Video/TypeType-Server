@@ -25,6 +25,7 @@ internal fun Route.userDataRoutes(
         authService,
         svc.homeRecommendationWarmupService,
         svc.subscriptionGroupsService,
+        svc.pushNotificationService,
     )
     subscriptionFeedRoutes(
         svc.subscriptionFeedService,
@@ -44,6 +45,7 @@ internal fun Route.userDataRoutes(
     allowedChannelsRoutes(svc.allowedChannelsService, authService)
     blockedRoutes(svc.blockedService, authService)
     notificationsRoutes(svc.notificationsService, authService)
+    pushNotificationRoutes(svc.pushNotificationService, authService)
     youtubeSessionRoutes(svc.youtubeSessionService, authService)
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, svc.customAvatarService, authService)

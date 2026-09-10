@@ -9,8 +9,9 @@ import kotlinx.coroutines.future.await
 
 class DragonflyService(url: String) : CacheService {
 
+    private val client: RedisClient = RedisClient.create(url)
     private val connection: StatefulRedisConnection<String, String> =
-        RedisClient.create(url).connect()
+        client.connect()
 
     private val async: RedisAsyncCommands<String, String> = connection.async()
 
@@ -35,6 +36,11 @@ class DragonflyService(url: String) : CacheService {
         async.del(key).await().let {}
 
     suspend fun ping(): Boolean = async.ping().await() == "PONG"
+
+    fun close() {
+        connection.close()
+        client.shutdown()
+    }
 
     private companion object {
         const val REFRESH_IF_VALUE_MATCHES =

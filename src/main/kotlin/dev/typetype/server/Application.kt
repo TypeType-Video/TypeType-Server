@@ -11,6 +11,7 @@ import dev.typetype.server.services.DownloaderGatewayService
 import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
@@ -24,6 +25,7 @@ import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserConfig
 import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.services.YoutubeRemoteLoginReadinessService
+import dev.typetype.server.services.PushNotificationScheduler
 import dev.typetype.server.portability.PortabilityEngineFactory
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
@@ -44,7 +46,8 @@ fun Application.module() {
     DatabaseFactory.init(dbUrl, dbUser, dbPassword)
     val jwtSecret = System.getenv("JWT_SECRET") ?: UUID.randomUUID().toString()
     val authSessionConfig = AuthSessionConfig.fromEnvironment()
-    val authService = AuthService(jwtSecret, sessionConfig = authSessionConfig)
+    val profileAccountService = ProfileAccountService()
+    val authService = AuthService(jwtSecret, sessionConfig = authSessionConfig, profileAccountService = profileAccountService)
     val oidcAuthService = OidcAuthService(OidcConfigLoader.fromEnvironment(), jwtSecret, authService)
     val userAdminService = UserAdminService()
     val passwordResetService = PasswordResetService()
@@ -68,7 +71,16 @@ fun Application.module() {
         jwtSecret,
         adminSettingsService,
         youtubeProxySelector,
+        profileAccountService,
+        instanceId = System.getenv("TYPE_TYPE_INSTANCE_ID")?.trim().takeUnless { it.isNullOrBlank() } ?: "typetype",
+        pushNotificationsEnabled = System.getenv("TYPE_TYPE_PUSH_NOTIFICATIONS_ENABLED")?.toBooleanStrictOrNull() ?: true,
     )
+    val pushNotificationScheduler = PushNotificationScheduler(svc.pushNotificationService)
+    pushNotificationScheduler.start()
+    monitor.subscribe(ApplicationStopped) { pushNotificationScheduler.close() }
+    monitor.subscribe(ApplicationStopped) { svc.subscriptionFeedService.close() }
+    monitor.subscribe(ApplicationStopped) { svc.youtubeTakeoutImportService.close() }
+    monitor.subscribe(ApplicationStopped) { svc.homeRecommendationServices.close() }
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,
@@ -79,6 +91,7 @@ fun Application.module() {
         adminSettingsService,
         youtubeRemoteLoginStatusProvider = youtubeRemoteLoginReadinessService::status,
         oidcConfigProvider = oidcAuthService::publicConfig,
+        pushNotificationCapabilityProvider = svc.pushNotificationService::capability,
     )
     val youtubeRemoteBrowserService = YoutubeRemoteBrowserService(
         youtubeRemoteBrowserConfig,
@@ -94,6 +107,10 @@ fun Application.module() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO),
     )
     monitor.subscribe(ApplicationStopped) { portabilityEngine.close() }
+    monitor.subscribe(ApplicationStopped) {
+        svc.sabrSessionStore.release()
+        cache.close()
+    }
     configurePlugins(authService)
     installApplicationRoutes(
         svc = svc,
@@ -107,6 +124,7 @@ fun Application.module() {
         oidcAuthService = oidcAuthService,
         passwordResetService = passwordResetService,
         profileService = profileService,
+        profileAccountService = profileAccountService,
         userAdminService = userAdminService,
         avatarService = avatarService,
         openMojiProxyService = openMojiProxyService,

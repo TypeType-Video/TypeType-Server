@@ -20,6 +20,13 @@ import dev.typetype.server.db.tables.RssFeedsTable
 import dev.typetype.server.db.tables.RssUserPoliciesTable
 import dev.typetype.server.db.tables.SavedPlaylistsTable
 import dev.typetype.server.db.tables.NotificationStatesTable
+import dev.typetype.server.db.tables.NotificationReadItemsTable
+import dev.typetype.server.db.tables.ChannelNotificationPreferencesTable
+import dev.typetype.server.db.tables.PushDevicesTable
+import dev.typetype.server.db.tables.PushNotificationBaselinesTable
+import dev.typetype.server.db.tables.PushNotificationSeenVideosTable
+import dev.typetype.server.db.tables.PushNotificationEventsTable
+import dev.typetype.server.db.tables.PushNotificationDeliveriesTable
 import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.db.tables.SettingsTable
 import dev.typetype.server.db.tables.SessionsTable
@@ -32,7 +39,15 @@ import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserChannelInterestTable
+import dev.typetype.server.db.tables.UserTopicInterestTable
+import dev.typetype.server.db.tables.RecommendationEventsTable
+import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
+import dev.typetype.server.db.tables.RecommendationFeedbackTable
+import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
+import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.WatchLaterTable
+import dev.typetype.server.db.tables.ProfileAccountsTable
 import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -126,6 +141,21 @@ object TestDatabase {
         YoutubeSessionsTable.deleteAll()
         BugReportsTable.deleteAll()
         NotificationStatesTable.deleteAll()
+        NotificationReadItemsTable.deleteAll()
+        PushNotificationDeliveriesTable.deleteAll()
+        PushNotificationEventsTable.deleteAll()
+        PushNotificationSeenVideosTable.deleteAll()
+        PushNotificationBaselinesTable.deleteAll()
+        PushDevicesTable.deleteAll()
+        ChannelNotificationPreferencesTable.deleteAll()
+        UserChannelInterestTable.deleteAll()
+        UserTopicInterestTable.deleteAll()
+        RecommendationEventsTable.deleteAll()
+        RecommendationFeedHistoryTable.deleteAll()
+        RecommendationFeedbackTable.deleteAll()
+        RecommendationOnboardingPreferencesTable.deleteAll()
+        RecommendationOnboardingStateTable.deleteAll()
+        ProfileAccountsTable.deleteAll()
         AdminSettingsService.clearCache()
     }
 }

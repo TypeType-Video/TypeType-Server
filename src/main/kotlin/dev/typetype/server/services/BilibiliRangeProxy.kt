@@ -4,7 +4,6 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ProxyResponse
 import okhttp3.Request
 import okhttp3.Response
-import java.io.ByteArrayInputStream
 import java.io.IOException
 
 private const val BILIBILI_RANGE_ATTEMPTS = 3
@@ -12,40 +11,33 @@ private const val BILIBILI_RANGE_ATTEMPTS = 3
 internal fun readBilibiliRangeWithRetry(
     execute: (Request) -> Response,
     request: Request,
+    checkActive: () -> Unit = {},
 ): ExtractionResult<ProxyResponse> {
     var lastMessage = "Proxy fetch failed"
     for (attempt in 1..BILIBILI_RANGE_ATTEMPTS) {
-        runCatching { execute(request) }
-            .onSuccess { response ->
-                response.use {
-                    val result = it.readBilibiliRangeBytes()
-                    when (result) {
-                        is ExtractionResult.Success -> return result
-                        is ExtractionResult.BadRequest -> return result
-                        is ExtractionResult.Failure -> lastMessage = result.message
-                    }
-                }
-            }
-            .onFailure { lastMessage = it.message ?: "Proxy fetch failed" }
-        if (attempt == BILIBILI_RANGE_ATTEMPTS) break
+        checkActive()
+        val response = try {
+            execute(request)
+        } catch (error: IOException) {
+            lastMessage = error.message ?: "Proxy fetch failed"
+            continue
+        }
+        if (!response.isSuccessful) {
+            lastMessage = "Upstream returned ${response.code}"
+            response.close()
+            continue
+        }
+        val stream = RetryingProxyInputStream(execute, request, response, BILIBILI_RANGE_ATTEMPTS - attempt, checkActive)
+        return ExtractionResult.Success(ProxyResponse(
+            status = response.code,
+            contentType = response.header("Content-Type") ?: "application/octet-stream",
+            contentLength = response.body.contentLength().takeIf { it >= 0 },
+            contentRange = response.header("Content-Range"),
+            acceptRanges = response.header("Accept-Ranges"),
+            cacheControl = response.header("Cache-Control"),
+            stream = stream,
+            close = stream::close,
+        ))
     }
     return ExtractionResult.Failure(lastMessage)
-}
-
-private fun Response.readBilibiliRangeBytes(): ExtractionResult<ProxyResponse> {
-    if (!isSuccessful && code != 206) return ExtractionResult.Failure("Upstream returned $code")
-    val bytes = try {
-        body.bytes()
-    } catch (e: IOException) {
-        return ExtractionResult.Failure(e.message ?: "Proxy fetch failed")
-    }
-    return ExtractionResult.Success(ProxyResponse(
-        status = code,
-        contentType = header("Content-Type") ?: "application/octet-stream",
-        contentLength = bytes.size.toLong(),
-        contentRange = header("Content-Range"),
-        acceptRanges = header("Accept-Ranges"),
-        stream = ByteArrayInputStream(bytes),
-        close = {},
-    ))
 }

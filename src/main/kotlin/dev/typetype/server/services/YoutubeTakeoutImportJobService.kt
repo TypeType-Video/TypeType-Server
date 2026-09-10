@@ -22,7 +22,7 @@ class YoutubeTakeoutImportJobService(
     private val privacyService: YoutubeTakeoutPrivacyService = YoutubeTakeoutPrivacyService(),
     private val cache: YoutubeTakeoutImportCache = YoutubeTakeoutImportCache(),
     private val engine: YoutubeTakeoutImportJobEngine = YoutubeTakeoutImportJobEngine(),
-) {
+) : AutoCloseable {
     suspend fun create(userId: String, archivePath: Path): YoutubeTakeoutImportJobStatus {
         val jobId = store.create(userId, archivePath)
         return statusStore.getStatus(userId, jobId) ?: error("Failed to create job")
@@ -84,6 +84,8 @@ class YoutubeTakeoutImportJobService(
             privacyService.deleteArchive(archiveStore.getArchivePath(userId, jobId))
         } catch (e: Exception) {
             statusStore.failStatus(jobId, "import_failed", e.importErrorMessage())
+        } finally {
+            cache.remove(jobId)
         }
     }
 
@@ -99,4 +101,8 @@ class YoutubeTakeoutImportJobService(
     }
 
     suspend fun purgeExpired() = YoutubeTakeoutImportCleanupService(privacyService).purgeExpiredJobs()
+
+    override fun close() {
+        engine.close()
+    }
 }

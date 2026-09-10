@@ -46,6 +46,7 @@ class HomeRecommendationServiceFastPathTest {
         TestDatabase.truncateAll()
         coEvery { cache.get(any()) } returns null
         coEvery { cache.set(any(), any(), any()) } returns Unit
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
         coEvery { searchService.search(any(), any(), any(), any(), any()) } returns ExtractionResult.Success(SearchPageResponse(emptyList(), null, null, false))
     }
 

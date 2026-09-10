@@ -5,46 +5,57 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.ConcurrentHashMap
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-class OpenMojiProxyService(private val cache: CacheService) {
+class OpenMojiProxyService(
+    private val cache: CacheService,
+    private val client: OkHttpClient = defaultOpenMojiClient(),
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
 
-    private val localCache = ConcurrentHashMap<String, LocalSvg>()
-    private val failedUntilByCode = ConcurrentHashMap<String, Long>()
-    private val notFoundUntilByCode = ConcurrentHashMap<String, Long>()
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(4, TimeUnit.SECONDS)
-        .callTimeout(5, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .build()
+    private val localCache = BoundedExpiringCache<String, ByteArray>(
+        maxEntries = LOCAL_CACHE_MAX_ENTRIES,
+        maxWeight = LOCAL_CACHE_MAX_BYTES,
+        ttl = Duration.ofMinutes(10),
+        weigher = { it.size.toLong() },
+        clock = clock,
+    )
+    private val failedUntilByCode = BoundedExpiringCache<String, Unit>(
+        maxEntries = COOLDOWN_MAX_ENTRIES,
+        ttl = Duration.ofMillis(FAILURE_COOLDOWN_MS),
+        clock = clock,
+    )
+    private val notFoundUntilByCode = BoundedExpiringCache<String, Unit>(
+        maxEntries = COOLDOWN_MAX_ENTRIES,
+        ttl = Duration.ofMillis(NOT_FOUND_CACHE_MS),
+        clock = clock,
+    )
 
     suspend fun getSvg(code: String): ByteArray? {
         val key = cacheKey(code)
-        val now = System.currentTimeMillis()
-        localCache[code]?.takeIf { it.expiresAtMs > now }?.let { return it.bytes }
-        if (now < (notFoundUntilByCode[code] ?: 0L)) return null
-        if (now < (failedUntilByCode[code] ?: 0L)) return null
+        localCache.get(code)?.let { return it }
+        if (notFoundUntilByCode.get(code) != null) return null
+        if (failedUntilByCode.get(code) != null) return null
         runCatching { cache.get(key) }.getOrNull()?.toByteArray(Charsets.UTF_8)?.let { bytes ->
-            localCache[code] = LocalSvg(bytes = bytes, expiresAtMs = now + LOCAL_CACHE_TTL_MS)
+            localCache.put(code, bytes)
             return bytes
         }
         return when (val fetched = fetch(code)) {
             is FetchResult.Success -> {
                 failedUntilByCode.remove(code)
                 notFoundUntilByCode.remove(code)
-                localCache[code] = LocalSvg(bytes = fetched.bytes, expiresAtMs = now + LOCAL_CACHE_TTL_MS)
+                localCache.put(code, fetched.bytes)
                 runCatching { cache.set(key, fetched.bytes.toString(Charsets.UTF_8), SVG_CACHE_TTL_SECONDS) }
                 fetched.bytes
             }
             FetchResult.NotFound -> {
                 failedUntilByCode.remove(code)
-                notFoundUntilByCode[code] = now + NOT_FOUND_CACHE_MS
+                notFoundUntilByCode.put(code, Unit)
                 null
             }
             FetchResult.Failed -> {
-                failedUntilByCode[code] = now + FAILURE_COOLDOWN_MS
+                failedUntilByCode.put(code, Unit)
                 null
             }
         }
@@ -71,7 +82,9 @@ class OpenMojiProxyService(private val cache: CacheService) {
         private const val SVG_CACHE_TTL_SECONDS = 604800L
         private const val FAILURE_COOLDOWN_MS = 15000L
         private const val NOT_FOUND_CACHE_MS = 300000L
-        private const val LOCAL_CACHE_TTL_MS = 600000L
+        private const val LOCAL_CACHE_MAX_ENTRIES = 256
+        private const val LOCAL_CACHE_MAX_BYTES = 16L * 1024 * 1024
+        private const val COOLDOWN_MAX_ENTRIES = 1024
     }
 
     private sealed interface FetchResult {
@@ -80,8 +93,11 @@ class OpenMojiProxyService(private val cache: CacheService) {
         data object Failed : FetchResult
     }
 
-    private data class LocalSvg(
-        val bytes: ByteArray,
-        val expiresAtMs: Long,
-    )
 }
+
+private fun defaultOpenMojiClient(): OkHttpClient = OkHttpClient.Builder()
+    .connectTimeout(2, TimeUnit.SECONDS)
+    .readTimeout(4, TimeUnit.SECONDS)
+    .callTimeout(5, TimeUnit.SECONDS)
+    .followRedirects(true)
+    .build()

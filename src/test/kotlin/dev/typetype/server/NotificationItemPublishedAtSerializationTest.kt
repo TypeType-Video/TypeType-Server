@@ -19,6 +19,8 @@ class NotificationItemPublishedAtSerializationTest {
             channelUrl = "https://yt.com/c/a",
             channelName = "A",
             channelAvatarUrl = "",
+            serviceId = 0,
+            serviceName = "YouTube",
             video = VideoItem(
                 id = "id",
                 title = "video",

@@ -22,6 +22,7 @@ InstanceResponse:
     - youtubeRemoteLoginReady
     - parentalControlsEnabled
     - rss
+    - pushNotifications
   properties:
     name: { type: string, example: TypeType }
     tagline: { type: string, nullable: true }
@@ -56,6 +57,8 @@ InstanceResponse:
       description: True when the instance-wide allow-list policy is enabled.
     rss:
       $ref: '#/RssInstanceCapability'
+    pushNotifications:
+      $ref: '#/PushNotificationCapability'
 RssInstanceCapability:
   type: object
   required: [enabled, maxFeedsPerUser, maxItems, minimumPollMinutes, rateLimitPerMinute]
@@ -65,3 +68,14 @@ RssInstanceCapability:
     maxItems: { type: integer }
     minimumPollMinutes: { type: integer }
     rateLimitPerMinute: { type: integer }
+
+PushNotificationCapability:
+  type: object
+  required: [enabled, provider, eventTypes, maxDevicesPerAccount]
+  properties:
+    enabled: { type: boolean }
+    provider: { type: string, enum: [unifiedpush] }
+    eventTypes:
+      type: array
+      items: { type: string }
+    maxDevicesPerAccount: { type: integer, minimum: 0 }

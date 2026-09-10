@@ -7,6 +7,7 @@ import dev.typetype.server.routes.adminRssRoutes
 import dev.typetype.server.routes.adminIdentityRoutes
 import dev.typetype.server.routes.adminSessionRoutes
 import dev.typetype.server.routes.authRoutes
+import dev.typetype.server.routes.accountProfilesRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.channelRoutes
@@ -18,6 +19,7 @@ import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
+import dev.typetype.server.routes.pushNotificationRoutes
 import dev.typetype.server.routes.rssPublicRoutes
 import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
@@ -40,6 +42,7 @@ import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.ProfileService
+import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.portability.PortabilityEngine
@@ -59,6 +62,7 @@ internal fun Application.installApplicationRoutes(
     oidcAuthService: OidcAuthService,
     passwordResetService: PasswordResetService,
     profileService: ProfileService,
+    profileAccountService: ProfileAccountService,
     userAdminService: UserAdminService,
     avatarService: AvatarService,
     openMojiProxyService: OpenMojiProxyService,
@@ -110,6 +114,7 @@ internal fun Application.installApplicationRoutes(
             svc.homeRecommendationWarmupService,
             authSessionConfig,
         )
+        accountProfilesRoutes(profileAccountService, authService, authSessionConfig)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminRssRoutes(svc.rssFeedManagementService, authService)
         adminIdentityRoutes(svc.accountIdentityService, authService)

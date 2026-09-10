@@ -1,0 +1,59 @@
+ProviderMedia:
+  get:
+    tags: [playback]
+    summary: Retrieve provider media through an opaque temporary handle
+    description: >-
+      Streams BiliBili or NicoNico media referenced by a handle returned from a provider stream
+      endpoint. The signed provider URL and NicoNico cookie remain server-side; clients must not
+      construct or proxy the provider URL themselves. Handles expire with the upstream media
+      signature and support byte ranges for progressive and segmented playback.
+    parameters:
+      - name: handle
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^m1_[A-Za-z0-9_-]{24}$'
+      - name: Range
+        in: header
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Complete provider media response.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+          video/mp4:
+            schema: { type: string, format: binary }
+          audio/mp4:
+            schema: { type: string, format: binary }
+          application/vnd.apple.mpegurl:
+            schema: { type: string }
+      '206':
+        description: Partial provider media response.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+          Content-Range:
+            schema: { type: string }
+          Accept-Ranges:
+            schema: { type: string }
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+          video/mp4:
+            schema: { type: string, format: binary }
+          audio/mp4:
+            schema: { type: string, format: binary }
+      '404':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/JsonError
+      '503':
+        $ref: ../components/common.yaml#/JsonError

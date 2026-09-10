@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -23,8 +24,10 @@ class SubscriptionFeedService(
     channelService: ChannelService,
     cache: CacheService,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val refreshScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    refreshScope: CoroutineScope? = null,
 ) {
+    private val refreshScope = refreshScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val ownsRefreshScope = refreshScope == null
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
     private val selections = SubscriptionFeedSelectionStore(cache, subscriptionsService)
     private val builder = SubscriptionFeedBuilder(channelService)
@@ -99,14 +102,30 @@ class SubscriptionFeedService(
         }
 
     suspend fun getAll(userId: String): List<VideoItem> {
+        return getAllWithAvailability(userId).videos
+    }
+
+    suspend fun getAllWithAvailability(userId: String): SubscriptionFeedAvailability {
         val snapshot = store.current(userId)
         if (snapshot == null || snapshot.stale || clock() - snapshot.generatedAt >= FRESHNESS_MS) {
             scheduleRefresh(userId, currentRequestId())
         }
-        if (snapshot != null) return snapshot.videos
+        if (snapshot != null) {
+            return SubscriptionFeedAvailability(
+                videos = snapshot.videos,
+                available = !snapshot.stale,
+            )
+        }
         withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
-        return store.current(userId)?.videos.orEmpty()
+        val refreshed = store.current(userId)
+        return SubscriptionFeedAvailability(
+            videos = refreshed?.videos.orEmpty(),
+            available = refreshed != null && !refreshed.stale,
+        )
     }
+
+    internal suspend fun getAllWithSources(userId: String): SubscriptionFeedWithSources =
+        getAllWithAvailability(userId).let { SubscriptionFeedWithSources(it.videos, it.available, store.current(userId)?.sourceChannelUrls.orEmpty()) }
 
     suspend fun getCachedFeed(userId: String, page: Int, limit: Int): SubscriptionFeedResponse? {
         val snapshot = store.current(userId) ?: return null
@@ -131,6 +150,12 @@ class SubscriptionFeedService(
     }
 
     internal fun isRefreshing(userId: String): Boolean = refreshJobs[userId]?.isActive == true
+
+    fun close() {
+        refreshJobs.values.forEach(Job::cancel)
+        refreshJobs.clear()
+        if (ownsRefreshScope) refreshScope.cancel()
+    }
 
     private fun scheduleRefresh(userId: String, requestId: String?) {
         val job = refreshScope.launch(start = CoroutineStart.LAZY) {
@@ -160,6 +185,7 @@ class SubscriptionFeedService(
         if (store.invalidationToken(userId) != invalidation) return true
         val valid = result.successfulSources > 0 || subscriptions.isEmpty()
         if (!valid) {
+            if (previous != null) store.markStale(userId)
             logger.warn(
                 "subscription_feed event=refresh_kept_previous user={} durationMs={} failedSources={}",
                 userKey(userId), clock() - startedAt, result.failedSources,

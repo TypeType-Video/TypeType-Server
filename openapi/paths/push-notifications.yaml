@@ -1,0 +1,85 @@
+ChannelNotificationPreferences:
+  get:
+    tags: [user-data]
+    summary: List notification preferences for followed channels
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: Channel notification preferences for the current profile.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/push-notifications.yaml#/ChannelNotificationPreference }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  put:
+    tags: [user-data]
+    summary: Enable or disable notifications for a followed channel
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/push-notifications.yaml#/ChannelNotificationPreferenceRequest }
+    responses:
+      '200':
+        description: Updated channel notification preference.
+        content:
+          application/json:
+            schema: { $ref: ../components/push-notifications.yaml#/ChannelNotificationPreference }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+
+PushDevices:
+  get:
+    tags: [user-data]
+    summary: List registered UnifiedPush devices
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: Devices registered by the current profile.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/push-notifications.yaml#/PushDeviceRegistrationResponse }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  post:
+    tags: [user-data]
+    summary: Register or replace a UnifiedPush device endpoint
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/push-notifications.yaml#/PushDeviceRegistrationRequest }
+    responses:
+      '201':
+        description: Registered device.
+        content:
+          application/json:
+            schema: { $ref: ../components/push-notifications.yaml#/PushDeviceRegistrationResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+      '422': { $ref: ../components/common.yaml#/JsonError }
+
+PushDevice:
+  delete:
+    tags: [user-data]
+    summary: Unregister a UnifiedPush device
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - name: deviceId
+        in: path
+        required: true
+        schema: { type: string }
+    responses:
+      '204': { description: Device unregistered. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }

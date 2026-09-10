@@ -26,6 +26,7 @@ data class InstanceResponse(
     val youtubeRemoteLoginUnavailableReason: String? = null,
     val parentalControlsEnabled: Boolean = false,
     val rss: RssInstanceCapability = RssInstanceCapability(),
+    val pushNotifications: PushNotificationCapability = PushNotificationCapability(),
 )
 
 @Serializable

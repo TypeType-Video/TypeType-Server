@@ -11,6 +11,7 @@ class HomeRecommendationBuilder(
     private val watchLaterService: WatchLaterService,
     private val blockedService: BlockedService,
     private val streamService: StreamService,
+    private val trendingService: TrendingService,
 ) {
     suspend fun build(
         userId: String,
@@ -30,6 +31,7 @@ class HomeRecommendationBuilder(
             subscriptionFeedService = subscriptionFeedService,
             subscriptionShortsFeedService = subscriptionShortsFeedService,
             streamService = streamService,
+            trendingService = trendingService,
         )
         val candidatePool = candidates.fetchCandidates(
             userId = userId,

@@ -16,6 +16,9 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.HomeRecommendationService
 import dev.typetype.server.services.NotificationsService
+import dev.typetype.server.services.ChannelNotificationPreferenceService
+import dev.typetype.server.services.PushNotificationService
+import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
 import dev.typetype.server.services.RssFeedManagementService
@@ -45,9 +48,12 @@ internal class ServiceRegistry(
     jwtSecret: String,
     adminSettingsService: AdminSettingsService,
     youtubeProxySelector: ProxySelector? = null,
+    profileAccountService: ProfileAccountService? = null,
+    private val instanceId: String = "typetype",
+    private val pushNotificationsEnabled: Boolean = true,
 ) {
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
-    val accountIdentityService = AccountIdentityService()
+    val accountIdentityService = AccountIdentityService(profileAccountService)
     val customAvatarService = CustomAvatarService()
     val deArrowService = DeArrowService(cache)
     private val extraction = ExtractionServiceRegistry(
@@ -74,6 +80,7 @@ internal class ServiceRegistry(
     val podcastService = extraction.podcastService
     val publicPlaylistService = extraction.publicPlaylistService
     val proxyService = extraction.proxyService
+    val providerMediaHandleService = extraction.providerMediaHandleService
     val youtubeSubtitleDeliveryService = extraction.youtubeSubtitleDeliveryService
     val nicoVideoProxyService = extraction.nicoVideoProxyService
     val manifestService = extraction.manifestService
@@ -99,6 +106,14 @@ internal class ServiceRegistry(
         )
     }
     val notificationsService = NotificationsService(subscriptionFeedService)
+    val channelNotificationPreferenceService = ChannelNotificationPreferenceService(subscriptionsService)
+    val pushNotificationService = PushNotificationService(
+        subscriptionsService = subscriptionsService,
+        subscriptionFeedService = subscriptionFeedService,
+        preferenceService = channelNotificationPreferenceService,
+        instanceId = instanceId,
+        enabled = pushNotificationsEnabled,
+    )
     val playlistService = PlaylistService()
     val videoMetadataRepairService = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
     val savedPlaylistService = SavedPlaylistService()
@@ -147,9 +162,10 @@ internal class ServiceRegistry(
         watchLaterService = watchLaterService,
         blockedService = blockedService,
         streamService = streamService,
+        trendingService = trendingService,
         cache = cache,
     )
-    private val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
+    val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
     val homeRecommendationService = homeRecommendationServices.recommendationService
     val homeRecommendationWarmupService = homeRecommendationServices.warmupService
 }

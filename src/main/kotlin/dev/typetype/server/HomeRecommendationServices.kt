@@ -9,7 +9,12 @@ import dev.typetype.server.services.HomeRecommendationWarmupService
 data class HomeRecommendationServices(
     val recommendationService: HomeRecommendationService,
     val warmupService: HomeRecommendationWarmupService,
-)
+) : AutoCloseable {
+    override fun close() {
+        warmupService.close()
+        recommendationService.close()
+    }
+}
 
 fun createHomeRecommendationServices(
     cache: DragonflyService,

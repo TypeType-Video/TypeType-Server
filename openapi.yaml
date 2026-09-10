@@ -29,6 +29,7 @@ paths:
   /streams/audio-only/source: { $ref: ./openapi/paths/streams.yaml#/AudioOnlySource }
   /subtitles/youtube/{videoId}: { $ref: ./openapi/paths/subtitles.yaml#/YoutubeSubtitle }
   /proxy: { $ref: ./openapi/paths/proxy.yaml#/Proxy }
+  /media/{handle}: { $ref: ./openapi/paths/media.yaml#/ProviderMedia }
   /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
@@ -50,6 +51,17 @@ paths:
   /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
   /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
+  /profiles: { $ref: ./openapi/paths/profiles.yaml#/AccountProfiles }
+  /profiles/{profileId}: { $ref: ./openapi/paths/profiles.yaml#/AccountProfile }
+  /profiles/{profileId}/default: { $ref: ./openapi/paths/profiles.yaml#/AccountProfileDefault }
+  /profiles/{profileId}/switch: { $ref: ./openapi/paths/profiles.yaml#/AccountProfileSwitch }
+  /notifications: { $ref: ./openapi/paths/notifications.yaml#/Notifications }
+  /notifications/unread-count: { $ref: ./openapi/paths/notifications.yaml#/NotificationsUnreadCount }
+  /notifications/read-all: { $ref: ./openapi/paths/notifications.yaml#/NotificationsReadAll }
+  /notifications/{notificationId}/read: { $ref: ./openapi/paths/notifications.yaml#/NotificationsRead }
+  /notifications/channel-preferences: { $ref: ./openapi/paths/push-notifications.yaml#/ChannelNotificationPreferences }
+  /notifications/push/devices: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevices }
+  /notifications/push/devices/{deviceId}: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevice }
   /rss/feeds: { $ref: ./openapi/paths/rss.yaml#/RssFeeds }
   /rss/feeds/{id}: { $ref: ./openapi/paths/rss.yaml#/RssFeed }
   /rss/feeds/{id}/enabled: { $ref: ./openapi/paths/rss.yaml#/RssFeedEnabled }
@@ -114,6 +126,11 @@ paths:
   /internal/youtube-session/browser/complete:
     $ref: ./openapi/paths/youtube-session.yaml#/InternalBrowserComplete
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     ErrorResponse:
       $ref: ./openapi/components/common.yaml#/ErrorResponse
@@ -169,6 +186,20 @@ components:
     SubscriptionGroupMembershipBatchRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
+    AccountProfileItem: { $ref: ./openapi/components/profiles.yaml#/AccountProfileItem }
+    AccountProfilesResponse: { $ref: ./openapi/components/profiles.yaml#/AccountProfilesResponse }
+    ProfileNameRequest: { $ref: ./openapi/components/profiles.yaml#/ProfileNameRequest }
+    ProfileSwitchResponse: { $ref: ./openapi/components/profiles.yaml#/ProfileSwitchResponse }
+    NotificationItem: { $ref: ./openapi/components/notifications.yaml#/NotificationItem }
+    NotificationsResponse: { $ref: ./openapi/components/notifications.yaml#/NotificationsResponse }
+    UnreadCountResponse: { $ref: ./openapi/components/notifications.yaml#/UnreadCountResponse }
+    MarkNotificationsReadResponse: { $ref: ./openapi/components/notifications.yaml#/MarkNotificationsReadResponse }
+    PushNotificationCapability: { $ref: ./openapi/components/instance.yaml#/PushNotificationCapability }
+    PushDeviceRegistrationRequest: { $ref: ./openapi/components/push-notifications.yaml#/PushDeviceRegistrationRequest }
+    PushDeviceRegistrationResponse: { $ref: ./openapi/components/push-notifications.yaml#/PushDeviceRegistrationResponse }
+    ChannelNotificationPreferenceRequest: { $ref: ./openapi/components/push-notifications.yaml#/ChannelNotificationPreferenceRequest }
+    ChannelNotificationPreference: { $ref: ./openapi/components/push-notifications.yaml#/ChannelNotificationPreference }
+    UnifiedPushNotificationPayload: { $ref: ./openapi/components/push-notifications.yaml#/UnifiedPushNotificationPayload }
     RssFeedRequest: { $ref: ./openapi/components/rss.yaml#/RssFeedRequest }
     RssFeedItem: { $ref: ./openapi/components/rss.yaml#/RssFeedItem }
     RssFeedSecretItem: { $ref: ./openapi/components/rss.yaml#/RssFeedSecretItem }

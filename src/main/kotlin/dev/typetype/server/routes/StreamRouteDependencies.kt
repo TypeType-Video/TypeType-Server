@@ -7,6 +7,7 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
+import dev.typetype.server.services.ProviderMediaHandleService
 
 internal data class StreamRouteDependencies(
     val authService: AuthService?,
@@ -14,6 +15,7 @@ internal data class StreamRouteDependencies(
     val adminSettingsService: AdminSettingsService?,
     val blockedService: BlockedService?,
     val publicHlsManifestTokenService: PublicHlsManifestTokenService?,
+    val providerMediaHandleService: ProviderMediaHandleService?,
     val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)?,
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
 )

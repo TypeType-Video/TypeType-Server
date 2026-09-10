@@ -54,7 +54,7 @@ class PipePipeCommentService : CommentService {
 
     private fun CommentsInfoItem.toCommentItem(): CommentItem = CommentItem(
         id = commentId ?: "",
-        text = commentText ?: "",
+        text = commentText.content,
         author = uploaderName ?: "",
         authorUrl = uploaderUrl ?: "",
         authorAvatarUrl = (uploaderAvatarUrl ?: "").normalizeHttpSchema(),

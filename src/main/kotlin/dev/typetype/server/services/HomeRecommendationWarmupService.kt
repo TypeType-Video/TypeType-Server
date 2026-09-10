@@ -4,18 +4,17 @@ import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 class HomeRecommendationWarmupService(
     private val recommendationService: HomeRecommendationService,
     private val cache: CacheService,
-) : HomeRecommendationWarmup {
+) : HomeRecommendationWarmup, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val activeUsers = ConcurrentHashMap<String, Long>()
-    private val warmupStartedAt = ConcurrentHashMap<String, Long>()
+    private val tracker = HomeWarmupTracker(WARMUP_THROTTLE_MS, ACTIVE_TTL_MS)
     private val poolCache = HomeRecommendationPoolCache(cache)
 
     init {
@@ -23,12 +22,12 @@ class HomeRecommendationWarmupService(
     }
 
     override fun markActive(userId: String) {
-        activeUsers[userId] = System.currentTimeMillis()
+        tracker.markActive(userId, System.currentTimeMillis())
         schedule(userId)
     }
 
     override fun invalidateAndWarm(userId: String) {
-        activeUsers[userId] = System.currentTimeMillis()
+        tracker.markActive(userId, System.currentTimeMillis())
         scope.launch {
             invalidate(userId)
             SubscriptionFeedCacheInvalidation.awaitRefresh(userId)
@@ -38,9 +37,7 @@ class HomeRecommendationWarmupService(
 
     private fun schedule(userId: String, force: Boolean = false) {
         val now = System.currentTimeMillis()
-        val previous = warmupStartedAt[userId]
-        if (!force && previous != null && now - previous < WARMUP_THROTTLE_MS) return
-        warmupStartedAt[userId] = now
+        if (!tracker.trySchedule(userId, now, force)) return
         scope.launch { warm(userId) }
     }
 
@@ -64,8 +61,7 @@ class HomeRecommendationWarmupService(
         while (scope.isActive) {
             delay(REFRESH_INTERVAL_MS)
             val now = System.currentTimeMillis()
-            activeUsers.entries.removeIf { now - it.value > ACTIVE_TTL_MS }
-            activeUsers.keys.forEach { schedule(it) }
+            tracker.activeUsers(now).forEach { schedule(it) }
         }
     }
 
@@ -76,6 +72,10 @@ class HomeRecommendationWarmupService(
             deviceClass = HomeRecommendationDeviceClass.UNKNOWN,
         ),
     )
+
+    override fun close() {
+        scope.cancel()
+    }
 
     companion object {
         private const val WARMUP_LIMIT = 20

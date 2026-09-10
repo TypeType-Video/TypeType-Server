@@ -12,6 +12,7 @@ import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionShortsFeedService
+import dev.typetype.server.services.TrendingService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -23,8 +24,9 @@ class HomeRecommendationCandidateServiceTest {
     private val subscriptionFeedService: SubscriptionFeedService = mockk()
     private val subscriptionShortsFeedService: SubscriptionShortsFeedService = mockk()
     private val streamService: StreamService = mockk()
+    private val trendingService: TrendingService = mockk()
     private val service = HomeRecommendationCandidateService(
-        subscriptionFeedService, subscriptionShortsFeedService, streamService,
+        subscriptionFeedService, subscriptionShortsFeedService, streamService, trendingService,
     )
 
     @BeforeEach
@@ -33,6 +35,7 @@ class HomeRecommendationCandidateServiceTest {
         coEvery { subscriptionFeedService.getFeed(any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
         coEvery { subscriptionShortsFeedService.getBlendedFeed(any(), any(), any(), any()) } returns SubscriptionFeedResponse(emptyList(), null)
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Failure("none")
+        coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
     }
 
     @Test
@@ -60,6 +63,32 @@ class HomeRecommendationCandidateServiceTest {
         assertTrue(pool.discovery.isEmpty())
     }
 
+    @Test
+    fun `bilibili mode excludes subscriptions from other services`() = runTest {
+        val youtube = video("yt", "YouTube")
+        val bilibili = video("bili", "BiliBili", "https://www.bilibili.com/video/BV1234567890")
+        coEvery { subscriptionFeedService.getCachedFeed(any(), any(), any()) } returns
+            SubscriptionFeedResponse(listOf(youtube, bilibili), null)
+
+        val pool = service.fetchCandidates("u", 5, profile(), HomeRecommendationPoolMode.FAST)
+
+        assertTrue(pool.subscriptions.map { it.video.id } == listOf("bili"))
+    }
+
+    @Test
+    fun `niconico mode falls back to niconico trending videos`() = runTest {
+        val youtube = video("yt", "YouTube")
+        val niconico = video("nico", "NicoNico", "https://www.nicovideo.jp/watch/sm123")
+        coEvery { subscriptionFeedService.getCachedFeed(any(), any(), any()) } returns
+            SubscriptionFeedResponse(listOf(youtube), null)
+        coEvery { trendingService.getTrending(6) } returns ExtractionResult.Success(listOf(youtube, niconico))
+
+        val pool = service.fetchCandidates("u", 6, profile(), HomeRecommendationPoolMode.FAST)
+
+        assertTrue(pool.subscriptions.isEmpty())
+        assertTrue(pool.discovery.map { it.video.id } == listOf("nico"))
+    }
+
     private fun profile(): HomeRecommendationProfile = HomeRecommendationProfile(
         seenUrls = emptySet(), blockedVideos = emptySet(), blockedChannels = emptySet(),
         feedbackBlockedVideos = emptySet(), feedbackBlockedChannels = emptySet(),
@@ -79,8 +108,8 @@ class HomeRecommendationCandidateServiceTest {
         sponsorBlockSegments = emptyList(), relatedStreams = related, publishedAt = 0,
     )
 
-    private fun video(id: String, title: String): VideoItem = VideoItem(
-        id = id, title = title, url = "https://yt.com/v/$id", thumbnailUrl = "", uploaderName = "channel",
+    private fun video(id: String, title: String, url: String = "https://yt.com/v/$id"): VideoItem = VideoItem(
+        id = id, title = title, url = url, thumbnailUrl = "", uploaderName = "channel",
         uploaderUrl = "https://yt.com/c/channel", uploaderAvatarUrl = "", duration = 60, viewCount = 0,
         uploadDate = "", uploaded = System.currentTimeMillis(), streamType = "video_stream", isShortFormContent = false,
         uploaderVerified = false, shortDescription = null,

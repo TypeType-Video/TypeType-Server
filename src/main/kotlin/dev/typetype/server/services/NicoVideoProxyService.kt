@@ -40,7 +40,10 @@ internal fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: S
     }
 }
 
-class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
+class NicoVideoProxyService(
+    client: OkHttpClient = defaultNicoProxyClient(),
+    private val mediaHandleService: ProviderMediaHandleService? = null,
+) {
     private val executor = ProxyHttpExecutor(client)
 
     companion object {
@@ -72,7 +75,15 @@ class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
                     } else {
                         val text = body.string()
                         response.close()
-                        val rewritten = rewriteNicoManifest(text, manifestUrl, resolvedBid)
+                        val rewritten = if (mediaHandleService == null) {
+                            rewriteNicoManifest(text, manifestUrl, resolvedBid)
+                        } else {
+                            rewriteProviderHlsManifest(text, manifestUrl) { target ->
+                                mediaHandleService.relativeManifestPath(
+                                    mediaHandleService.createPath(target, resolvedBid),
+                                )
+                            }
+                        }
                         ExtractionResult.Success(ProxyResponse(
                             status = 200,
                             contentType = "application/vnd.apple.mpegurl",
@@ -113,6 +124,7 @@ class NicoVideoProxyService(client: OkHttpClient = defaultNicoProxyClient()) {
                             acceptRanges = response.header("Accept-Ranges"),
                             stream = body.byteStream(),
                             close = response::close,
+                            cacheControl = response.header("Cache-Control"),
                         ))
                     }
                 },

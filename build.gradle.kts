@@ -1,8 +1,8 @@
 import java.time.Instant
 
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("io.ktor.plugin") version "3.5.2"
     id("jacoco")
 }
@@ -29,7 +29,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.17.Final"))
     constraints {
-        implementation("org.jsoup:jsoup:1.23.1") {
+        implementation("org.jsoup:jsoup:1.23.2") {
             because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
         }
     }
@@ -44,18 +44,18 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.6.3")
-    implementation("com.github.Priveetee.PipePipeExtractor:extractor:ca3280f28f3aa0b980b63a2b2d23c362f7616620")
+    implementation("com.github.Priveetee.PipePipeExtractor:extractor:a395a9ba16ae75987969ed9e7d330c928ad3bc20")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("org.json:json:20260814")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("io.lettuce:lettuce-core:7.7.0.RELEASE")
-    implementation("org.jetbrains.exposed:exposed-core:1.4.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.4.0")
+    implementation("org.jetbrains.exposed:exposed-core:1.5.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.5.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
-    implementation("org.xerial:sqlite-jdbc:3.53.2.1")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
     implementation("com.password4j:password4j:1.8.4")
-    implementation("com.auth0:java-jwt:4.6.0")
+    implementation("com.auth0:java-jwt:4.6.1")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")

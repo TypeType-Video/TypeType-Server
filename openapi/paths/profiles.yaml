@@ -1,0 +1,102 @@
+AccountProfiles:
+  get:
+    tags: [user-data]
+    summary: List the profiles available to the authenticated account
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: Account profiles and the active/default profile IDs.
+        content:
+          application/json:
+            schema: { $ref: ../components/profiles.yaml#/AccountProfilesResponse }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+  post:
+    tags: [user-data]
+    summary: Create an isolated account profile
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/profiles.yaml#/ProfileNameRequest }
+    responses:
+      '201':
+        description: The newly created profile.
+        content:
+          application/json:
+            schema: { $ref: ../components/profiles.yaml#/AccountProfileItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+
+AccountProfile:
+  parameters:
+    - name: profileId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  put:
+    tags: [user-data]
+    summary: Rename an account profile
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/profiles.yaml#/ProfileNameRequest }
+    responses:
+      '200':
+        description: Renamed profile.
+        content:
+          application/json:
+            schema: { $ref: ../components/profiles.yaml#/AccountProfileItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [user-data]
+    summary: Delete an account profile and its private data
+    security: [{ bearerAuth: [] }]
+    responses:
+      '204': { description: Profile deleted. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+
+AccountProfileDefault:
+  parameters:
+    - name: profileId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  post:
+    tags: [user-data]
+    summary: Set the default profile used after sign-in
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: The selected default profile.
+        content:
+          application/json:
+            schema: { $ref: ../components/profiles.yaml#/AccountProfileItem }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+
+AccountProfileSwitch:
+  parameters:
+    - name: profileId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  post:
+    tags: [user-data]
+    summary: Switch the authenticated session to another profile
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: A new profile-scoped access token and profile projection.
+        content:
+          application/json:
+            schema: { $ref: ../components/profiles.yaml#/ProfileSwitchResponse }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }

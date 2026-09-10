@@ -9,6 +9,8 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
+import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaType
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_CODE
 import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_ERROR
@@ -21,9 +23,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import kotlinx.coroutines.CancellationException
 
 private const val STREAMS_CACHE_CONTROL = "public, max-age=21600, stale-while-revalidate=3600"
 private const val AUTHENTICATED_STREAMS_CACHE_CONTROL = "no-store"
+private const val PROVIDER_STREAMS_CACHE_CONTROL = "no-store"
 
 fun Route.streamRoutes(
     streamService: StreamService,
@@ -32,6 +36,7 @@ fun Route.streamRoutes(
     adminSettingsService: AdminSettingsService? = null,
     blockedService: BlockedService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
+    providerMediaHandleService: ProviderMediaHandleService? = null,
     nicoNicoStreamService: StreamService = streamService,
     bilibiliStreamService: StreamService = streamService,
     sabrBootstrapStreamService: StreamService = streamService,
@@ -44,6 +49,7 @@ fun Route.streamRoutes(
         adminSettingsService = adminSettingsService,
         blockedService = blockedService,
         publicHlsManifestTokenService = publicHlsManifestTokenService,
+        providerMediaHandleService = providerMediaHandleService,
         sabrStreamContractFilter = sabrStreamContractFilter,
         youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
     )
@@ -128,11 +134,31 @@ private fun Route.streamRoute(
                         ErrorResponse("No playable streams available", "no_playable_streams"),
                     )
                 }
+                val publicData = try {
+                    dependencies.providerMediaHandleService?.let { service ->
+                        providerMediaType(deliveryMode)?.let { service.materialize(data, it) }
+                    } ?: data
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    return@get call.respond(
+                        HttpStatusCode.BadGateway,
+                        ErrorResponse(
+                            error.message ?: "Provider media handle service failed",
+                            "media_handle_unavailable",
+                        ),
+                    )
+                }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
-                    if (access.userId != null) AUTHENTICATED_STREAMS_CACHE_CONTROL else STREAMS_CACHE_CONTROL,
+                    when {
+                        access.userId != null -> AUTHENTICATED_STREAMS_CACHE_CONTROL
+                        deliveryMode == StreamDeliveryMode.NicoNico ||
+                            deliveryMode == StreamDeliveryMode.BiliBili -> PROVIDER_STREAMS_CACHE_CONTROL
+                        else -> STREAMS_CACHE_CONTROL
+                    },
                 )
-                call.respond(data)
+                call.respond(publicData)
             }
             is ExtractionResult.BadRequest ->
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
@@ -140,6 +166,12 @@ private fun Route.streamRoute(
                 call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
         }
     }
+}
+
+private fun providerMediaType(deliveryMode: StreamDeliveryMode): ProviderMediaType? = when (deliveryMode) {
+    StreamDeliveryMode.NicoNico -> ProviderMediaType.NICONICO
+    StreamDeliveryMode.BiliBili -> ProviderMediaType.BILIBILI
+    StreamDeliveryMode.YoutubeSabr -> null
 }
 
 private data class StreamResolution(

@@ -42,6 +42,28 @@ class HlsManifestServiceCacheTest {
     }
 
     @Test
+    fun `provider manifests are fetched again instead of serving signed cache entries`() = runTest {
+        var calls = 0
+        val client = proxyTestClient(Interceptor { chain ->
+            calls += 1
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("#EXTM3U\nsegment.m4s".toResponseBody("application/vnd.apple.mpegurl".toMediaType()))
+                .build()
+        })
+        val service = HlsManifestService(NoopStreamService, client, InMemoryCache())
+        val url = "https://upos-hz-mirrorakam.akamaized.net/master.m3u8?deadline=2000000000"
+
+        service.hlsManifest(url)
+        service.hlsManifest(url)
+
+        assertEquals(2, calls)
+    }
+
+    @Test
     fun `attested manifest is scoped to youtube live`() = runTest {
         val requestedUrls = mutableListOf<String>()
         val attestedVideoIds = mutableListOf<String>()

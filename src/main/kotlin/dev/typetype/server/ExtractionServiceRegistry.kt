@@ -29,6 +29,7 @@ import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
+import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
@@ -82,15 +83,16 @@ internal class ExtractionServiceRegistry(
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
     val youtubeSubtitleService = YouTubeSubtitleService(httpClient, subtitleServiceUrl)
+    private val bilibiliRelatedService = BilibiliRelatedService()
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
-        BilibiliRelatedService(),
+        bilibiliRelatedService,
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
-        BilibiliRelatedService(),
+        bilibiliRelatedService,
         sabrSessionStore::rememberExtractedInfo,
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
@@ -153,9 +155,10 @@ internal class ExtractionServiceRegistry(
         YoutubeScopedPublicPlaylistService(PipePipePublicPlaylistService()),
         cache,
     )
-    val proxyService = OkHttpProxyService(proxyHttpClient)
-    val nicoVideoProxyService = NicoVideoProxyService()
-    val manifestService = CachedManifestService(ManifestService(streamService), cache)
+    val providerMediaHandleService = ProviderMediaHandleService(cache)
+    val proxyService = OkHttpProxyService(proxyHttpClient, providerMediaHandleService)
+    val nicoVideoProxyService = NicoVideoProxyService(mediaHandleService = providerMediaHandleService)
+    val manifestService = CachedManifestService(ManifestService(streamService, providerMediaHandleService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)
     val hlsManifestService = HlsManifestService(
         streamService,
@@ -163,6 +166,7 @@ internal class ExtractionServiceRegistry(
         cache,
         hlsManifestUrlSigner,
         tokenYoutubeSessionClient::fetchHlsManifestUrl,
+        providerMediaHandleService,
     )
     val youtubeSessionHlsManifestService = hlsTokenService?.let { tokenService ->
         youtubeSessionStreamService?.let {

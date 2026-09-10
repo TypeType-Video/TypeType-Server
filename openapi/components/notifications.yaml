@@ -1,0 +1,39 @@
+NotificationItem:
+  type: object
+  required: [id, type, title, createdAt, publishedAt, channelUrl, channelName, channelAvatarUrl, serviceId, serviceName, read, video]
+  properties:
+    id: { type: string }
+    type: { type: string }
+    title: { type: string }
+    createdAt: { type: integer, format: int64 }
+    publishedAt: { type: integer, format: int64 }
+    channelUrl: { type: string }
+    channelName: { type: string }
+    channelAvatarUrl: { type: string }
+    serviceId: { type: integer, format: int32, minimum: 0 }
+    serviceName: { type: string }
+    read: { type: boolean }
+    video: { $ref: ./media.yaml#/VideoItem }
+NotificationsResponse:
+  type: object
+  required: [items, unreadCount, nextpage, available]
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/NotificationItem' }
+    unreadCount: { type: integer, minimum: 0 }
+    nextpage: { type: string, nullable: true }
+    available: { type: boolean }
+UnreadCountResponse:
+  type: object
+  required: [unreadCount, available]
+  properties:
+    unreadCount: { type: integer, minimum: 0 }
+    available: { type: boolean }
+MarkNotificationsReadResponse:
+  type: object
+  required: [readAt, unreadCount, available]
+  properties:
+    readAt: { type: integer, format: int64 }
+    unreadCount: { type: integer, minimum: 0 }
+    available: { type: boolean }

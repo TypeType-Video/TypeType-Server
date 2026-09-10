@@ -19,6 +19,7 @@ open class AuthService(
     private val jwtSecret: String,
     private val hasUsersProbe: (() -> Boolean)? = null,
     sessionConfig: AuthSessionConfig = AuthSessionConfig(),
+    private val profileAccountService: ProfileAccountService? = null,
 ) {
     private val accessCodec = AuthAccessTokenCodec(jwtSecret)
     private val sessionStore = AuthSessionStore()
@@ -48,9 +49,8 @@ open class AuthService(
                 it[UsersTable.updatedAt] = now
             }
         }
-        return DatabaseFactory.blocking {
-            tokenIssuer.issue(userId) ?: throw IllegalStateException("Failed to create session")
-        }
+        val sessionUserId = profileAccountService?.resolveSignInProfile(userId) ?: userId
+        return DatabaseFactory.blocking { tokenIssuer.issue(sessionUserId) ?: throw IllegalStateException("Failed to create session") }
     }
 
     suspend fun login(identifier: String, password: String): AuthSessionTokens? {
@@ -67,11 +67,16 @@ open class AuthService(
             query.singleOrNull()
         } ?: return null
 
+        if (profileAccountService != null && !profileAccountService.isOwnerProfile(user[UsersTable.id])) {
+            return null
+        }
+
         val hashed = user[UsersTable.passwordHash]
         val verified = withContext(passwordDispatcher) { Password.check(password, hashed).withArgon2() }
         if (!verified) return null
 
-        return DatabaseFactory.blocking { tokenIssuer.issue(user[UsersTable.id]) }
+        val sessionUserId = profileAccountService?.resolveSignInProfile(user[UsersTable.id]) ?: user[UsersTable.id]
+        return DatabaseFactory.blocking { tokenIssuer.issue(sessionUserId) }
     }
 
     suspend fun refreshSession(refreshToken: String): AuthSessionTokens? = DatabaseFactory.blocking {
@@ -80,6 +85,11 @@ open class AuthService(
 
     suspend fun issueSession(userId: String): AuthSessionTokens? = DatabaseFactory.blocking {
         tokenIssuer.issue(userId)
+    }
+
+    suspend fun issueSessionForOwner(ownerUserId: String): AuthSessionTokens? {
+        val sessionUserId = profileAccountService?.resolveSignInProfile(ownerUserId) ?: ownerUserId
+        return issueSession(sessionUserId)
     }
 
     suspend fun logout(refreshToken: String?): Unit = DatabaseFactory.blocking {
@@ -102,8 +112,9 @@ open class AuthService(
 
     suspend fun getUserRole(userId: String): String? {
         if (userId.startsWith("guest:")) return "user"
+        val roleUserId = profileAccountService?.ownerUserId(userId) ?: userId
         return DatabaseFactory.query {
-            UsersTable.selectAll().where { UsersTable.id eq userId }.singleOrNull()
+            UsersTable.selectAll().where { UsersTable.id eq roleUserId }.singleOrNull()
         }?.get(UsersTable.role)
     }
 
