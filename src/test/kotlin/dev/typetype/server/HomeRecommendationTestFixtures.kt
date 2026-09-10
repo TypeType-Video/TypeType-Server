@@ -36,6 +36,7 @@ fun homeResolverDependencies(
     favoritesService = FavoritesService(),
     watchLaterService = WatchLaterService(),
     blockedService = BlockedService(),
+    trendingService = trendingService,
     cache = cache,
 )
 

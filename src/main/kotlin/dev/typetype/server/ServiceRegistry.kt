@@ -162,6 +162,7 @@ internal class ServiceRegistry(
         watchLaterService = watchLaterService,
         blockedService = blockedService,
         streamService = streamService,
+        trendingService = trendingService,
         cache = cache,
     )
     val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)

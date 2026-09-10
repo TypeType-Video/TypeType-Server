@@ -77,6 +77,7 @@ class HomeRecommendationPoolResolver(
         watchLaterService = dependencies.watchLaterService,
         blockedService = dependencies.blockedService,
         streamService = dependencies.streamService,
+        trendingService = dependencies.trendingService,
     ).build(
         userId = userId,
         serviceId = serviceId,

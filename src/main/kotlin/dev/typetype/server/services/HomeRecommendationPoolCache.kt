@@ -41,6 +41,6 @@ class HomeRecommendationPoolCache(private val cache: dev.typetype.server.cache.C
     companion object {
         private const val CACHE_TTL_SECONDS = 3_600L
         private const val STALE_TTL_SECONDS = 86_400L
-        private const val CACHE_VERSION = 9
+        private const val CACHE_VERSION = 10
     }
 }

@@ -11,5 +11,6 @@ data class HomeRecommendationPoolResolverDependencies(
     val watchLaterService: WatchLaterService,
     val blockedService: BlockedService,
     val streamService: StreamService = HomeRecommendationNoopStreamService,
+    val trendingService: TrendingService,
     val cache: CacheService,
 )
