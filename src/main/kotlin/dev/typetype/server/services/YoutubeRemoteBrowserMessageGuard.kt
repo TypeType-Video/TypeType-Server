@@ -12,7 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 object YoutubeRemoteBrowserMessageGuard {
     private val json = Json { ignoreUnknownKeys = true }
     private val clientTypes = setOf("resize", "pointer", "wheel", "key", "text", "cancel")
-    private val tokenTypes = setOf("status", "error")
+    private val tokenTypes = setOf("status", "error", "log")
     private val phases = setOf("opening", "awaiting_login", "capturing_session", "connected")
     private val pointerEvents = setOf("down", "up", "move")
     private val keyEvents = setOf("down", "up")
@@ -45,6 +45,7 @@ object YoutubeRemoteBrowserMessageGuard {
         when (obj.string("type")?.takeIf { it in tokenTypes }) {
             "status" -> obj.string("phase")?.let { it in phases } == true
             "error" -> (obj.string("message")?.length ?: Int.MAX_VALUE) <= 200
+            "log" -> obj.int("at").inRange(0..Int.MAX_VALUE) && (obj.string("message")?.length ?: Int.MAX_VALUE) <= 1000
             else -> false
         }
 

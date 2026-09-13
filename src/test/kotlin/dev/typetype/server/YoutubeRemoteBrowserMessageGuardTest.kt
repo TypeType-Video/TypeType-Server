@@ -30,4 +30,14 @@ class YoutubeRemoteBrowserMessageGuardTest {
         assertNull(YoutubeRemoteBrowserMessageGuard.tokenText(complete))
         assertNull(YoutubeRemoteBrowserMessageGuard.tokenText("""{"type":"status","phase":"unknown"}"""))
     }
+
+    @Test
+    fun `token diagnostics logs are forwarded when bounded`() {
+        val log = """{"type":"log","at":1200,"message":"login check url=https://accounts.google.com/signin cookies=google.com=[SID]"}"""
+
+        assertEquals(log, YoutubeRemoteBrowserMessageGuard.tokenText(log))
+        assertNull(YoutubeRemoteBrowserMessageGuard.tokenText("""{"type":"log","message":"missing at"}"""))
+        assertNull(YoutubeRemoteBrowserMessageGuard.tokenText("""{"type":"log","at":-1,"message":"negative"}"""))
+        assertNull(YoutubeRemoteBrowserMessageGuard.tokenText("""{"type":"log","at":5,"message":"${"x".repeat(1001)}"}"""))
+    }
 }
