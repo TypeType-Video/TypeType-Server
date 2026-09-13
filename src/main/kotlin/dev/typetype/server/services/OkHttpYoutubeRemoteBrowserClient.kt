@@ -15,9 +15,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import okio.ByteString
 
 class OkHttpYoutubeRemoteBrowserClient(
     private val serviceUrl: String,
@@ -55,12 +52,17 @@ class OkHttpYoutubeRemoteBrowserClient(
     ): Unit = coroutineScope {
         val done = CompletableDeferred<Unit>()
         val outbound = Channel<Frame>(config.outboundQueueSize, BufferOverflow.DROP_OLDEST)
-        val socket = client.newWebSocket(tokenWebSocketRequest(tokenSessionId, internalToken), listener(outbound, done, config))
+        val listener = YoutubeRemoteBrowserBridgeListener(tokenSessionId, outbound, done, config)
+        val socket = client.newWebSocket(tokenWebSocketRequest(tokenSessionId, internalToken), listener)
+        var inputs = 0
         val outboundJob = launch { for (frame in outbound) serverSession.send(frame) }
         val inboundJob = launch {
             for (frame in serverSession.incoming) {
                 if (frame is Frame.Text) {
-                    YoutubeRemoteBrowserMessageGuard.frontendText(frame.readText(), config.maxInputBytes)?.let(socket::send)
+                    YoutubeRemoteBrowserMessageGuard.frontendText(frame.readText(), config.maxInputBytes)?.let {
+                        inputs += 1
+                        socket.send(it)
+                    }
                 }
                 if (frame is Frame.Close) done.complete(Unit)
             }
@@ -72,6 +74,7 @@ class OkHttpYoutubeRemoteBrowserClient(
         outbound.close()
         outboundJob.cancel()
         inboundJob.cancel()
+        YoutubeRemoteBrowserAudit.bridgeEnded(tokenSessionId, listener.texts.get(), listener.frames.get(), inputs)
     }
 
     private fun decodeStartResponse(response: Response): YoutubeRemoteBrowserTokenStartResponse? {
@@ -85,27 +88,6 @@ class OkHttpYoutubeRemoteBrowserClient(
             .header(INTERNAL_HEADER, internalToken)
             .build()
 
-    private fun listener(
-        outbound: Channel<Frame>,
-        done: CompletableDeferred<Unit>,
-        config: YoutubeRemoteBrowserConfig,
-    ): WebSocketListener = object : WebSocketListener() {
-        override fun onMessage(webSocket: WebSocket, text: String) {
-            YoutubeRemoteBrowserMessageGuard.tokenText(text)?.let { outbound.trySend(Frame.Text(it)) }
-        }
-
-        override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-            if (bytes.size <= config.maxFrameBytes) outbound.trySend(Frame.Binary(true, bytes.toByteArray()))
-        }
-
-        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            done.complete(Unit)
-        }
-
-        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            done.complete(Unit)
-        }
-    }
 
     private fun webSocketBaseUrl(): String =
         serviceUrl.trimEnd('/').replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")

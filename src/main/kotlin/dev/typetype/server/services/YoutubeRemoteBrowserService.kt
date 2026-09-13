@@ -22,11 +22,13 @@ class YoutubeRemoteBrowserService(
             return YoutubeRemoteBrowserStartResult.Misconfigured
         }
         val internalToken = config.internalToken ?: return YoutubeRemoteBrowserStartResult.Misconfigured
-        return when (val reserved = sessions.reserve(userId, config)) {
+        val result = when (val reserved = sessions.reserve(userId, config)) {
             YoutubeRemoteBrowserReserveResult.AlreadyActive -> YoutubeRemoteBrowserStartResult.AlreadyActive
             YoutubeRemoteBrowserReserveResult.CapacityReached -> YoutubeRemoteBrowserStartResult.CapacityReached
             is YoutubeRemoteBrowserReserveResult.Reserved -> startTokenSession(reserved, userId, internalToken, returnTo)
         }
+        YoutubeRemoteBrowserAudit.startResult(userId, result::class.simpleName ?: "unknown")
+        return result
     }
 
     suspend fun cancel(userId: String, sessionId: String): Boolean {
@@ -44,21 +46,12 @@ class YoutubeRemoteBrowserService(
         if (request.status != "completed") return YoutubeRemoteBrowserCompleteResult.InvalidPayload
         if (!youtubeSessionService.isConfigured) return YoutubeRemoteBrowserCompleteResult.Unavailable
         val session = sessions.complete(request.sessionId, request.tokenSessionId)
-            ?: return YoutubeRemoteBrowserCompleteResult.NotFound
-        return when (
-            youtubeSessionService.completeRemote(
-                session.userId,
-                request.cookies,
-                request.poToken,
-                request.authUser,
-            )
-        ) {
-            YoutubeSessionCompleteResult.Completed -> YoutubeRemoteBrowserCompleteResult.Completed
-            YoutubeSessionCompleteResult.InvalidCode,
-            YoutubeSessionCompleteResult.ExpiredCode,
-            YoutubeSessionCompleteResult.InvalidCredentials -> YoutubeRemoteBrowserCompleteResult.InvalidCredentials
-            YoutubeSessionCompleteResult.Unavailable -> YoutubeRemoteBrowserCompleteResult.Unavailable
-        }
+            ?: return YoutubeRemoteBrowserCompleteResult.NotFound.also { YoutubeRemoteBrowserAudit.completion(request, it) }
+        val result = youtubeSessionService
+            .completeRemote(session.userId, request.cookies, request.poToken, request.authUser)
+            .toRemoteBrowserResult()
+        YoutubeRemoteBrowserAudit.completion(request, result)
+        return result
     }
 
     suspend fun bridge(sessionId: String, wsToken: String?, serverSession: DefaultWebSocketServerSession): Unit {

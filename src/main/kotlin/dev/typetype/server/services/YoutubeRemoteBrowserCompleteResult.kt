@@ -8,3 +8,11 @@ sealed interface YoutubeRemoteBrowserCompleteResult {
     data object InvalidCredentials : YoutubeRemoteBrowserCompleteResult
     data object Unavailable : YoutubeRemoteBrowserCompleteResult
 }
+
+fun YoutubeSessionCompleteResult.toRemoteBrowserResult(): YoutubeRemoteBrowserCompleteResult = when (this) {
+    YoutubeSessionCompleteResult.Completed -> YoutubeRemoteBrowserCompleteResult.Completed
+    YoutubeSessionCompleteResult.InvalidCode,
+    YoutubeSessionCompleteResult.ExpiredCode,
+    YoutubeSessionCompleteResult.InvalidCredentials -> YoutubeRemoteBrowserCompleteResult.InvalidCredentials
+    YoutubeSessionCompleteResult.Unavailable -> YoutubeRemoteBrowserCompleteResult.Unavailable
+}
