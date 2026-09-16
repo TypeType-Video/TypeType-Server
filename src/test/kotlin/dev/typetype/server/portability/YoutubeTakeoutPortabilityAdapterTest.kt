@@ -1,6 +1,7 @@
 package dev.typetype.server.portability
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -100,6 +101,94 @@ class YoutubeTakeoutPortabilityAdapterTest {
         assertEquals(1_789_574_528_000L, (spoolRecord(spool, PortabilityCategory.HISTORY) as PortabilityHistory).watchedAt)
         assertTrue(spool.issues().isEmpty())
         spool.delete()
+    }
+
+    @Test
+    fun `adapter streams My Activity JSON including embedded URLs`() {
+        val json = directory.resolve("watch-history.json")
+        Files.writeString(
+            json,
+            """[
+                {"header":"YouTube","title":"Watched First title","titleUrl":"https://www.youtube.com/watch?v=watched01","subtitles":[{"name":"Channel","url":"https://www.youtube.com/channel/UC123456789012"}],"time":"2026-09-16T18:02:08Z","activityControls":["YouTube watch history"]},
+                {"header":"YouTube","title":"Liked Second title","titleUrl":"https://www.youtube.com/watch?v=liked01","time":"2026-09-15T18:02:08Z","activityControls":["YouTube watch history"]},
+                {"header":"YouTube","title":"Watched URLs://www.youtube.com/watch?v=embedded1","time":"2026-09-14T18:02:08Z","activityControls":["YouTube watch history"]},
+                {"header":"YouTube","title":"Titre japonais を視聴しました","titleUrl":"https://music.youtube.com/watch?v=japan01","time":"2026-09-13T18:02:08Z","activityControls":["視聴履歴"]},
+                {"header":"YouTube","title":"Visited https://youtu.be/visited1","time":"2026-09-12T18:02:08Z","activityControls":["Web & App Activity","YouTube watch history"]},
+                {"header":"YouTube","title":"Watched I liked this title","titleUrl":"https://www.youtube.com/watch?v=falsefav1","time":"2026-09-11T18:02:08Z","activityControls":["YouTube watch history"]},
+                {"header":"YouTube","title":"You subscribed to Channel","titleUrl":"https://www.youtube.com/channel/UC987654321098","subtitles":[{"name":"Channel","url":"https://www.youtube.com/channel/UC987654321098"}],"time":"2026-09-10T18:02:08Z","activityControls":["YouTube subscriptions"]},
+                {"header":"YouTube","title":"You subscribed to Direct channel","titleUrl":"https://www.youtube.com/@directchannel","time":"2026-09-09T18:02:08Z","activityControls":["YouTube subscriptions"]}
+            ]""".trimIndent(),
+        )
+        val input = PortabilityInputFactory.create(json, json.fileName.toString(), "application/json")
+        val spool = PortabilitySpool.create(directory)
+        val adapter = YoutubeTakeoutPortabilityAdapter()
+
+        assertEquals(PortabilityFormat.YOUTUBE_TAKEOUT, requireNotNull(adapter.detect(input)).format)
+        adapter.decode(input, spool)
+
+        assertEquals(5L, spool.counts()[PortabilityCategory.HISTORY])
+        assertEquals(1L, spool.counts()[PortabilityCategory.FAVORITES])
+        assertEquals(2L, spool.counts()[PortabilityCategory.SUBSCRIPTIONS])
+        val history = mutableListOf<PortabilityHistory>()
+        spool.forEach(PortabilityCategory.HISTORY) { history += it as PortabilityHistory }
+        assertEquals("https://www.youtube.com/watch?v=embedded1", history[2].video.url)
+        assertEquals("YouTube video embedded1", history[2].video.title)
+        assertEquals(
+            "Titre japonais",
+            history.first { it.video.url.contains("japan01") }.video.title,
+        )
+        assertTrue(spool.issues().isEmpty())
+        spool.delete()
+    }
+
+    @Test
+    fun readsLegacySnippetDatesAndSkipsAdRows() {
+        val json = directory.resolve("legacy-watch-history.json")
+        Files.writeString(
+            json,
+            """[
+                {"snippet":{"title":"Watched Legacy title","titleUrl":"https://www.youtube.com/watch?v=legacy01","publishedAt":"2026-09-16T18:02:08Z"}},
+                {"title":"Watched advertisement","titleUrl":"https://www.youtube.com/watch?v=adrow01","time":"2026-09-16T18:02:08Z","details":[{"name":"Ads"}]}
+            ]""".trimIndent(),
+        )
+        val input = PortabilityInputFactory.create(json, "watch-history.json", "application/json")
+        val spool = PortabilitySpool.create(directory)
+        try {
+            assertEquals(
+                PortabilityFormat.YOUTUBE_TAKEOUT,
+                requireNotNull(YoutubeTakeoutPortabilityAdapter().detect(input)).format,
+            )
+            assertNotNull(
+                YoutubeTakeoutPortabilityAdapter().detect(
+                    PortabilityInputFactory.create(json, "再生履歴.json", "application/json"),
+                ),
+            )
+            YoutubeTakeoutPortabilityAdapter().decode(input, spool)
+            assertEquals(1L, spool.counts()[PortabilityCategory.HISTORY])
+            assertTrue(spool.issues().isEmpty())
+        } finally {
+            spool.delete()
+        }
+    }
+
+    @Test
+    fun `adapter reads JSON activity entries from a Takeout archive`() {
+        val archive = directory.resolve("takeout-json.zip")
+        ZipOutputStream(Files.newOutputStream(archive)).use { output ->
+            output.entry(
+                "Takeout/マイ アクティビティ/再生履歴.json",
+                """[{"header":"YouTube","title":"動画 を視聴しました","titleUrl":"https://www.youtube.com/watch?v=archive01","time":"2026-09-16T18:02:08Z"}]""",
+            )
+        }
+        val input = PortabilityInputFactory.create(archive, "takeout-json.zip", "application/zip")
+        val spool = PortabilitySpool.create(directory)
+        try {
+            assertEquals(PortabilityFormat.YOUTUBE_TAKEOUT, requireNotNull(YoutubeTakeoutPortabilityAdapter().detect(input)).format)
+            YoutubeTakeoutPortabilityAdapter().decode(input, spool)
+            assertEquals(1L, spool.counts()[PortabilityCategory.HISTORY])
+        } finally {
+            spool.delete()
+        }
     }
 
     private fun spoolRecord(spool: PortabilitySpool, category: PortabilityCategory): PortabilityRecord {

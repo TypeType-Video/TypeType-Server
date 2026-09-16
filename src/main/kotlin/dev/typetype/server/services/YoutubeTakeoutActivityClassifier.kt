@@ -3,6 +3,7 @@ package dev.typetype.server.services
 object YoutubeTakeoutActivityClassifier {
     private val watchedPhrases = setOf(
         "You watched",
+        "Viewed",
         "Vous avez regardé",
         "Has visto",
         "Has visto el vídeo",
@@ -47,6 +48,12 @@ object YoutubeTakeoutActivityClassifier {
         "觀看了",
         "شاهدت",
         "لقد شاهدت",
+    )
+
+    private val watchedSuffixes = setOf(
+        "izlənildi",
+        "を視聴しました",
+        "を再生しました",
     )
 
     private val likedPhrases = setOf(
@@ -124,14 +131,22 @@ object YoutubeTakeoutActivityClassifier {
         "لقد اشتركت في",
     )
     private val normalizedWatchedPhrases = watchedPhrases.mapTo(hashSetOf(), YoutubeTakeoutTextNormalizer::normalize)
+    private val normalizedWatchedSuffixes = watchedSuffixes.mapTo(hashSetOf(), YoutubeTakeoutTextNormalizer::normalize)
     private val normalizedLikedPhrases = likedPhrases.mapTo(hashSetOf(), YoutubeTakeoutTextNormalizer::normalize)
     private val normalizedSubscribedPhrases = subscribedPhrases.mapTo(hashSetOf(), YoutubeTakeoutTextNormalizer::normalize)
 
     fun isWatched(value: String): Boolean = containsAny(value, normalizedWatchedPhrases)
 
+    fun isWatchedAction(value: String): Boolean = startsWithAny(value, normalizedWatchedPhrases) ||
+        normalizedWatchedSuffixes.any { YoutubeTakeoutTextNormalizer.normalize(value).endsWith(" $it") }
+
     fun isLiked(value: String): Boolean = containsAny(value, normalizedLikedPhrases)
 
+    fun isLikedAction(value: String): Boolean = startsWithAny(value, normalizedLikedPhrases)
+
     fun isSubscribed(value: String): Boolean = containsAny(value, normalizedSubscribedPhrases)
+
+    fun isSubscribedAction(value: String): Boolean = startsWithAny(value, normalizedSubscribedPhrases)
 
     val watchedPattern: String = pattern(watchedPhrases)
 
@@ -142,6 +157,11 @@ object YoutubeTakeoutActivityClassifier {
     private fun containsAny(value: String, phrases: Set<String>): Boolean {
         val normalized = YoutubeTakeoutTextNormalizer.normalize(value)
         return phrases.any { YoutubeTakeoutTextNormalizer.normalize(it) in normalized }
+    }
+
+    private fun startsWithAny(value: String, phrases: Set<String>): Boolean {
+        val normalized = YoutubeTakeoutTextNormalizer.normalize(value)
+        return phrases.any { normalized == it || normalized.startsWith("$it ") }
     }
 
     private fun pattern(phrases: Set<String>): String = phrases.joinToString("|") { Regex.escape(it) }
