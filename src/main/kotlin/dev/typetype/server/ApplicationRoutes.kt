@@ -16,6 +16,7 @@ import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.deArrowRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
+import dev.typetype.server.routes.presenceRoutes
 import dev.typetype.server.routes.podcastRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
@@ -43,6 +44,8 @@ import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileAccountService
+import dev.typetype.server.services.PresenceKeyService
+import dev.typetype.server.services.PresenceService
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.YoutubeRemoteBrowserService
 import dev.typetype.server.portability.PortabilityEngine
@@ -56,6 +59,8 @@ internal fun Application.installApplicationRoutes(
     authSessionConfig: AuthSessionConfig,
     adminSettingsService: AdminSettingsService,
     activeSessionService: ActiveSessionService,
+    presenceKeyService: PresenceKeyService,
+    presenceService: PresenceService,
     downloaderGatewayService: DownloaderGatewayService,
     gitHubIssueService: GitHubIssueService,
     instanceService: InstanceService,
@@ -120,7 +125,8 @@ internal fun Application.installApplicationRoutes(
         adminIdentityRoutes(svc.accountIdentityService, authService)
         adminAllowListRoutes(authService, userAdminService, svc.adminManagedAccessService, svc.adminUserLookupService, svc.allowedChannelsService, svc.allowedPlaylistsService)
         adminSessionRoutes(authService, activeSessionService)
-        sessionActivityRoutes(authService, activeSessionService)
+        sessionActivityRoutes(authService, activeSessionService, presenceService)
+        rateLimit(USER_DATA_ZONE) { presenceRoutes(authService, presenceKeyService, presenceService) }
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         rateLimit(USER_DATA_ZONE) { youtubeRemoteBrowserRoutes(youtubeRemoteBrowserService, authService) }

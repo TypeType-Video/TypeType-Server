@@ -12,6 +12,8 @@ import dev.typetype.server.services.GitHubIssueService
 import dev.typetype.server.services.PasswordResetService
 import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileAccountService
+import dev.typetype.server.services.PresenceKeyService
+import dev.typetype.server.services.PresenceService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.OpenMojiProxyService
 import dev.typetype.server.services.InstanceService
@@ -56,6 +58,8 @@ fun Application.module() {
     val gitHubIssueService = GitHubIssueService()
     val adminSettingsService = AdminSettingsService()
     val activeSessionService = ActiveSessionService(adminSettingsService)
+    val presenceKeyService = PresenceKeyService()
+    val presenceService = PresenceService(hasActiveKey = presenceKeyService::hasActiveKey)
     val restoreService = PipePipeBackupImporterService()
     val downloaderServiceUrl = System.getenv("DOWNLOADER_SERVICE_URL") ?: "http://typetype-downloader:18093"
     val youtubeSessionEncryptionKey = SecretConfigReader.read("YOUTUBE_SESSION_ENCRYPTION_KEY")
@@ -118,6 +122,8 @@ fun Application.module() {
         authSessionConfig = authSessionConfig,
         adminSettingsService = adminSettingsService,
         activeSessionService = activeSessionService,
+        presenceKeyService = presenceKeyService,
+        presenceService = presenceService,
         downloaderGatewayService = downloaderGatewayService,
         gitHubIssueService = gitHubIssueService,
         instanceService = instanceService,
