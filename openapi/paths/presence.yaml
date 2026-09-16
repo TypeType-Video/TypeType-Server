@@ -1,0 +1,111 @@
+PresenceKeys:
+  post:
+    tags: [user-data]
+    summary: Create a presence-only access key
+    description: The returned token is displayed once and grants only the presence:read scope.
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/PresenceKeyName' }
+    responses:
+      '201':
+        description: Created key metadata and the one-time token.
+        content:
+          application/json:
+            schema: { $ref: '#/PresenceKeyCreated' }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+  get:
+    tags: [user-data]
+    summary: List presence access keys
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: Key metadata without token material.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/PresenceKey' }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+
+PresenceKeyRoute:
+  delete:
+    tags: [user-data]
+    summary: Revoke a presence access key
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    responses:
+      '204': { description: Key revoked. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+
+PresenceNowPlaying:
+  get:
+    tags: [user-data]
+    summary: Read the user's current playback presence
+    description: Requires a dedicated presence key. Clients normally poll every 15 to 30 seconds.
+    security: [{ bearerAuth: [] }]
+    responses:
+      '200':
+        description: Current presence, including an explicit inactive state.
+        content:
+          application/json:
+            schema: { $ref: '#/PresenceResponse' }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+
+PresenceKeyName:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string, minLength: 1, maxLength: 50 }
+
+PresenceKeyCreated:
+  type: object
+  required: [key, token]
+  properties:
+    key: { $ref: '#/PresenceKey' }
+    token: { type: string, description: One-time presence token in ttp1_ form. }
+
+PresenceKey:
+  type: object
+  required: [id, name, tokenPrefix, scope, createdAt]
+  properties:
+    id: { type: string, format: uuid }
+    name: { type: string }
+    tokenPrefix: { type: string }
+    scope: { type: string, enum: [presence:read] }
+    createdAt: { type: integer, format: int64 }
+    lastUsedAt: { type: integer, format: int64, nullable: true }
+
+PresenceMedia:
+  type: object
+  required: [videoUrl, title, positionMs, paused, updatedAt]
+  properties:
+    videoUrl: { type: string }
+    title: { type: string }
+    thumbnail: { type: string, nullable: true }
+    channelName: { type: string, nullable: true }
+    positionMs: { type: integer, format: int64, minimum: 0 }
+    durationMs: { type: integer, format: int64, minimum: 0, nullable: true }
+    paused: { type: boolean }
+    updatedAt: { type: integer, format: int64 }
+
+PresenceResponse:
+  type: object
+  required: [active, retryAfterMs, serverTimeMs]
+  properties:
+    active: { type: boolean }
+    nowPlaying: { $ref: '#/PresenceMedia' }
+    retryAfterMs: { type: integer, format: int64, minimum: 0 }
+    serverTimeMs: { type: integer, format: int64 }

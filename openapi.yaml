@@ -69,6 +69,9 @@ paths:
   /rss/feeds/{id}.xml: { $ref: ./openapi/paths/rss.yaml#/RssFeedDocument }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /progress/batch: { $ref: ./openapi/paths/progress.yaml#/ProgressBatch }
+  /presence/keys: { $ref: ./openapi/paths/presence.yaml#/PresenceKeys }
+  /presence/keys/{id}: { $ref: ./openapi/paths/presence.yaml#/PresenceKeyRoute }
+  /presence/now-playing: { $ref: ./openapi/paths/presence.yaml#/PresenceNowPlaying }
   /backup/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeBackup }
   /restore/typetype: { $ref: ./openapi/paths/user-backup.yaml#/TypeTypeRestore }
   /portability/formats: { $ref: ./openapi/paths/portability.yaml#/PortabilityFormats }
