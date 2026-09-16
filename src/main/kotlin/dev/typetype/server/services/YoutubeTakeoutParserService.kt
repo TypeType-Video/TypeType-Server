@@ -92,15 +92,17 @@ class YoutubeTakeoutParserService {
     private fun parseHistory(zipPath: Path, warnings: MutableList<String>): List<HistoryItem> {
         ZipFile(zipPath.toFile()).use { zip ->
             val entries = zip.entries().asSequence().filter { item ->
-                val normalized = item.name.lowercase()
-                !item.isDirectory && normalized.endsWith(".html") && normalized.contains("youtube")
+                !item.isDirectory && YoutubeTakeoutPathHints.isYoutubeHtml(item.name)
             }.toList()
-            val entry = entries.firstOrNull { it.name.lowercase().contains("watch-history") }
-                ?: entries.firstOrNull { it.name.lowercase().contains("monactiv") }
+            val entry = entries.firstOrNull { YoutubeTakeoutPathHints.isHistoryEntry(it.name) }
+                ?: entries.firstOrNull { YoutubeTakeoutTextNormalizer.normalize(it.name).contains("monactiv") }
                 ?: entries.firstOrNull()
             if (entry == null) return emptyList()
             val html = zip.getInputStream(entry).bufferedReader().use { it.readText() }
-            val parsed = YoutubeTakeoutHistoryParser.parse(html)
+            val parsed = YoutubeTakeoutHistoryParser.parse(
+                html,
+                requireWatchedMarker = !YoutubeTakeoutPathHints.isHistoryEntry(entry.name),
+            )
             if (parsed.isEmpty()) warnings += "No watch history rows detected"
             return parsed.map(YoutubeTypeTypeMapper::historyItem)
         }

@@ -3,20 +3,35 @@ package dev.typetype.server.services
 import dev.typetype.server.models.HistoryItem
 
 object YoutubeTakeoutHistoryParser {
-    private val rowRegex = Regex("""(?:${YoutubeTakeoutActivityClassifier.watchedPattern})\s*<a href=\"([^\"]+)\">([\s\S]*?)</a><br>\s*(?:<a href=\"([^\"]+)\">([\s\S]*?)</a><br>\s*)?([\s\S]*?)<br>""", RegexOption.IGNORE_CASE)
+    private val videoLinkRegex = Regex(
+        """<a\s+href=\"([^\"]*(?:youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)[^\"]*)\"[^>]*>([^<]*)</a>""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val rowTailRegex = Regex("""\s*<br>\s*(?:<a href=\"([^\"]+)\">([^<]*)</a><br>\s*)?([^<]*)<br>""", RegexOption.IGNORE_CASE)
     private val urlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val tagRegex = Regex("<[^>]+>")
     private val spacesRegex = Regex("\\s+")
 
-    fun parse(html: String): List<HistoryItem> {
+    fun parse(html: String, requireWatchedMarker: Boolean = true): List<HistoryItem> {
         val resolvedHtml = html.replace("\u00a0", " ")
-        return rowRegex.findAll(resolvedHtml).mapNotNull { match ->
+        return videoLinkRegex.findAll(resolvedHtml).mapNotNull { match ->
+            val prefixStart = (match.range.first - WATCHED_PREFIX_CHARS).coerceAtLeast(0)
+            if (requireWatchedMarker && !YoutubeTakeoutActivityClassifier.isWatched(
+                    resolvedHtml.substring(prefixStart, match.range.first),
+                )
+            ) {
+                return@mapNotNull null
+            }
+            val tailStart = match.range.last + 1
+            val tail = rowTailRegex.find(resolvedHtml, tailStart)
+                ?.takeIf { it.range.first == tailStart }
+                ?: return@mapNotNull null
             val url = extractUrl(match.groupValues[1]) ?: return@mapNotNull null
             val title = decode(match.groupValues[2])
             if (YoutubeTakeoutUnavailableItem.matches(title)) return@mapNotNull null
-            val channelUrl = match.groupValues[3].takeIf { it.isNotBlank() }.orEmpty()
-            val channelName = decode(match.groupValues[4]).ifBlank { "Unknown channel" }
-            val watchedAt = parseDate(decode(match.groupValues[5]))
+            val channelUrl = tail.groupValues[1].takeIf { it.isNotBlank() }.orEmpty()
+            val channelName = decode(tail.groupValues[2]).ifBlank { "Unknown channel" }
+            val watchedAt = parseDate(decode(tail.groupValues[3])) ?: return@mapNotNull null
             HistoryItem(
                 url = url,
                 title = title,
@@ -31,9 +46,7 @@ object YoutubeTakeoutHistoryParser {
         }.toList().distinctBy { it.url to it.watchedAt }
     }
 
-    private fun parseDate(value: String): Long {
-        return YoutubeTakeoutDateParser.parseEpochMillis(value) ?: 0L
-    }
+    private fun parseDate(value: String): Long? = YoutubeTakeoutDateParser.parseEpochMillis(value)
 
     private fun extractUrl(value: String): String? {
         val decoded = decode(value)
@@ -52,4 +65,6 @@ object YoutubeTakeoutHistoryParser {
         .replace("&gt;", ">")
         .replace(spacesRegex, " ")
         .trim()
+
+    private const val WATCHED_PREFIX_CHARS = 160
 }

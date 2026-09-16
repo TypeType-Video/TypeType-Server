@@ -2,6 +2,7 @@ package dev.typetype.server.portability
 
 import dev.typetype.server.services.YoutubeTakeoutActivitySignalService
 import dev.typetype.server.services.YoutubeTakeoutHistoryParser
+import dev.typetype.server.services.YoutubeTakeoutPathHints
 import java.io.Reader
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -10,16 +11,29 @@ internal object YoutubeTakeoutHtmlPortabilityReader {
     fun read(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
         entries.asSequence().filter(::isYoutubeHtml).forEach { entry ->
             zip.getInputStream(entry).bufferedReader().use { reader ->
-                readWindows(reader) { html -> writeWindow(html, sink) }
+                val historyEntry = isHistoryEntry(entry)
+                val write = { html: String ->
+                    writeWindow(html, sink, includeActivitySignals = !historyEntry, historyEntry)
+                }
+                if (entry.size in 1..WHOLE_ENTRY_BYTES) write(reader.readText())
+                else readWindows(reader, write)
             }
         }
     }
 
-    private fun writeWindow(html: String, sink: PortabilityRecordSink) {
-        YoutubeTakeoutHistoryParser.parse(html).forEach { sink.write(it.toPortability()) }
-        val (subscriptions, favorites) = YoutubeTakeoutActivitySignalService.parseHtml(html)
-        subscriptions.forEach { sink.write(it.toPortability()) }
-        favorites.forEach { sink.write(it.toPortability()) }
+    private fun writeWindow(
+        html: String,
+        sink: PortabilityRecordSink,
+        includeActivitySignals: Boolean,
+        historyEntry: Boolean,
+    ) {
+        YoutubeTakeoutHistoryParser.parse(html, requireWatchedMarker = !historyEntry)
+            .forEach { sink.write(it.toPortability()) }
+        if (includeActivitySignals) {
+            val (subscriptions, favorites) = YoutubeTakeoutActivitySignalService.parseHtml(html)
+            subscriptions.forEach { sink.write(it.toPortability()) }
+            favorites.forEach { sink.write(it.toPortability()) }
+        }
     }
 
     private fun readWindows(reader: Reader, block: (String) -> Unit) {
@@ -37,10 +51,12 @@ internal object YoutubeTakeoutHtmlPortabilityReader {
         if (window.isNotEmpty()) block(window.toString())
     }
 
-    private fun isYoutubeHtml(entry: ZipEntry): Boolean =
-        entry.name.endsWith(".html", ignoreCase = true) && "youtube" in entry.name.lowercase()
+    private fun isYoutubeHtml(entry: ZipEntry): Boolean = YoutubeTakeoutPathHints.isYoutubeHtml(entry.name)
+
+    private fun isHistoryEntry(entry: ZipEntry): Boolean = YoutubeTakeoutPathHints.isHistoryEntry(entry.name)
 
     private const val READ_CHARS = 32 * 1024
-    private const val WINDOW_CHARS = 512 * 1024
-    private const val OVERLAP_CHARS = 128 * 1024
+    private const val WINDOW_CHARS = 4 * 1024 * 1024
+    private const val OVERLAP_CHARS = 256 * 1024
+    private const val WHOLE_ENTRY_BYTES = 128L * 1024L * 1024L
 }
