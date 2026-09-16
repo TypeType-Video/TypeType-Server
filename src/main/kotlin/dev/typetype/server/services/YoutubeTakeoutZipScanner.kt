@@ -69,12 +69,15 @@ object YoutubeTakeoutZipScanner {
     private fun isPlaylistsHeader(path: String, header: List<String>, rows: List<List<String>>): Boolean {
         val hasId = header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikePlaylistId)
         val hasTitle = header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
-        return hasId && hasTitle && isMainPlaylistsFile(path)
+        return hasId && hasTitle && (isMainPlaylistsFile(path) || isPlaylistPath(path))
     }
 
     private fun isPlaylistItemsEntry(path: String, header: List<String>, rows: List<List<String>>): Boolean {
-        if ((!isPlaylistPath(path) && !isPlaylistItemsFile(path)) || isMainPlaylistsFile(path)) return false
-        return header.any(YoutubeTakeoutSchemaHints::isVideoIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeVideoId)
+        if (isMainPlaylistsFile(path)) return false
+        val hasVideo = header.any(YoutubeTakeoutSchemaHints::isVideoIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeVideoId)
+        val hasPlaylistKey = header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) ||
+            header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
+        return hasVideo && (isPlaylistPath(path) || isPlaylistItemsFile(path) || hasPlaylistKey)
     }
 
     private fun extractPlaylistSourceKey(path: String, header: List<String>): String? {
@@ -84,8 +87,7 @@ object YoutubeTakeoutZipScanner {
     }
 
     private fun isSubscriptionPath(path: String): Boolean {
-        val normalized = YoutubeTakeoutSchemaHints.normalize(path)
-        return SUBSCRIPTION_PATH_MARKERS.any { it in normalized }
+        return YoutubeTakeoutSchemaHints.isSubscriptionText(path)
     }
 
     private fun isPlaylistPath(path: String): Boolean = YoutubeTakeoutSchemaHints.isPlaylistText(path)
@@ -95,11 +97,9 @@ object YoutubeTakeoutZipScanner {
 
     private fun isMainPlaylistsFile(path: String): Boolean =
         path.substringAfterLast('/').substringBeforeLast('.').let { fileName ->
-            val normalized = YoutubeTakeoutSchemaHints.normalize(fileName)
-            normalized == "playlists" || normalized == "oynatma listeleri"
+            YoutubeTakeoutSchemaHints.isPlaylistManifestName(fileName)
         }
 
     private fun List<List<String>>.hasValue(predicate: (String) -> Boolean): Boolean = any { row -> row.any(predicate) }
 
-    private val SUBSCRIPTION_PATH_MARKERS = setOf("subscriptions", "abonnements", "suscripciones", "inscricoes", "abos", "abonelikler")
 }

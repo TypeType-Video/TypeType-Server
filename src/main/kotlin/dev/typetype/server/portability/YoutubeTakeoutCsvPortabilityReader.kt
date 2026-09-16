@@ -14,7 +14,7 @@ internal object YoutubeTakeoutCsvPortabilityReader {
     private const val PLAYLIST_LOOKUP = "youtube-takeout-playlist"
 
     fun readManifests(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
-        csvEntries(entries).filter(::isPlaylistManifest).forEach { entry ->
+        csvEntries(entries).filter { isPlaylistManifest(zip, it) }.forEach { entry ->
             sink.markCategory(PortabilityCategory.PLAYLISTS)
             forEachRow(zip, entry) { header, row ->
                 val playlist = YoutubeTakeoutRowParser.parsePlaylist(header, row) ?: return@forEachRow
@@ -27,7 +27,7 @@ internal object YoutubeTakeoutCsvPortabilityReader {
     }
 
     fun readContent(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
-        val csv = csvEntries(entries).filterNot(::isPlaylistManifest).toList()
+        val csv = csvEntries(entries).filterNot { isPlaylistManifest(zip, it) }.toList()
         csv.filter(::isSubscriptionFile).forEach { readSubscriptions(zip, it, sink) }
         csv.filter(::isPlaylistContent).forEach { readPlaylistItems(zip, it, sink) }
     }
@@ -99,13 +99,25 @@ internal object YoutubeTakeoutCsvPortabilityReader {
         it.name.endsWith(".csv", ignoreCase = true) && "youtube" in it.name.lowercase()
     }
 
-    private fun isPlaylistManifest(entry: ZipEntry): Boolean = fileStem(entry) in setOf("playlists", "oynatma listeleri")
+    private fun isPlaylistManifest(zip: ZipFile, entry: ZipEntry): Boolean {
+        if (YoutubeTakeoutSchemaHints.isPlaylistManifestName(fileStem(entry))) return true
+        if (!YoutubeTakeoutSchemaHints.isPlaylistText(entry.name)) return false
+        var manifest = false
+        forEachRow(zip, entry) { header, _ ->
+            manifest = manifest || (
+                header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) &&
+                    header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader) &&
+                    header.none(YoutubeTakeoutSchemaHints::isVideoIdHeader)
+            )
+        }
+        return manifest
+    }
 
-    private fun isSubscriptionFile(entry: ZipEntry): Boolean = fileStem(entry) in SUBSCRIPTION_NAMES
+    private fun isSubscriptionFile(entry: ZipEntry): Boolean =
+        YoutubeTakeoutSchemaHints.isSubscriptionText(fileStem(entry))
 
     private fun isPlaylistContent(entry: ZipEntry): Boolean {
-        val normalized = YoutubeTakeoutSchemaHints.normalize(entry.name)
-        return "playlist" in normalized || "oynatma list" in normalized
+        return YoutubeTakeoutSchemaHints.isPlaylistText(entry.name)
     }
 
     private fun playlistKeyFromPath(path: String): String? = path.substringAfterLast('/').substringBeforeLast('.')
@@ -123,13 +135,25 @@ internal object YoutubeTakeoutCsvPortabilityReader {
         name,
         "Videos from $name",
         "Videos de $name",
+        "Vídeos de $name",
         "Vidéos de $name",
         "Videos da playlist $name",
+        "Vídeos da playlist $name",
+        "Video di $name",
+        "Video da $name",
+        "Videos von $name",
+        "Videos van $name",
+        "Filmy z playlisty $name",
+        "Видео из $name",
+        "動画 - $name",
+        "$name の動画",
+        "$name 동영상",
+        "$name 视频",
+        "$name 影片",
         "$name videos",
     )
 
     private fun PortabilityRecordSink.invalid(category: PortabilityCategory, kind: String) =
         issue(PortabilityIssue(category, "invalid_takeout_row", "An invalid YouTube Takeout $kind row was skipped"))
 
-    private val SUBSCRIPTION_NAMES = setOf("subscriptions", "abonnements", "suscripciones", "inscricoes", "abos", "abonelikler")
 }
