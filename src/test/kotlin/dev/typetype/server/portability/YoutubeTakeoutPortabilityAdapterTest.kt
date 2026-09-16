@@ -63,6 +63,51 @@ class YoutubeTakeoutPortabilityAdapterTest {
         spool.delete()
     }
 
+    @Test
+    fun `adapter detects spanish playlist paths and activity dates`() {
+        val archive = directory.resolve("takeout-es.zip")
+        ZipOutputStream(Files.newOutputStream(archive)).use { output ->
+            output.entry(
+                "Takeout/YouTube y YouTube Music/suscripciones/suscripciones.csv",
+                "ID de canal,URL del canal,Título del canal\nUC123456789012,https://youtube.com/channel/UC123456789012,Canal\n",
+            )
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/catalogo.csv",
+                "ID de la lista de reproducción,Título de la lista de reproducción\nPL123456789,Importada\n",
+            )
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/Videos de Importada.csv",
+                "ID de vídeo,Marca de tiempo de creación de la lista de reproducción\nvideo000001,2026-01-02T00:00:00Z\n",
+            )
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/Ver más tarde.csv",
+                "ID de vídeo,Marca de tiempo de creación de la lista de reproducción\nvideo000002,2026-01-01T00:00:00Z\n",
+            )
+            output.entry(
+                "Takeout/Mon actividad/YouTube/watch-history.html",
+                "Has visto <a href=\"https://www.youtube.com/watch?v=video000003\">Watched</a><br>16 sept 2026, 18:02:08 CEST<br>",
+            )
+        }
+        val input = PortabilityInputFactory.create(archive, "takeout-es.zip", "application/zip")
+        val spool = PortabilitySpool.create(directory)
+
+        YoutubeTakeoutPortabilityAdapter().decode(input, spool)
+
+        assertEquals(1L, spool.counts()[PortabilityCategory.SUBSCRIPTIONS])
+        assertEquals(1L, spool.counts()[PortabilityCategory.HISTORY])
+        assertEquals(2L, spool.counts()[PortabilityCategory.PLAYLISTS])
+        assertEquals(1L, spool.counts()[PortabilityCategory.WATCH_LATER])
+        assertEquals(1_789_574_528_000L, (spoolRecord(spool, PortabilityCategory.HISTORY) as PortabilityHistory).watchedAt)
+        assertTrue(spool.issues().isEmpty())
+        spool.delete()
+    }
+
+    private fun spoolRecord(spool: PortabilitySpool, category: PortabilityCategory): PortabilityRecord {
+        var result: PortabilityRecord? = null
+        spool.forEach(category) { result = it }
+        return requireNotNull(result)
+    }
+
     private fun ZipOutputStream.entry(name: String, value: String) {
         putNextEntry(ZipEntry(name))
         write(value.toByteArray())

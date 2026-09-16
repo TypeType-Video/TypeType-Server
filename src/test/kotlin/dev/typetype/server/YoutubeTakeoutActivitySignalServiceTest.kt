@@ -44,6 +44,19 @@ class YoutubeTakeoutActivitySignalServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse omits favorites with an unknown activity date`() {
+        val zip = createZip(
+            """
+            You liked <a href="https://www.youtube.com/watch?v=unknown123">Video</a><br>
+            8 Foo 2026, 19:11:02 CEST<br>
+            """.trimIndent(),
+        )
+
+        assertTrue(YoutubeTakeoutActivitySignalService.parse(zip).second.isEmpty())
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(
         html: String = """
             Vous vous êtes abonné à <a href="https://www.youtube.com/channel/UC999">Channel Name</a><br>
