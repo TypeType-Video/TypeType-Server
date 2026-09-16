@@ -31,8 +31,10 @@ object YoutubeTakeoutDateParser {
         "M/d/uuuu, HH:mm:ss z",
         "yyyy年M月d日 HH:mm:ss z",
         "yyyy年M月d日 H:mm:ss z",
+        "yyyy年M月d日 a h:mm:ss z",
         "yyyy년 M월 d일 HH:mm:ss z",
         "yyyy년 M월 d일 H:mm:ss z",
+        "yyyy년 M월 d일 a h:mm:ss z",
         "d M月 yyyy, HH:mm:ss z",
         "d M月 yyyy HH:mm:ss z",
         "d M월 yyyy, HH:mm:ss z",
@@ -82,6 +84,7 @@ object YoutubeTakeoutDateParser {
     private fun normalizeActivityText(value: String): String = value
         .replace('\u060C', ',')
         .replace('\uFF0C', ',')
+        .replace(DAY_PERIOD_REGEX) { DAY_PERIODS[it.value] ?: it.value }
         .replace(ACTIVITY_CONNECTOR_REGEX, " ")
         .replace(ACTIVITY_SPACES_REGEX, " ")
         .trim()
@@ -146,4 +149,17 @@ object YoutubeTakeoutDateParser {
     private val MONTH_TOKEN_REGEX = Regex("[\\p{L}\\p{M}][\\p{L}\\p{M}.]*")
     private val ACTIVITY_CONNECTOR_REGEX = Regex("\\s+(?:de|del)\\s+", RegexOption.IGNORE_CASE)
     private val ACTIVITY_SPACES_REGEX = Regex("\\s+")
+    private val DAY_PERIOD_REGEX = Regex("凌晨|早上|上午|中午|下午|晚上|午前|午後|오전|오후")
+    private val DAY_PERIODS = mapOf(
+        "凌晨" to "AM ",
+        "早上" to "AM ",
+        "上午" to "AM ",
+        "中午" to "PM ",
+        "下午" to "PM ",
+        "晚上" to "PM ",
+        "午前" to "AM ",
+        "午後" to "PM ",
+        "오전" to "AM ",
+        "오후" to "PM ",
+    )
 }
