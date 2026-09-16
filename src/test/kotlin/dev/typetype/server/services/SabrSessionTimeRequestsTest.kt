@@ -15,11 +15,41 @@ import java.time.Instant
 
 class SabrSessionTimeRequestsTest {
     @Test
+    fun `playback start sequence is clamped to the known final segment`() {
+        val audio = sabrFormat(itag = 140, isAudio = true)
+        val video = sabrFormat(itag = 137, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 91
+        every { state.getEndSegment(audio) } returns 90L
+        every { state.getEndSegment(video) } returns 0L
+        val holder = holder(session, audio, video)
+
+        assertEquals(90, holder.playbackStartSequence(audio, 88_168L))
+    }
+
+    @Test
+    fun `playback start sequence stays valid without an indexed end`() {
+        val audio = sabrFormat(itag = 140, isAudio = true)
+        val video = sabrFormat(itag = 137, isAudio = false)
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { session.streamState } returns state
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 33
+        every { state.getEndSegment(audio) } returns 0L
+        every { state.getEndSegment(video) } returns 0L
+        val holder = holder(session, audio, video)
+
+        assertEquals(33, holder.playbackStartSequence(audio, 88_168L))
+    }
+
+    @Test
     fun `mediaRequestsAt returns active audio and video requests for player time`() {
         val audio = sabrFormat(itag = 140, isAudio = true)
         val video = sabrFormat(itag = 137, isAudio = false)
         val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64
@@ -37,7 +67,7 @@ class SabrSessionTimeRequestsTest {
         val audio = sabrFormat(itag = 140, isAudio = true)
         val video = sabrFormat(itag = 247, isAudio = false)
         val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64
@@ -55,7 +85,7 @@ class SabrSessionTimeRequestsTest {
         val audio = sabrFormat(itag = 140, isAudio = true)
         val video = sabrFormat(itag = 137, isAudio = false)
         val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>()
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
         every { session.streamState } returns state
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64

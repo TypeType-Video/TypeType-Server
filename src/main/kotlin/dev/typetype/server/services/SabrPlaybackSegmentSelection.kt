@@ -4,8 +4,11 @@ import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal fun SabrSessionHolder.playbackStartSequence(format: YoutubeSabrFormat, playerTimeMs: Long): Int {
     liveSequenceAt(format, playerTimeMs)?.let { return it }
-    return session.streamState.getSegmentNumberAtOrAfterTimeMs(format, playerTimeMs.coerceAtLeast(0L))
+    val mappedSequence = session.streamState
+        .getSegmentNumberAtOrAfterTimeMs(format, playerTimeMs.coerceAtLeast(0L))
         .coerceAtLeast(1)
+    val endSequence = session.streamState.getEndSegment(format).toInt()
+    return mappedSequence.coerceAtMost(endSequence.takeIf { it > 0 } ?: mappedSequence)
 }
 
 internal fun SabrSessionHolder.playbackContinuationSequence(

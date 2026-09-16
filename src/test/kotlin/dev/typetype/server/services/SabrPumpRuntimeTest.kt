@@ -76,23 +76,32 @@ class SabrPumpRuntimeTest {
     }
 
     @Test
-    fun `slow response without media stays recoverable for watchdog`() {
+    fun `deferred request stays recoverable for watchdog`() {
         var now = 1_000L
         val runtime = SabrPumpRuntime { now }
         runtime.beginDemand("140:44")
         now += SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS
 
-        assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 0, false))
+        assertEquals(
+            SabrDemandRecoveryAction.WAIT,
+            runtime.demandRecoveryAction("140:44", requestPerformed = false, resolved = false),
+        )
     }
 
     @Test
-    fun `repeated responses without demanded segment stay retryable`() {
+    fun `response without demanded segment is readvertised once`() {
         val runtime = SabrPumpRuntime { 1_000L }
         runtime.beginDemand("140:44")
 
-        assertEquals(SabrDemandRecoveryAction.READVERTISE_TRACK, runtime.demandRecoveryAction("140:44", 1, false))
+        assertEquals(
+            SabrDemandRecoveryAction.READVERTISE_TRACK,
+            runtime.demandRecoveryAction("140:44", requestPerformed = true, resolved = false),
+        )
         repeat(5) {
-            assertEquals(SabrDemandRecoveryAction.WAIT, runtime.demandRecoveryAction("140:44", 1, false))
+            assertEquals(
+                SabrDemandRecoveryAction.WAIT,
+                runtime.demandRecoveryAction("140:44", requestPerformed = true, resolved = false),
+            )
         }
     }
 

@@ -39,20 +39,17 @@ internal class SabrPumpRuntime(private val clock: () -> Long = System::currentTi
 
     fun demandRecoveryAction(
         requestKey: String,
-        targetTrackSegmentCount: Int,
+        requestPerformed: Boolean,
         resolved: Boolean,
     ): SabrDemandRecoveryAction {
-        if (resolved) {
+        if (resolved || !requestPerformed) {
             resetDemandRecovery()
             return SabrDemandRecoveryAction.WAIT
         }
         ensureDemand(requestKey)
-        if (targetTrackSegmentCount > 0) {
-            if (!demandTrackReadvertised) {
-                demandTrackReadvertised = true
-                return SabrDemandRecoveryAction.READVERTISE_TRACK
-            }
-            return SabrDemandRecoveryAction.WAIT
+        if (!demandTrackReadvertised) {
+            demandTrackReadvertised = true
+            return SabrDemandRecoveryAction.READVERTISE_TRACK
         }
         return SabrDemandRecoveryAction.WAIT
     }

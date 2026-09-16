@@ -33,6 +33,7 @@ class SabrMissingDemandRecoveryTest {
             every { streamState.getSegmentStartMs(audio, 44) } returns 429_337L
             every { result.segmentCount } returns 2
             every { result.targetTrackSegmentCount } returns 1
+            every { result.requestPerformed } returns true
             every { session.pumpOnceStreamingForDemand(any(), request) } returns result
             val holder = holder(session, audio, video)
             holder.requestSegmentDemand(request)
@@ -43,6 +44,38 @@ class SabrMissingDemandRecoveryTest {
             verify(exactly = 1) { session.prepareForMissingSegment(request) }
             assertEquals("140:44", holder.pendingSegmentDemandSummary())
             assertEquals(0L, testScheduler.currentTime)
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
+    }
+
+    @Test
+    fun `companion-only response readvertises the missing target track`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val audio = format(140, isAudio = true)
+            val video = format(299, isAudio = false)
+            val request = SabrSegmentRequest.media(audio, 44)
+            val session = mockk<YoutubeSabrSession>(relaxed = true)
+            val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
+            val result = mockk<YoutubeSabrSession.DemandResponseResult>()
+            every { session.streamState } returns streamState
+            every { session.getCachedSegment(any()) } returns null
+            every { session.requestNumber } returns 25
+            every { streamState.getMinBufferedEndMs() } returns 416_100L
+            every { streamState.getSegmentStartMs(audio, 44) } returns 429_337L
+            every { result.segmentCount } returns 1
+            every { result.targetTrackSegmentCount } returns 0
+            every { result.requestPerformed } returns true
+            every { session.pumpOnceStreamingForDemand(any(), request) } returns result
+            val holder = holder(session, audio, video)
+            holder.requestSegmentDemand(request)
+            var rounds = 0
+
+            SabrSessionPump().pumpLoop({ rounds++ == 0 }, holder, intervalMs = 100L)
+
+            verify(exactly = 1) { session.prepareForMissingSegment(request) }
+            assertEquals("140:44", holder.pendingSegmentDemandSummary())
         } finally {
             SabrSegmentDemandTracker.clearAll()
         }

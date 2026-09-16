@@ -49,6 +49,7 @@ internal class SabrSessionHolder(
         setPlayerTimeMs(ms)
         val generation = activeGeneration.incrementAndGet()
         clearReaderStateBefore(generation)
+        SabrPlaybackDiagnostics.clear(this)
         pendingRefetch.set(null)
         pendingForwardSeek.set(null)
         for (itag in activeItags) {

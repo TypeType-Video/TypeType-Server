@@ -77,6 +77,7 @@ class SabrTransientDemandFailureTest {
             every { streamState.getMinBufferedEndMs() } returns 379_233L
             every { result.segmentCount } returns 1
             every { result.targetTrackSegmentCount } returns 1
+            every { result.requestPerformed } returns true
             every { session.pumpOnceStreamingForDemand(any(), request) } answers {
                 attempts++
                 if (attempts == 1) throw IOException("timeout")
@@ -236,6 +237,7 @@ class SabrTransientDemandFailureTest {
         val result = mockk<YoutubeSabrSession.DemandResponseResult>()
         every { result.segmentCount } returns segmentCount
         every { result.targetTrackSegmentCount } returns targetTrackSegmentCount
+        every { result.requestPerformed } returns true
         return result
     }
 

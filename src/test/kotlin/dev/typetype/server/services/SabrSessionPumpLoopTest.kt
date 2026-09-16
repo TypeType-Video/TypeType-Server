@@ -270,6 +270,7 @@ class SabrSessionPumpLoopTest {
         val result = mockk<YoutubeSabrSession.DemandResponseResult>()
         every { result.segmentCount } returns segmentCount
         every { result.targetTrackSegmentCount } returns targetTrackSegmentCount
+        every { result.requestPerformed } returns true
         return result
     }
 

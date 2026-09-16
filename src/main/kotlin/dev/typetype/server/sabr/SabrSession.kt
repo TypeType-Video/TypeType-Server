@@ -85,5 +85,6 @@ internal class YoutubeSabrSession(
     ) {
         val segmentCount: Int get() = delegate.segmentCount
         val targetTrackSegmentCount: Int get() = delegate.targetTrackSegmentCount
+        val requestPerformed: Boolean get() = delegate.wasRequestPerformed()
     }
 }

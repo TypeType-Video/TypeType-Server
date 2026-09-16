@@ -68,7 +68,7 @@ internal object SabrDemandAttemptFinisher {
         }
         val action = runtime.demandRecoveryAction(
             requestKey = identity,
-            targetTrackSegmentCount = result.targetTrackSegmentCount,
+            requestPerformed = result.requestPerformed,
             resolved = resolved,
         )
         val recovering = recover(holder, request, identity, action, runtime)

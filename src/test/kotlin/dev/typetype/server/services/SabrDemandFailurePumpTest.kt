@@ -138,6 +138,7 @@ class SabrDemandFailurePumpTest {
         val result = mockk<YoutubeSabrSession.DemandResponseResult>()
         every { result.segmentCount } returns 7
         every { result.targetTrackSegmentCount } returns 1
+        every { result.requestPerformed } returns true
         return result
     }
 
@@ -145,6 +146,7 @@ class SabrDemandFailurePumpTest {
         val result = mockk<YoutubeSabrSession.DemandResponseResult>()
         every { result.segmentCount } returns 0
         every { result.targetTrackSegmentCount } returns 0
+        every { result.requestPerformed } returns true
         return result
     }
 }
