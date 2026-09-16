@@ -33,6 +33,7 @@ import dev.typetype.server.db.tables.PushNotificationSeenVideosTable
 import dev.typetype.server.db.tables.PushNotificationEventsTable
 import dev.typetype.server.db.tables.PushNotificationDeliveriesTable
 import dev.typetype.server.db.tables.ProfileAccountsTable
+import dev.typetype.server.db.tables.PresenceKeysTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
 import dev.typetype.server.db.tables.RecommendationFeedHistoryTable
 import dev.typetype.server.db.tables.RecommendationFeedbackTable
@@ -73,6 +74,7 @@ object DatabaseFactory {
             SchemaUtils.create(
                 UsersTable,
                 ProfileAccountsTable,
+                PresenceKeysTable,
                 UserAvatarsTable,
                 SessionsTable,
                 AdminSettingsTable,

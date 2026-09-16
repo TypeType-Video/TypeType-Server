@@ -48,6 +48,7 @@ import dev.typetype.server.db.tables.RecommendationOnboardingPreferencesTable
 import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.ProfileAccountsTable
+import dev.typetype.server.db.tables.PresenceKeysTable
 import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -156,6 +157,7 @@ object TestDatabase {
         RecommendationOnboardingPreferencesTable.deleteAll()
         RecommendationOnboardingStateTable.deleteAll()
         ProfileAccountsTable.deleteAll()
+        PresenceKeysTable.deleteAll()
         AdminSettingsService.clearCache()
     }
 }
