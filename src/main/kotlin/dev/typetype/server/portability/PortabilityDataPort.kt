@@ -6,6 +6,7 @@ interface PortabilityDataPort {
         source: PortabilityRecordSource,
         request: PortabilityImportRequest,
         onCategoryComplete: (PortabilityCategory, Long) -> Unit = { _, _ -> },
+        onCategoryProgress: (PortabilityCategory, Long) -> Unit = { _, _ -> },
     ): Map<String, Long>
 
     suspend fun export(

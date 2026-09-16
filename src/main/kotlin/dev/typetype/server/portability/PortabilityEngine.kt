@@ -124,14 +124,22 @@ class PortabilityEngine internal constructor(
 
     private suspend fun apply(job: PortabilityJob, request: PortabilityImportRequest) {
         runJob(job, null) {
+            val source = requireNotNull(job.spool)
+            val counts = source.counts()
+            val total = request.categories.sumOf { counts[it] ?: 0L }
             val progress = PortabilityProgressReporter(
                 job,
                 PortabilityProgressPhase.APPLYING,
-                PortabilityProgressUnit.CATEGORIES,
-                request.categories.size.toLong(),
-                interval = 1L,
+                PortabilityProgressUnit.RECORDS,
+                total,
             )
-            val result = dataPort.import(job.ownerId, requireNotNull(job.spool), request) { _, _ -> progress.add() }
+            val result = dataPort.import(
+                job.ownerId,
+                source,
+                request,
+                onCategoryProgress = { _, count -> progress.add(count) },
+                onCategoryComplete = { _, _ -> },
+            )
             progress.finish()
             job.transition(setOf(PortabilityJobState.APPLYING), PortabilityJobState.COMPLETED, result = result)
         }

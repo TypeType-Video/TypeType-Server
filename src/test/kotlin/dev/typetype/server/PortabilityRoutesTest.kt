@@ -152,8 +152,13 @@ private object RouteDataPort : PortabilityDataPort {
         source: PortabilityRecordSource,
         request: PortabilityImportRequest,
         onCategoryComplete: (PortabilityCategory, Long) -> Unit,
+        onCategoryProgress: (PortabilityCategory, Long) -> Unit,
     ) = source.counts().mapKeys { it.key.wireName }.also { result ->
-        request.categories.forEach { category -> onCategoryComplete(category, result[category.wireName] ?: 0L) }
+        request.categories.forEach { category ->
+            val count = result[category.wireName] ?: 0L
+            onCategoryProgress(category, count)
+            onCategoryComplete(category, count)
+        }
     }
 
     override suspend fun export(

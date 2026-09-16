@@ -19,6 +19,7 @@ internal object TypeTypePortabilityLibraryImport {
         category: PortabilityCategory,
         source: PortabilityRecordSource,
         policy: PortabilityDuplicatePolicy,
+        onRecord: () -> Unit,
     ): Long {
         clearIfReplacing(userId, category, policy)
         var count = 0L
@@ -31,6 +32,7 @@ internal object TypeTypePortabilityLibraryImport {
                 is PortabilitySavedPlaylist -> savedPlaylist(userId, record)
                 else -> 0
             }
+            onRecord()
         }
         return count
     }

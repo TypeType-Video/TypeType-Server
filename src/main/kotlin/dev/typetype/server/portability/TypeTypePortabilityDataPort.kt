@@ -9,11 +9,14 @@ class TypeTypePortabilityDataPort : PortabilityDataPort {
         source: PortabilityRecordSource,
         request: PortabilityImportRequest,
         onCategoryComplete: (PortabilityCategory, Long) -> Unit,
+        onCategoryProgress: (PortabilityCategory, Long) -> Unit,
     ): Map<String, Long> {
         val result = linkedMapOf<String, Long>()
         request.categories.sortedBy(PortabilityCategory::wireName).forEach { category ->
             val imported = DatabaseFactory.query {
-                TypeTypePortabilityImport.write(userId, category, source, request.duplicatePolicy)
+                TypeTypePortabilityImport.write(userId, category, source, request.duplicatePolicy) {
+                    onCategoryProgress(category, 1L)
+                }
             }
             result[category.wireName] = imported
             onCategoryComplete(category, imported)

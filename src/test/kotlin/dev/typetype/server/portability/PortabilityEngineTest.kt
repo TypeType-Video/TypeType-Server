@@ -41,6 +41,9 @@ class PortabilityEngineTest {
         )
         val completed = awaitState(engine, "owner-a", started.id, PortabilityJobState.COMPLETED)
         assertEquals(1L, completed.result?.get("subscriptions"))
+        assertEquals(PortabilityProgressUnit.RECORDS, completed.progress?.unit)
+        assertEquals(1L, completed.progress?.processed)
+        assertEquals(1L, completed.progress?.total)
         engine.close()
     }
 
@@ -187,8 +190,13 @@ private class FakeDataPort : PortabilityDataPort {
         source: PortabilityRecordSource,
         request: PortabilityImportRequest,
         onCategoryComplete: (PortabilityCategory, Long) -> Unit,
+        onCategoryProgress: (PortabilityCategory, Long) -> Unit,
     ): Map<String, Long> = source.counts().mapKeys { it.key.wireName }.also { result ->
-        request.categories.forEach { category -> onCategoryComplete(category, result[category.wireName] ?: 0L) }
+        request.categories.forEach { category ->
+            val count = result[category.wireName] ?: 0L
+            onCategoryProgress(category, count)
+            onCategoryComplete(category, count)
+        }
     }
 
     override suspend fun export(

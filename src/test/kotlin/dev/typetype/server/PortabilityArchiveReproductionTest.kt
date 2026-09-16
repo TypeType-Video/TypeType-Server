@@ -37,6 +37,7 @@ class PortabilityArchiveReproductionTest {
                 source: PortabilityRecordSource,
                 request: PortabilityImportRequest,
                 onCategoryComplete: (PortabilityCategory, Long) -> Unit,
+                onCategoryProgress: (PortabilityCategory, Long) -> Unit,
             ): Map<String, Long> = error("Account writes are forbidden in this probe")
 
             override suspend fun export(

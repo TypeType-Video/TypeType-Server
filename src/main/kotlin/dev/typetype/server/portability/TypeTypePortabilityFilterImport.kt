@@ -22,11 +22,13 @@ internal object TypeTypePortabilityFilterImport {
         userId: String,
         source: PortabilityRecordSource,
         policy: PortabilityDuplicatePolicy,
+        onRecord: () -> Unit,
     ): Long {
         if (policy == PortabilityDuplicatePolicy.REPLACE) clear(userId)
         var count = 0L
         source.forEach(PortabilityCategory.CONTENT_FILTERS) { record ->
             if (record is PortabilityContentFilter) count += insert(userId, record)
+            onRecord()
         }
         return count
     }
