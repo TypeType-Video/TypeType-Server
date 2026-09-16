@@ -17,6 +17,7 @@ object HomeRecommendationNextCursor {
             discoveryIndex = state.discoveryIndex,
             subscriptionRun = state.subscriptionRun,
             preferDiscovery = state.preferDiscovery,
+            rotationSeed = state.rotationSeed,
             personaState = state.personaState,
             snapshot = snapshot,
         )

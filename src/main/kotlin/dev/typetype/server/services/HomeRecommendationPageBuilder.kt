@@ -8,20 +8,30 @@ object HomeRecommendationPageBuilder {
         mode: HomeRecommendationPoolMode,
         poolResolver: HomeRecommendationPoolResolver,
     ): HomeRecommendationsResponse {
-        val pool = poolResolver.resolve(
+        val cursor = if (mode == HomeRecommendationPoolMode.FULL) {
+            args.cursor.withRotationSeed()
+        } else {
+            args.cursor
+        }
+        val resolvedPool = poolResolver.resolve(
             userId = args.userId,
             serviceId = args.serviceId,
             mode = mode,
             context = args.context,
         )
+        val pool = if (mode == HomeRecommendationPoolMode.FULL && cursor.rotationSeed != 0L) {
+            HomeRecommendationPoolRotation.apply(resolvedPool, cursor.rotationSeed)
+        } else {
+            resolvedPool
+        }
         val page = HomeRecommendationMixer.mix(
             pool = pool,
-            cursor = args.cursor,
+            cursor = cursor,
             limit = args.limit,
             context = args.context.sessionContext,
             sourceWeights = HomeRecommendationExploreBonus.apply(
                 sourceWeights = pool.sourceWeights,
-                pageIndex = HomeRecommendationCursorPageIndex.from(args.cursor, args.limit),
+                pageIndex = HomeRecommendationCursorPageIndex.from(cursor, args.limit),
             ),
             mode = mode,
             userId = args.userId,
@@ -31,19 +41,19 @@ object HomeRecommendationPageBuilder {
             val refresh = HomeRecommendationShortsRefresher.refresh(
                 pool = pool,
                 page = page,
-                cursor = args.cursor,
+                cursor = cursor,
             )
             if (refresh.pool == pool && refresh.cursorOverride == null) {
                 page
             } else {
                 HomeRecommendationMixer.mix(
                     pool = refresh.pool,
-                    cursor = refresh.cursorOverride ?: args.cursor,
+                    cursor = refresh.cursorOverride ?: cursor,
                     limit = args.limit,
                     context = args.context.sessionContext,
                     sourceWeights = HomeRecommendationExploreBonus.apply(
                         sourceWeights = refresh.pool.sourceWeights,
-                        pageIndex = HomeRecommendationCursorPageIndex.from(refresh.cursorOverride ?: args.cursor, args.limit),
+                        pageIndex = HomeRecommendationCursorPageIndex.from(refresh.cursorOverride ?: cursor, args.limit),
                     ),
                     mode = mode,
                     userId = args.userId,
@@ -64,4 +74,14 @@ object HomeRecommendationPageBuilder {
             },
         )
     }
+
+    private fun HomeRecommendationCursor.withRotationSeed(): HomeRecommendationCursor =
+        if (rotationSeed != 0L || !isInitialPage()) {
+            this
+        } else {
+            copy(rotationSeed = HomeRecommendationPoolRotation.newSeed())
+        }
+
+    private fun HomeRecommendationCursor.isInitialPage(): Boolean =
+        subscriptionIndex == 0 && discoveryIndex == 0 && subscriptionRun == 0 && recentUrls.isEmpty()
 }

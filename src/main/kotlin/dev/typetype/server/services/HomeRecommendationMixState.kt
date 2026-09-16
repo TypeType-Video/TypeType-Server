@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.models.VideoItem
 
 class HomeRecommendationMixState(cursor: HomeRecommendationCursor, context: HomeRecommendationSessionContext) {
+    val rotationSeed = cursor.rotationSeed
     val channelCount = mutableMapOf<String, Int>()
     val memory = HomeRecommendationMomentumMemory(cursor)
     var personaState = HomeRecommendationPersonaDrift.seed(context, cursor.personaState)

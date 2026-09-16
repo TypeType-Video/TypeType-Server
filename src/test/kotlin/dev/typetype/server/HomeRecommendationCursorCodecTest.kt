@@ -24,6 +24,7 @@ class HomeRecommendationCursorCodecTest {
                 discoveryIndex = 12,
                 subscriptionRun = 2,
                 preferDiscovery = false,
+                rotationSeed = 123456789L,
                 recentChannels = listOf("c1", "c2"),
                 recentSemanticKeys = listOf("linux|kernel"),
                 creatorMomentum = mapOf("https://yt.com/c/a" to 2),
@@ -38,6 +39,7 @@ class HomeRecommendationCursorCodecTest {
         assertEquals(12, decoded?.discoveryIndex)
         assertEquals(2, decoded?.subscriptionRun)
         assertEquals(false, decoded?.preferDiscovery)
+        assertEquals(123456789L, decoded?.rotationSeed)
         assertEquals(listOf("c1", "c2"), decoded?.recentChannels)
         assertEquals(listOf("linux|kernel"), decoded?.recentSemanticKeys)
         assertEquals(2, decoded?.creatorMomentum?.get("https://yt.com/c/a"))

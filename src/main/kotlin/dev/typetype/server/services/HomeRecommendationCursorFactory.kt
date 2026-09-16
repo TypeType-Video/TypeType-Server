@@ -6,6 +6,7 @@ object HomeRecommendationCursorFactory {
         discoveryIndex: Int,
         subscriptionRun: Int,
         preferDiscovery: Boolean,
+        rotationSeed: Long,
         personaState: HomeRecommendationPersonaState,
         snapshot: HomeRecommendationCursorMemory,
     ): String = HomeRecommendationCursorCodec.encode(
@@ -14,6 +15,7 @@ object HomeRecommendationCursorFactory {
             discoveryIndex = discoveryIndex,
             subscriptionRun = subscriptionRun,
             preferDiscovery = preferDiscovery,
+            rotationSeed = rotationSeed,
             recentChannels = snapshot.recentChannels,
             recentSemanticKeys = snapshot.recentSemanticKeys,
             creatorMomentum = snapshot.creatorMomentum,
