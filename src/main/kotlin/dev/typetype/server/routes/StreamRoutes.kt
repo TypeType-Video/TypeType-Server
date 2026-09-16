@@ -131,7 +131,10 @@ private fun Route.streamRoute(
                 if (!data.hasPlayableSource()) {
                     return@get call.respond(
                         HttpStatusCode.UnprocessableEntity,
-                        ErrorResponse("No playable streams available", "no_playable_streams"),
+                        ErrorResponse(
+                            "No compatible stream is available for this video",
+                            "no_playable_streams",
+                        ),
                     )
                 }
                 val publicData = try {

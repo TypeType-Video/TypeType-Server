@@ -3,16 +3,26 @@ package dev.typetype.server.services
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ExtractionFailureKind
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
+import org.schabi.newpipe.extractor.exceptions.AntiBotException
 import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 internal object StreamExtractionErrorMapper {
     const val MEMBERS_ONLY_FALLBACK = "This video is only available for members"
     const val PAID_CONTENT_FALLBACK = "This video is a paid video"
+    const val GEOGRAPHIC_RESTRICTION_CODE = "geographic_restriction"
+    const val PROVIDER_ACCESS_BLOCKED_CODE = "provider_access_blocked"
+    const val PRIVATE_CONTENT_CODE = "private_content"
+    const val GEOGRAPHIC_RESTRICTION_FALLBACK =
+        "This video is not available in the server's region. A VPN or another outbound network may help."
+    const val PROVIDER_ACCESS_BLOCKED_FALLBACK =
+        "The video provider is blocking requests from this TypeType server. Try a VPN or another outbound network for the server, then retry."
+    const val PRIVATE_CONTENT_FALLBACK = "This video is private or no longer available"
 
     fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> =
         mapByType(error, fallback)
@@ -35,8 +45,19 @@ internal object StreamExtractionErrorMapper {
             sanitize(error.message) ?: "This video is age-restricted",
             "age_restricted",
         )
-        is GeographicRestrictionException,
-        is PrivateContentException -> ExtractionResult.BadRequest(sanitize(error.message) ?: "Content not available")
+        is GeographicRestrictionException -> ExtractionResult.BadRequest(
+            sanitize(error.message) ?: GEOGRAPHIC_RESTRICTION_FALLBACK,
+            GEOGRAPHIC_RESTRICTION_CODE,
+        )
+        is PrivateContentException -> ExtractionResult.BadRequest(
+            sanitize(error.message) ?: PRIVATE_CONTENT_FALLBACK,
+            PRIVATE_CONTENT_CODE,
+        )
+        is AntiBotException,
+        is ReCaptchaException -> ExtractionResult.Failure(
+            PROVIDER_ACCESS_BLOCKED_FALLBACK,
+            PROVIDER_ACCESS_BLOCKED_CODE,
+        )
         else -> ExtractionResult.Failure(
             sanitize(error.message) ?: fallback,
             kind = if (error.isYoutubeSessionRejected()) {

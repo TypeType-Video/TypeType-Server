@@ -21,11 +21,11 @@ internal fun AudioOnlyStreamSelection.toResponse(
     val src = when (kind) {
         AudioOnlyStreamKind.Progressive -> "/streams/audio-only/source?token=${encode(token)}"
         AudioOnlyStreamKind.Hls -> hlsTokenService?.createPath(stream.url)
-            ?: return ExtractionResult.Failure("No audio-only stream is available")
+            ?: return ExtractionResult.Failure("No audio-only stream is available", "no_playable_streams")
         AudioOnlyStreamKind.Dash -> stream.manifestUrl?.let { audioOnlyDashManifest(it) }
-            ?: return ExtractionResult.Failure("No audio-only stream is available")
+            ?: return ExtractionResult.Failure("No audio-only stream is available", "no_playable_streams")
         AudioOnlyStreamKind.SabrHls -> stream.manifestUrl?.let { audioOnlySabrHlsManifest(it, token) }
-            ?: return ExtractionResult.Failure("No audio-only stream is available")
+            ?: return ExtractionResult.Failure("No audio-only stream is available", "no_playable_streams")
     }
     return ExtractionResult.Success(AudioOnlyStreamResponse(
         src = src,

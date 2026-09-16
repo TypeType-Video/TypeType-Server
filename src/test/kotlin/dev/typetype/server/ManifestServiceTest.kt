@@ -97,6 +97,7 @@ class ManifestServiceTest {
         val result = service.dashManifest("https://youtube.com/watch?v=test")
 
         assertTrue(result is ExtractionResult.Failure)
+        assertEquals("no_playable_streams", (result as ExtractionResult.Failure).code)
     }
 
     @Test

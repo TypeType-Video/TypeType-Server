@@ -38,9 +38,9 @@ fun Route.manifestRoutes(
             is ExtractionResult.Success ->
                 call.respondText(result.data, ContentType.parse("application/dash+xml"))
             is ExtractionResult.BadRequest ->
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
             is ExtractionResult.Failure ->
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
         }
     }
 
@@ -53,9 +53,9 @@ fun Route.manifestRoutes(
             is ExtractionResult.Success ->
                 call.respondText(result.data, ContentType.parse("application/dash+xml"))
             is ExtractionResult.BadRequest ->
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
             is ExtractionResult.Failure ->
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
         }
     }
 
@@ -105,9 +105,9 @@ private suspend fun ApplicationCall.respondHlsResult(
         is ExtractionResult.Success ->
             respondText(result.data, ContentType.parse("application/vnd.apple.mpegurl"))
         is ExtractionResult.BadRequest ->
-            respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+            respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
         is ExtractionResult.Failure ->
-            respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
     }
 }
 

@@ -17,7 +17,7 @@ class ManifestService(
         val videos = compatibleVideoStreams(info.videoOnlyStreams)
         val audios = compatibleAudioStreams(info.audioStreams, info.preferredDefaultAudioTrackId)
         if (videos.isEmpty() && audios.isEmpty())
-            return ExtractionResult.Failure("No compatible streams found for DASH manifest")
+            return ExtractionResult.Failure("No compatible streams found for DASH manifest", "no_playable_streams")
         return ExtractionResult.Success(buildMpd(videos, audios, info.duration))
     }
 
@@ -129,7 +129,7 @@ class ManifestService(
         URLEncoder.encode(url, StandardCharsets.UTF_8)
     private fun <T> ExtractionResult<T>.recast(): ExtractionResult<String> = when (this) {
         is ExtractionResult.Success -> ExtractionResult.Success(data.toString())
-        is ExtractionResult.BadRequest -> ExtractionResult.BadRequest(message)
-        is ExtractionResult.Failure -> ExtractionResult.Failure(message)
+        is ExtractionResult.BadRequest -> ExtractionResult.BadRequest(message, code)
+        is ExtractionResult.Failure -> ExtractionResult.Failure(message, code, kind)
     }
 }

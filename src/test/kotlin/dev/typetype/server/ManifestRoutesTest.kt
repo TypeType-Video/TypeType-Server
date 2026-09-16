@@ -69,6 +69,7 @@ class ManifestRoutesTest {
         }
         val response = client.get("/streams/manifest?url=https://youtube.com/watch?v=empty")
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
     }
 
     @Test

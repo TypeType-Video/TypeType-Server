@@ -40,7 +40,7 @@ class NativeManifestService {
         val audios = compatibleAudioStreams(info.audioStreams)
         val preferredAudioTrackId = resolvePreferredAudioTrackId(audios)
         if (videos.isEmpty() && audios.isEmpty())
-            return ExtractionResult.Failure("No compatible streams found")
+            return ExtractionResult.Failure("No compatible streams found", "no_playable_streams")
         return runCatching {
             ExtractionResult.Success(
                 NativeManifestBuilder.build(videos, audios, info.duration, preferredAudioTrackId)

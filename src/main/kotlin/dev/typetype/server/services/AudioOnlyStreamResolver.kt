@@ -62,10 +62,10 @@ class AudioOnlyStreamResolver(
         if (sabr != null) return ExtractionResult.Success(
             AudioOnlyStreamSelection(response, sabr, AudioOnlyStreamKind.SabrHls)
         )
-        if (selectedItag != null) return ExtractionResult.Failure("No audio-only stream is available")
+        if (selectedItag != null) return noAudioStream()
         val hls = (if (allowHls) hlsCandidate(response, preferOriginal, preferredLocale) else null)
         if (hls != null) return ExtractionResult.Success(AudioOnlyStreamSelection(response, hls, AudioOnlyStreamKind.Hls))
-        return ExtractionResult.Failure("No audio-only stream is available")
+        return noAudioStream()
     }
 
     private fun hlsCandidate(response: StreamResponse, preferOriginal: Boolean, preferredLocale: String?) =
@@ -77,6 +77,9 @@ class AudioOnlyStreamResolver(
 
     private fun dev.typetype.server.models.AudioStreamItem.matchesSelected(itag: Int, trackId: String?): Boolean =
         this.itag == itag && this.audioTrackId == trackId
+
+    private fun noAudioStream(): ExtractionResult.Failure =
+        ExtractionResult.Failure("No audio-only stream is available", "no_playable_streams")
 
     private fun ExtractionResult<StreamResponse>?.resolveWith(
         sessionResult: ExtractionResult<StreamResponse>?,

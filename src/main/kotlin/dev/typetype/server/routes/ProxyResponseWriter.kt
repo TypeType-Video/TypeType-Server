@@ -16,8 +16,8 @@ internal suspend fun ApplicationCall.respondProxyResult(
     contentTypeOverride: String? = null,
 ): Unit = when (result) {
     is ExtractionResult.Success -> respondProxy(result.data, contentTypeOverride)
-    is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-    is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+    is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
+    is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
 }
 
 private suspend fun ApplicationCall.respondProxy(proxy: ProxyResponse, contentTypeOverride: String?): Unit {

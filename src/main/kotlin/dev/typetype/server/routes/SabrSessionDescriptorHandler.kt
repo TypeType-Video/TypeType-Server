@@ -39,11 +39,11 @@ internal class SabrSessionDescriptorHandler(
                 }
                 is ExtractionResult.Failure -> return call.respond(
                     HttpStatusCode.UnprocessableEntity,
-                    ErrorResponse(result.message),
+                    ErrorResponse(result.message, result.code),
                 )
                 is ExtractionResult.BadRequest -> return call.respond(
                     HttpStatusCode.BadRequest,
-                    ErrorResponse(result.message),
+                    ErrorResponse(result.message, result.code),
                 )
             }
         }
@@ -59,7 +59,7 @@ internal class SabrSessionDescriptorHandler(
             requireAac = true,
         ) ?: return call.respond(
             HttpStatusCode.UnprocessableEntity,
-            ErrorResponse("No SABR audio for this video"),
+            ErrorResponse("No SABR audio for this video", "no_playable_streams"),
         )
         val video = SabrFormatSelector.video(
             prepared.info,
@@ -67,7 +67,7 @@ internal class SabrSessionDescriptorHandler(
         )
             ?: return call.respond(
                 HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("No SABR video for this video"),
+                ErrorResponse("No SABR video for this video", "no_playable_streams"),
             )
         val userId = access.userId ?: videoId
         val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs)

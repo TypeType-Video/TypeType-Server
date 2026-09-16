@@ -8,9 +8,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
+import org.schabi.newpipe.extractor.exceptions.AntiBotException
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
@@ -68,7 +71,26 @@ class StreamExtractionErrorMapperTest {
     @Test
     fun `maps content restrictions to bad request with extractor message`() {
         val result = StreamExtractionErrorMapper.map<Any>(PrivateContentException("private video"))
-        assertEquals(ExtractionResult.BadRequest("private video"), result)
+        assertEquals(ExtractionResult.BadRequest("private video", "private_content"), result)
+    }
+
+    @Test
+    fun `maps geographic restrictions to a stable access code`() {
+        val result = StreamExtractionErrorMapper.map<Any>(GeographicRestrictionException("Only available in Japan"))
+        assertEquals(ExtractionResult.BadRequest("Only available in Japan", "geographic_restriction"), result)
+    }
+
+    @Test
+    fun `maps provider bot blocks to a vpn-aware failure`() {
+        val antiBot = StreamExtractionErrorMapper.map<Any>(AntiBotException("YouTube requested CAPTCHA verification"))
+        val captcha = StreamExtractionErrorMapper.map<Any>(ReCaptchaException("reCaptcha requested", "https://youtube.com"))
+
+        val expected = ExtractionResult.Failure(
+            StreamExtractionErrorMapper.PROVIDER_ACCESS_BLOCKED_FALLBACK,
+            "provider_access_blocked",
+        )
+        assertEquals(expected, antiBot)
+        assertEquals(expected, captcha)
     }
 
     @Test

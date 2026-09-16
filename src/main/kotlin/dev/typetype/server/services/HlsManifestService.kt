@@ -82,13 +82,20 @@ class HlsManifestService(
         result: ExtractionResult<StreamResponse>,
         allowAttestedYoutubeHls: Boolean = false,
     ): ExtractionResult<String> {
-        if (result is ExtractionResult.BadRequest) return result
-        if (result !is ExtractionResult.Success) return ExtractionResult.Failure("No HLS stream available for this video")
-        if (allowAttestedYoutubeHls && result.data.isLive) {
-            attestedYoutubeHls(result.data.id)?.let { return ExtractionResult.Success(it) }
+        val success = when (result) {
+            is ExtractionResult.BadRequest -> return result
+            is ExtractionResult.Failure -> return ExtractionResult.Failure(result.message, result.code, result.kind)
+            is ExtractionResult.Success -> result
         }
-        val hls = result.data.hlsUrl
-        return if (hls.isNotBlank()) ExtractionResult.Success(hls) else ExtractionResult.Failure("No HLS stream available for this video")
+        if (allowAttestedYoutubeHls && success.data.isLive) {
+            attestedYoutubeHls(success.data.id)?.let { return ExtractionResult.Success(it) }
+        }
+        val hls = success.data.hlsUrl
+        return if (hls.isNotBlank()) {
+            ExtractionResult.Success(hls)
+        } else {
+            ExtractionResult.Failure("No HLS stream available for this video", "no_playable_streams")
+        }
     }
 
     private suspend fun fetchAndRewrite(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> =

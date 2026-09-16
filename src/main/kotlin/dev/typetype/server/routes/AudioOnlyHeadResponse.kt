@@ -38,7 +38,7 @@ internal suspend fun ApplicationCall.respondAudioOnlyHead(
                 respondOutputStream(containerMime(result.data.stream.mimeType), HttpStatusCode.OK, length ?: 0L) {}
             }
         }
-        is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+        is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
+        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
     }
 }

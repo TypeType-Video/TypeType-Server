@@ -69,9 +69,9 @@ internal class SabrManifestHandler(
                     }
                 }
                 is ExtractionResult.Failure ->
-                    return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                    return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
                 is ExtractionResult.BadRequest ->
-                    return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                    return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
             }
         }
         val requestedStartTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
@@ -93,7 +93,7 @@ internal class SabrManifestHandler(
         )
             ?: return call.respond(
                 HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("No SABR audio for this video"),
+                ErrorResponse("No SABR audio for this video", "no_playable_streams"),
             )
         val video = SabrFormatSelector.video(
             prepared.info,
@@ -101,7 +101,7 @@ internal class SabrManifestHandler(
         )
             ?: return call.respond(
                 HttpStatusCode.UnprocessableEntity,
-                ErrorResponse("No SABR video for this video"),
+                ErrorResponse("No SABR video for this video", "no_playable_streams"),
             )
         val startTimeMs = downloadRange?.startTimeMs(audio, video, audioOnly) ?: requestedStartTimeMs
         val userId = audioToken?.userId ?: access?.userId ?: videoId
