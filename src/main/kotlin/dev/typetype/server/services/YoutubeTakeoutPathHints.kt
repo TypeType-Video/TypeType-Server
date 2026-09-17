@@ -6,19 +6,29 @@ object YoutubeTakeoutPathHints {
 
     fun isHistoryEntry(path: String): Boolean {
         val normalized = YoutubeTakeoutTextNormalizer.normalize(path)
-        return HISTORY_MARKERS.any { it in normalized }
+        return NORMALIZED_HISTORY_MARKERS.any { it in normalized }
     }
 
     private val HISTORY_MARKERS = setOf(
         "watch history",
         "historique",
+        "historique des videos regardees",
         "historico",
+        "historico de visualizacao",
+        "historico de exibicao",
         "historial",
+        "historial de reproduccion",
+        "historial de visualizacion",
         "cronologia",
+        "cronologia de reproduccion",
         "verlauf",
+        "wiedergabeverlauf",
         "kijkgeschiedenis",
         "historia ogladania",
         "izleme gecmisi",
+        "lich su xem",
+        "ประวัติการดู",
+        "ประวัติการรับชม",
         "история просмотров",
         "история просмотра",
         "історія перегляду",
@@ -31,4 +41,6 @@ object YoutubeTakeoutPathHints {
         "تاریخچه تماشا",
         "देखने का इतिहास",
     )
+
+    private val NORMALIZED_HISTORY_MARKERS = HISTORY_MARKERS.map(YoutubeTakeoutTextNormalizer::normalize)
 }

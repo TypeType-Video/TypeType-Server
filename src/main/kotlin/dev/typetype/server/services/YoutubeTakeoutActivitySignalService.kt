@@ -8,7 +8,7 @@ import java.util.zip.ZipFile
 object YoutubeTakeoutActivitySignalService {
     private val activityLinkRegex = Regex("""<a\s+href=\"([^\"]+)\"[^>]*>([^<]*)</a>""", RegexOption.IGNORE_CASE)
     private val rowTailRegex = Regex("""\s*<br>\s*(?:<a href=\"([^\"]+)\">([^<]*)</a><br>\s*)?([^<]*)<br>""", RegexOption.IGNORE_CASE)
-    private val watchUrlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
+    private val watchUrlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/|live/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val channelUrlRegex = Regex("""https?://www\.youtube\.com/(?:channel/[A-Za-z0-9_-]+|@[A-Za-z0-9._-]+)""")
     private val spacesRegex = Regex("""\s+""")
 

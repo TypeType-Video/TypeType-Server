@@ -81,7 +81,8 @@ object YoutubeTakeoutSchemaHints {
 
     fun containsWatchUrl(value: String): Boolean {
         val normalized = value.lowercase()
-        return "youtube.com/watch?v=" in normalized || "youtube.com/shorts/" in normalized || "youtu.be/" in normalized
+        return "youtube.com/watch?v=" in normalized || "youtube.com/shorts/" in normalized ||
+            "youtube.com/live/" in normalized || "youtu.be/" in normalized
     }
 
     fun normalize(value: String): String = YoutubeTakeoutTextNormalizer.normalize(value)

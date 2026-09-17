@@ -41,6 +41,10 @@ internal class PortabilityProgressReporter(
     }
 }
 
+internal fun portabilityProgressInterval(total: Long?): Long = total
+    ?.let { (it / 100L).coerceIn(1L, 100L) }
+    ?: 100L
+
 internal class ProgressRecordSink(
     private val delegate: PortabilityRecordSink,
     private val progress: PortabilityProgressReporter,

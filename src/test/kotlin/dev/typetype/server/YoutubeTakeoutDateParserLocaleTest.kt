@@ -18,4 +18,12 @@ class YoutubeTakeoutDateParserLocaleTest {
         )
         assertNotNull(YoutubeTakeoutDateParser.parseEpochMillis("2026년 9월 4일 오후 9:45:27 KST"))
     }
+
+    @Test
+    fun `parses year first and localized day period variants`() {
+        assertNotNull(YoutubeTakeoutDateParser.parseEpochMillis("2026/09/16 18:02:08 CEST"))
+        assertNotNull(YoutubeTakeoutDateParser.parseEpochMillis("2026-09-16, 18:02:08 CEST"))
+        assertNotNull(YoutubeTakeoutDateParser.parseEpochMillis("4 سبتمبر 2026, 9:45:27 مساءً CEST"))
+        assertNotNull(YoutubeTakeoutDateParser.parseEpochMillis("4 सितंबर 2026, 9:45:27 शाम CEST"))
+    }
 }

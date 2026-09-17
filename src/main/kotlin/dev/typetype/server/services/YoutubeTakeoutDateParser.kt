@@ -29,6 +29,20 @@ object YoutubeTakeoutDateParser {
         "MMMM d, yyyy HH:mm:ss z",
         "d/M/uuuu, HH:mm:ss z",
         "M/d/uuuu, HH:mm:ss z",
+        "d-M-uuuu, HH:mm:ss z",
+        "M-d-uuuu, HH:mm:ss z",
+        "d.M.uuuu, HH:mm:ss z",
+        "M.d.uuuu, HH:mm:ss z",
+        "yyyy/M/d, HH:mm:ss z",
+        "yyyy/M/d, H:mm:ss z",
+        "yyyy/M/d HH:mm:ss z",
+        "yyyy/M/d H:mm:ss z",
+        "yyyy-MM-dd, HH:mm:ss z",
+        "yyyy-MM-dd, H:mm:ss z",
+        "yyyy-MM-dd HH:mm:ss z",
+        "yyyy-MM-dd H:mm:ss z",
+        "yyyy.MM.dd, HH:mm:ss z",
+        "yyyy.MM.dd HH:mm:ss z",
         "yyyy年M月d日 HH:mm:ss z",
         "yyyy年M月d日 H:mm:ss z",
         "yyyy年M月d日 a h:mm:ss z",
@@ -94,7 +108,8 @@ object YoutubeTakeoutDateParser {
     }.getOrNull()
 
     private fun canonicalizeMonths(value: String): String = MONTH_TOKEN_REGEX.replace(value) { match ->
-        monthAliases[normalizeMonth(match.value)] ?: match.value
+        val token = normalizeMonth(match.value)
+        if (token in DAY_PERIOD_TOKENS) match.value else monthAliases[token] ?: match.value
     }
 
     private fun buildMonthAliases(): Map<String, String> {
@@ -149,17 +164,39 @@ object YoutubeTakeoutDateParser {
     private val MONTH_TOKEN_REGEX = Regex("[\\p{L}\\p{M}][\\p{L}\\p{M}.]*")
     private val ACTIVITY_CONNECTOR_REGEX = Regex("\\s+(?:de|del)\\s+", RegexOption.IGNORE_CASE)
     private val ACTIVITY_SPACES_REGEX = Regex("\\s+")
-    private val DAY_PERIOD_REGEX = Regex("凌晨|早上|上午|中午|下午|晚上|午前|午後|오전|오후")
+    private val DAY_PERIOD_REGEX = Regex(
+        "凌晨|清晨|早晨|早上|上午|中午|下午|晚上|半夜|午前|午後|오전|오후|" +
+            "صباحًا|صباحا|صباح|مساءً|مساءا|مساء|قبل الظهر|بعد الظهر|" +
+            "पूर्वाह्न|अपराह्न|सुबह|दोपहर|शाम|रात",
+    )
     private val DAY_PERIODS = mapOf(
         "凌晨" to "AM ",
+        "清晨" to "AM ",
+        "早晨" to "AM ",
         "早上" to "AM ",
         "上午" to "AM ",
         "中午" to "PM ",
         "下午" to "PM ",
         "晚上" to "PM ",
+        "半夜" to "AM ",
         "午前" to "AM ",
         "午後" to "PM ",
         "오전" to "AM ",
         "오후" to "PM ",
+        "صباحًا" to "AM ",
+        "صباحا" to "AM ",
+        "صباح" to "AM ",
+        "مساءً" to "PM ",
+        "مساءا" to "PM ",
+        "مساء" to "PM ",
+        "قبل الظهر" to "AM ",
+        "بعد الظهر" to "PM ",
+        "पूर्वाह्न" to "AM ",
+        "अपराह्न" to "PM ",
+        "सुबह" to "AM ",
+        "दोपहर" to "PM ",
+        "शाम" to "PM ",
+        "रात" to "PM ",
     )
+    private val DAY_PERIOD_TOKENS = setOf("am", "pm")
 }

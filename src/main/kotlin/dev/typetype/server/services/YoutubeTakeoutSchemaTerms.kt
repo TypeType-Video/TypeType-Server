@@ -15,29 +15,32 @@ internal object YoutubeTakeoutSchemaTerms {
         "wiedergabeliste", "wiedergabelisten", "afspeellijst", "afspeellijsten",
         "список воспроизведения", "списки воспроизведения", "плейлист", "плейлисты", "再生リスト",
         "재생목록", "播放列表", "播放清單", "قائمة التشغيل", "قوائم التشغيل", "प्लेलिस्ट", "प्लेलिस्टें",
-        "λίστες αναπαραγωγής",
+        "λίστα αναπαραγωγής", "λίστες αναπαραγωγής", "danh sach phat", "รายการเล่น", "เพลย์ลิสต์",
+        "רשימת השמעה", "רשימות השמעה",
     )
 
     val channelWords = setOf(
         "channel", "chaine", "canal", "canale", "kanal", "kanaal", "канал", "канали", "kanał",
-        "チャンネル", "채널", "频道", "頻道", "قناة", "चैनल", "κανάλι",
+        "チャンネル", "채널", "频道", "頻道", "قناة", "चैनल", "κανάλι", "kenh", "ช่อง", "ערוץ",
     )
 
     val videoWords = setOf(
         "video", "videos", "vidéo", "vidéos", "vídeo", "vídeos", "動画", "동영상", "비디오", "видео",
-        "视频", "影片", "film", "filmy", "فيديو", "فيديوهات", "वीडियो", "βίντεο", "วิดีโอ",
+        "视频", "影片", "film", "filmy", "فيديو", "فيديوهات", "वीडियो", "βίντεο", "วิดีโอ", "ভিডিও", "סרטון",
     )
 
     val subscriptionWords = setOf(
         "subscriptions", "suscripciones", "inscricoes", "inscrições", "iscrizioni", "abbonamenti", "abos",
         "abonelikler", "abonnements", "abonnementen", "abonnierte kanäle", "subskrypcje", "подписки",
         "підписки", "登録チャンネル", "チャンネル登録", "구독", "订阅", "訂閱", "الاشتراكات",
+        "การสมัครรับข้อมูล", "การติดตาม", "מינויים", "সাবস্ক্রিপশন", "kenh da dang ky",
     )
 
     val playlistManifestNames = setOf(
         "playlists", "oynatma listeleri", "oynatma listesi", "listas de reproduccion", "listes de lecture",
         "liste di riproduzione", "listas de reproducao", "wiedergabelisten", "wiedergabeliste",
         "afspeellijsten", "afspeellijst", "списки воспроизведения", "список воспроизведения", "再生リスト",
-        "재생목록", "播放列表", "播放清單", "قوائم التشغيل", "قائمة التشغيل",
+        "재생목록", "播放列表", "播放清單", "قوائم التشغيل", "قائمة التشغيل", "danh sach phat",
+        "รายการเล่น", "เพลย์ลิสต์", "רשימת השמעה", "רשימות השמעה",
     ).mapTo(mutableSetOf(), YoutubeTakeoutTextNormalizer::normalize)
 }

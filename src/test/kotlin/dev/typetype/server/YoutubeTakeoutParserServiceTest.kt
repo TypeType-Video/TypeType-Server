@@ -249,6 +249,24 @@ class YoutubeTakeoutParserServiceTest {
         Files.deleteIfExists(zip)
     }
 
+    @Test
+    fun `parse preserves live video history urls`() {
+        val zip = Files.createTempFile("yt-takeout-live-history-", ".zip")
+        ZipOutputStream(Files.newOutputStream(zip)).use { out ->
+            out.writeEntry(
+                "Takeout/My Activity/YouTube/watch-history.html",
+                "You watched <a href=\"https://www.youtube.com/live/live000001\">Live stream</a><br>" +
+                    "1 Jan 2026, 12:00:00 CET<br>",
+            )
+        }
+
+        val history = YoutubeTakeoutParserService().parse(zip).history
+
+        assertEquals("https://www.youtube.com/live/live000001", history.single().url)
+        assertEquals("https://i.ytimg.com/vi/live000001/hqdefault.jpg", history.single().thumbnail)
+        Files.deleteIfExists(zip)
+    }
+
     private fun createZip(): Path {
         val zip = Files.createTempFile("yt-takeout-parser-", ".zip")
         ZipOutputStream(Files.newOutputStream(zip)).use { out ->

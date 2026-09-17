@@ -33,6 +33,7 @@ object YoutubeTypeTypeMapper {
         val trimmed = url.trim()
         WATCH_ID_REGEX.find(trimmed)?.let { return it.groupValues[1] }
         SHORTS_ID_REGEX.find(trimmed)?.let { return it.groupValues[1] }
+        LIVE_ID_REGEX.find(trimmed)?.let { return it.groupValues[1] }
         SHORT_URL_REGEX.find(trimmed)?.let { return it.groupValues[1] }
         return trimmed.takeIf { RAW_ID_REGEX.matches(it) }
     }
@@ -43,6 +44,7 @@ object YoutubeTypeTypeMapper {
 
     private val WATCH_ID_REGEX = Regex("""[?&]v=([A-Za-z0-9_-]{6,})""")
     private val SHORTS_ID_REGEX = Regex("""youtube\.com/shorts/([A-Za-z0-9_-]{6,})""", RegexOption.IGNORE_CASE)
+    private val LIVE_ID_REGEX = Regex("""youtube\.com/live/([A-Za-z0-9_-]{6,})""", RegexOption.IGNORE_CASE)
     private val SHORT_URL_REGEX = Regex("""youtu\.be/([A-Za-z0-9_-]{6,})""", RegexOption.IGNORE_CASE)
     private val RAW_ID_REGEX = Regex("""^[A-Za-z0-9_-]{6,}$""")
 }

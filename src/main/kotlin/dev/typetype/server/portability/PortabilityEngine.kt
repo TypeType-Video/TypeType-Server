@@ -132,6 +132,7 @@ class PortabilityEngine internal constructor(
                 PortabilityProgressPhase.APPLYING,
                 PortabilityProgressUnit.RECORDS,
                 total,
+                interval = portabilityProgressInterval(total),
             )
             val result = dataPort.import(
                 job.ownerId,

@@ -4,11 +4,11 @@ import dev.typetype.server.models.HistoryItem
 
 object YoutubeTakeoutHistoryParser {
     private val videoLinkRegex = Regex(
-        """<a\s+href=\"([^\"]*(?:youtube\.com/watch\?v=|youtube\.com/shorts/|youtu\.be/)[^\"]*)\"[^>]*>([^<]*)</a>""",
+        """<a\s+href=\"([^\"]*(?:youtube\.com/watch\?v=|youtube\.com/shorts/|youtube\.com/live/|youtu\.be/)[^\"]*)\"[^>]*>([^<]*)</a>""",
         RegexOption.IGNORE_CASE,
     )
     private val rowTailRegex = Regex("""\s*<br>\s*(?:<a href=\"([^\"]+)\">([^<]*)</a><br>\s*)?([^<]*)<br>""", RegexOption.IGNORE_CASE)
-    private val urlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
+    private val urlRegex = Regex("""https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/|live/)|youtu\.be/)[A-Za-z0-9_-]{6,}""")
     private val tagRegex = Regex("<[^>]+>")
     private val spacesRegex = Regex("\\s+")
 
