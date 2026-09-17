@@ -12,9 +12,13 @@ object YoutubeTakeoutHistoryParser {
     private val tagRegex = Regex("<[^>]+>")
     private val spacesRegex = Regex("\\s+")
 
-    fun parse(html: String, requireWatchedMarker: Boolean = true): List<HistoryItem> {
+    fun parse(html: String, requireWatchedMarker: Boolean = true): List<HistoryItem> =
+        parseWithDiagnostics(html, requireWatchedMarker).items
+
+    internal fun parseWithDiagnostics(html: String, requireWatchedMarker: Boolean = true): YoutubeTakeoutHistoryParseResult {
         val resolvedHtml = html.replace("\u00a0", " ")
-        return videoLinkRegex.findAll(resolvedHtml).mapNotNull { match ->
+        var invalidDates = 0L
+        val items = videoLinkRegex.findAll(resolvedHtml).mapNotNull { match ->
             val prefixStart = (match.range.first - WATCHED_PREFIX_CHARS).coerceAtLeast(0)
             if (requireWatchedMarker && !YoutubeTakeoutActivityClassifier.isWatched(
                     resolvedHtml.substring(prefixStart, match.range.first),
@@ -31,7 +35,11 @@ object YoutubeTakeoutHistoryParser {
             if (YoutubeTakeoutUnavailableItem.matches(title)) return@mapNotNull null
             val channelUrl = tail.groupValues[1].takeIf { it.isNotBlank() }.orEmpty()
             val channelName = decode(tail.groupValues[2]).ifBlank { "Unknown channel" }
-            val watchedAt = parseDate(decode(tail.groupValues[3])) ?: return@mapNotNull null
+            val dateText = decode(tail.groupValues[3])
+            val watchedAt = parseDate(dateText) ?: run {
+                invalidDates += 1
+                return@mapNotNull null
+            }
             HistoryItem(
                 url = url,
                 title = title,
@@ -44,6 +52,7 @@ object YoutubeTakeoutHistoryParser {
                 watchedAt = watchedAt,
             )
         }.toList().distinctBy { it.url to it.watchedAt }
+        return YoutubeTakeoutHistoryParseResult(items, invalidDates)
     }
 
     private fun parseDate(value: String): Long? = YoutubeTakeoutDateParser.parseEpochMillis(value)
@@ -68,3 +77,8 @@ object YoutubeTakeoutHistoryParser {
 
     private const val WATCHED_PREFIX_CHARS = 160
 }
+
+internal data class YoutubeTakeoutHistoryParseResult(
+    val items: List<HistoryItem>,
+    val invalidDates: Long,
+)

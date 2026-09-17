@@ -27,8 +27,18 @@ internal object YoutubeTakeoutHtmlPortabilityReader {
         includeActivitySignals: Boolean,
         historyEntry: Boolean,
     ) {
-        YoutubeTakeoutHistoryParser.parse(html, requireWatchedMarker = !historyEntry)
-            .forEach { sink.write(it.toPortability()) }
+        val parsedHistory = YoutubeTakeoutHistoryParser.parseWithDiagnostics(html, requireWatchedMarker = !historyEntry)
+        parsedHistory.items.forEach { sink.write(it.toPortability()) }
+        if (parsedHistory.invalidDates > 0) {
+            sink.issue(
+                PortabilityIssue(
+                    PortabilityCategory.HISTORY,
+                    "invalid_takeout_date",
+                    "YouTube Takeout HTML rows with an invalid date were skipped",
+                    parsedHistory.invalidDates,
+                ),
+            )
+        }
         if (includeActivitySignals) {
             val (subscriptions, favorites) = YoutubeTakeoutActivitySignalService.parseHtml(html)
             subscriptions.forEach { sink.write(it.toPortability()) }

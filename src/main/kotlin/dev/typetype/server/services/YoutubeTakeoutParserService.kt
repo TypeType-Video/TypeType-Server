@@ -99,12 +99,13 @@ class YoutubeTakeoutParserService {
                 ?: entries.firstOrNull()
             if (entry == null) return emptyList()
             val html = zip.getInputStream(entry).bufferedReader().use { it.readText() }
-            val parsed = YoutubeTakeoutHistoryParser.parse(
+            val parsed = YoutubeTakeoutHistoryParser.parseWithDiagnostics(
                 html,
                 requireWatchedMarker = !YoutubeTakeoutPathHints.isHistoryEntry(entry.name),
             )
-            if (parsed.isEmpty()) warnings += "No watch history rows detected"
-            return parsed.map(YoutubeTypeTypeMapper::historyItem)
+            if (parsed.items.isEmpty()) warnings += "No watch history rows detected"
+            if (parsed.invalidDates > 0) warnings += "Skipped ${parsed.invalidDates} watch history rows with invalid dates"
+            return parsed.items.map(YoutubeTypeTypeMapper::historyItem)
         }
     }
 

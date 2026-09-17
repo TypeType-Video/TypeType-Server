@@ -37,8 +37,7 @@ internal object YoutubeTakeoutJsonPortabilityReader {
             "myactivity json",
             "my activity json",
         ) || filename.startsWith("myactivity ") || filename.startsWith("my activity ")
-        return namedHistory || YoutubeTakeoutPathHints.isHistoryEntry(path) ||
-            ("youtube" in normalized && ("activity" in normalized || "history" in normalized))
+        return namedHistory || YoutubeTakeoutPathHints.isHistoryEntry(path) || "youtube" in normalized
     }
 
     fun read(input: InputStream, sink: PortabilityRecordSink) {
@@ -48,7 +47,10 @@ internal object YoutubeTakeoutJsonPortabilityReader {
     }
 
     private fun read(parser: JsonParser, sink: PortabilityRecordSink) {
-        require(parser.nextToken() == JsonToken.START_ARRAY) { "YouTube Takeout JSON root must be an array" }
+        if (parser.nextToken() != JsonToken.START_ARRAY) {
+            parser.skipChildren()
+            return
+        }
         var count = 0
         var invalidDates = 0L
         var historyRecords = 0L
@@ -75,7 +77,7 @@ internal object YoutubeTakeoutJsonPortabilityReader {
                 if (liked) sink.write(PortabilityFavorite(video, timestamp))
             } else if (url != null && timestamp != null && liked) {
                 sink.write(PortabilityFavorite(entry.video(url), timestamp))
-            } else if (url != null && entry.time.isNotBlank() && history) {
+            } else if (url != null && history) {
                 invalidDates += 1
             }
             if (YoutubeTakeoutActivityClassifier.isSubscribedAction(entry.title) ||
