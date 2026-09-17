@@ -104,6 +104,46 @@ class YoutubeTakeoutPortabilityAdapterTest {
     }
 
     @Test
+    fun `adapter associates spanish playlist item files with manifest ids`() {
+        val archive = directory.resolve("takeout-es-manifest.zip")
+        ZipOutputStream(Files.newOutputStream(archive)).use { output ->
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/Listas de reproducción.csv",
+                "ID de lista de reproducción,Título de la lista de reproducción (original)\n" +
+                    "PL123456789,Importada\nPL987654321,It's/Luna\n",
+            )
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/Importada-vídeos.csv",
+                "ID de vídeo,Marca de tiempo de creación de la lista de reproducción\n" +
+                    "video000001,2026-01-02T00:00:00Z\n" +
+                    "video000002,2026-01-01T00:00:00Z\n",
+            )
+            output.entry(
+                "Takeout/YouTube y YouTube Music/listas de reproducción/It_s_Luna-vídeos.csv",
+                "ID de vídeo,Marca de tiempo de creación de la lista de reproducción\nvideo000003,2026-01-03T00:00:00Z\n",
+            )
+        }
+        val input = PortabilityInputFactory.create(archive, archive.fileName.toString(), "application/zip")
+        val spool = PortabilitySpool.create(directory)
+
+        YoutubeTakeoutPortabilityAdapter().decode(input, spool)
+
+        assertEquals(5L, spool.counts()[PortabilityCategory.PLAYLISTS])
+        val videos = mutableListOf<PortabilityPlaylistVideo>()
+        spool.forEachChild(PortabilityCategory.PLAYLISTS, "PL123456789") { record ->
+            videos += record as PortabilityPlaylistVideo
+        }
+        assertEquals(listOf("video000001", "video000002"), videos.map { it.video.url.substringAfter("v=") })
+        val escaped = mutableListOf<PortabilityPlaylistVideo>()
+        spool.forEachChild(PortabilityCategory.PLAYLISTS, "PL987654321") { record ->
+            escaped += record as PortabilityPlaylistVideo
+        }
+        assertEquals(listOf("video000003"), escaped.map { it.video.url.substringAfter("v=") })
+        assertTrue(spool.issues().none { it.code == "playlist_manifest_missing" })
+        spool.delete()
+    }
+
+    @Test
     fun `adapter streams My Activity JSON including embedded URLs`() {
         val json = directory.resolve("watch-history.json")
         Files.writeString(

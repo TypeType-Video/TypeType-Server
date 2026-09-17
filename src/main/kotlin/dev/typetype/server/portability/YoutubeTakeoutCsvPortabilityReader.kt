@@ -113,6 +113,17 @@ internal object YoutubeTakeoutCsvPortabilityReader {
 
     private fun playlistAliases(name: String): Set<String> = setOf(
         name,
+    ) + filenameAliases(name) + localizedPlaylistAliases(name)
+
+    private fun filenameAliases(name: String): Set<String> {
+        val escaped = name.replace('/', '_').replace('\'', '_')
+        return setOf(
+            "$escaped-videos",
+            "$escaped-vídeos",
+        )
+    }
+
+    private fun localizedPlaylistAliases(name: String): Set<String> = setOf(
         "Videos from $name",
         "Videos de $name",
         "Vídeos de $name",
