@@ -13,10 +13,11 @@ import java.util.zip.ZipFile
 internal object YoutubeTakeoutCsvPortabilityReader {
     private const val PLAYLIST_LOOKUP = "youtube-takeout-playlist"
 
-    fun readManifests(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
-        csvEntries(entries).filter { isPlaylistManifest(zip, it) }.forEach { entry ->
+    fun read(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
+        val classified = YoutubeTakeoutCsvSchemaDetector.classify(zip, entries)
+        classified.filter { it.kind == YoutubeTakeoutCsvKind.PLAYLIST_MANIFEST }.forEach { classifiedEntry ->
             sink.markCategory(PortabilityCategory.PLAYLISTS)
-            forEachRow(zip, entry) { header, row ->
+            forEachRow(zip, classifiedEntry.entry) { header, row ->
                 val playlist = YoutubeTakeoutRowParser.parsePlaylist(header, row) ?: return@forEachRow
                 indexPlaylist(playlist, sink)
                 if (!isSystemPlaylist(playlist)) {
@@ -24,12 +25,20 @@ internal object YoutubeTakeoutCsvPortabilityReader {
                 }
             }
         }
-    }
-
-    fun readContent(zip: ZipFile, entries: List<ZipEntry>, sink: PortabilityRecordSink) {
-        val csv = csvEntries(entries).filterNot { isPlaylistManifest(zip, it) }.toList()
-        csv.filter(::isSubscriptionFile).forEach { readSubscriptions(zip, it, sink) }
-        csv.filter(::isPlaylistContent).forEach { readPlaylistItems(zip, it, sink) }
+        classified.filter { it.kind == YoutubeTakeoutCsvKind.SUBSCRIPTIONS }
+            .forEach { readSubscriptions(zip, it.entry, sink) }
+        classified.filter { it.kind == YoutubeTakeoutCsvKind.PLAYLIST_CONTENT }
+            .forEach { readPlaylistItems(zip, it.entry, sink) }
+        classified.filter { it.kind == YoutubeTakeoutCsvKind.OTHER && it.maybePortable }
+            .forEach { classifiedEntry ->
+                sink.issue(
+                    PortabilityIssue(
+                        category = null,
+                        code = "unsupported_takeout_csv",
+                        message = "A YouTube Takeout CSV file could not be classified and was skipped: ${classifiedEntry.entry.name}",
+                    ),
+                )
+            }
     }
 
     private fun readSubscriptions(zip: ZipFile, entry: ZipEntry, sink: PortabilityRecordSink) {
@@ -95,38 +104,9 @@ internal object YoutubeTakeoutCsvPortabilityReader {
         }
     }
 
-    private fun csvEntries(entries: List<ZipEntry>) = entries.asSequence().filter {
-        it.name.endsWith(".csv", ignoreCase = true) && "youtube" in it.name.lowercase()
-    }
-
-    private fun isPlaylistManifest(zip: ZipFile, entry: ZipEntry): Boolean {
-        if (YoutubeTakeoutSchemaHints.isPlaylistManifestName(fileStem(entry))) return true
-        if (!YoutubeTakeoutSchemaHints.isPlaylistText(entry.name)) return false
-        var manifest = false
-        forEachRow(zip, entry) { header, _ ->
-            manifest = manifest || (
-                header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) &&
-                    header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader) &&
-                    header.none(YoutubeTakeoutSchemaHints::isVideoIdHeader)
-            )
-        }
-        return manifest
-    }
-
-    private fun isSubscriptionFile(entry: ZipEntry): Boolean =
-        YoutubeTakeoutSchemaHints.isSubscriptionText(fileStem(entry))
-
-    private fun isPlaylistContent(entry: ZipEntry): Boolean {
-        return YoutubeTakeoutSchemaHints.isPlaylistText(entry.name)
-    }
-
     private fun playlistKeyFromPath(path: String): String? = path.substringAfterLast('/').substringBeforeLast('.')
         .takeUnless { YoutubeTakeoutSchemaHints.normalize(it) == "playlist items" }
         ?.let { YoutubeTakeoutSystemPlaylist.canonicalKey(it) ?: it }
-
-    private fun fileStem(entry: ZipEntry) = YoutubeTakeoutSchemaHints.normalize(
-        entry.name.substringAfterLast('/').substringBeforeLast('.'),
-    )
 
     private fun isSystemPlaylist(item: PlaylistItem) =
         YoutubeTakeoutSystemPlaylist.canonicalKey(item.id) != null || YoutubeTakeoutSystemPlaylist.canonicalKey(item.name) != null

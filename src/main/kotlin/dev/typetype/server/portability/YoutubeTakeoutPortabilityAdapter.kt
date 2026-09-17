@@ -7,7 +7,7 @@ import java.util.zip.ZipFile
 class YoutubeTakeoutPortabilityAdapter : PortabilityAdapter {
     override val descriptor = PortabilityAdapterDescriptor(
         format = PortabilityFormat.YOUTUBE_TAKEOUT,
-        adapterVersion = 2,
+        adapterVersion = 3,
         capabilities = TAKEOUT_CATEGORIES.mapTo(linkedSetOf()) { category ->
             PortabilityCapability(category, setOf(PortabilityDirection.IMPORT), PortabilityFidelity.COMPLETE)
         },
@@ -49,14 +49,13 @@ class YoutubeTakeoutPortabilityAdapter : PortabilityAdapter {
         }
         ZipFile(input.path.toFile()).use { zip ->
             val entries = zip.entries().asSequence().filterNot { it.isDirectory }.toList()
-            YoutubeTakeoutCsvPortabilityReader.readManifests(zip, entries, sink)
+            YoutubeTakeoutCsvPortabilityReader.read(zip, entries, sink)
             YoutubeTakeoutHtmlPortabilityReader.read(zip, entries, sink)
             entries.filter { YoutubeTakeoutJsonPortabilityReader.isCandidate(it.name) }.forEach { entry ->
                 zip.getInputStream(entry).use { inputStream ->
                     YoutubeTakeoutJsonPortabilityReader.read(inputStream, sink)
                 }
             }
-            YoutubeTakeoutCsvPortabilityReader.readContent(zip, entries, sink)
         }
     }
 

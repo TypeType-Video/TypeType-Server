@@ -75,6 +75,8 @@ object YoutubeTakeoutSchemaHints {
         return videoIdRegex.matches(trimmed) && !looksLikeChannelId(trimmed) && !looksLikePlaylistId(trimmed)
     }
 
+    fun looksLikeLikelyVideoId(value: String): Boolean = value.trim().length >= 10 && looksLikeVideoId(value)
+
     fun looksLikePlaylistId(value: String): Boolean = playlistIdRegex.matches(value.trim())
 
     fun containsChannelUrl(value: String): Boolean = channelUrlRegex.containsMatchIn(value)

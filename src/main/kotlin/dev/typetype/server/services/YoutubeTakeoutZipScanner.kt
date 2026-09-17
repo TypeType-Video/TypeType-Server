@@ -29,7 +29,7 @@ object YoutubeTakeoutZipScanner {
                             if (subscriptionsHeader.isEmpty()) subscriptionsHeader = header
                             subscriptionsRows += rows
                         }
-                        isPlaylistsHeader(entry.name, header, rows) -> {
+                        isPlaylistsHeader(header, rows) -> {
                             if (playlistsHeader.isEmpty()) playlistsHeader = header
                             playlistsRows += rows
                         }
@@ -66,10 +66,11 @@ object YoutubeTakeoutZipScanner {
         return hasId && (hasUrl || (hasTitle && isSubscriptionPath(path)))
     }
 
-    private fun isPlaylistsHeader(path: String, header: List<String>, rows: List<List<String>>): Boolean {
+    private fun isPlaylistsHeader(header: List<String>, rows: List<List<String>>): Boolean {
         val hasId = header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikePlaylistId)
-        val hasTitle = header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
-        return hasId && hasTitle && (isMainPlaylistsFile(path) || isPlaylistPath(path))
+        val hasTitle = header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader) || rows.hasValue(::looksLikeTextValue)
+        val hasVideo = header.any(YoutubeTakeoutSchemaHints::isVideoIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeLikelyVideoId)
+        return hasId && hasTitle && !hasVideo
     }
 
     private fun isPlaylistItemsEntry(path: String, header: List<String>, rows: List<List<String>>): Boolean {
@@ -77,7 +78,10 @@ object YoutubeTakeoutZipScanner {
         val hasVideo = header.any(YoutubeTakeoutSchemaHints::isVideoIdHeader) || rows.hasValue(YoutubeTakeoutSchemaHints::looksLikeVideoId)
         val hasPlaylistKey = header.any(YoutubeTakeoutSchemaHints::isPlaylistIdHeader) ||
             header.any(YoutubeTakeoutSchemaHints::isPlaylistTitleHeader)
-        return hasVideo && (isPlaylistPath(path) || isPlaylistItemsFile(path) || hasPlaylistKey)
+        val hasAddedAt = header.any(YoutubeTakeoutSchemaHints::isPlaylistItemAddedAtHeader) ||
+            rows.hasValue { YoutubeTakeoutDateParser.parseEpochMillis(it) != null }
+        val compactPlaylistRows = header.size <= 3 && hasAddedAt
+        return hasVideo && (isPlaylistPath(path) || isPlaylistItemsFile(path) || hasPlaylistKey || compactPlaylistRows)
     }
 
     private fun extractPlaylistSourceKey(path: String, header: List<String>): String? {
@@ -101,5 +105,16 @@ object YoutubeTakeoutZipScanner {
         }
 
     private fun List<List<String>>.hasValue(predicate: (String) -> Boolean): Boolean = any { row -> row.any(predicate) }
+
+    private fun looksLikeTextValue(value: String): Boolean {
+        val trimmed = value.trim()
+        return trimmed.isNotBlank() &&
+            !YoutubeTakeoutSchemaHints.looksLikeChannelId(trimmed) &&
+            !YoutubeTakeoutSchemaHints.looksLikePlaylistId(trimmed) &&
+            !YoutubeTakeoutSchemaHints.looksLikeLikelyVideoId(trimmed) &&
+            !YoutubeTakeoutSchemaHints.containsChannelUrl(trimmed) &&
+            !YoutubeTakeoutSchemaHints.containsWatchUrl(trimmed) &&
+            YoutubeTakeoutDateParser.parseEpochMillis(trimmed) == null
+    }
 
 }

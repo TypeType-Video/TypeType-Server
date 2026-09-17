@@ -88,7 +88,7 @@ object YoutubeTakeoutRowParser {
         value.isNotBlank() &&
             !YoutubeTakeoutSchemaHints.looksLikeChannelId(value) &&
             !YoutubeTakeoutSchemaHints.looksLikePlaylistId(value) &&
-            !YoutubeTakeoutSchemaHints.looksLikeVideoId(value) &&
+            !YoutubeTakeoutSchemaHints.looksLikeLikelyVideoId(value) &&
             !YoutubeTakeoutSchemaHints.containsChannelUrl(value) &&
             !YoutubeTakeoutSchemaHints.containsWatchUrl(value) &&
             !isMetadataValue(value)
