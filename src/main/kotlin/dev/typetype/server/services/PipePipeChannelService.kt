@@ -61,7 +61,7 @@ class PipePipeChannelService : ChannelService {
 
     private fun extractFirstPage(url: String, sort: String?): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
-        val tab = url.toChannelTab(sort)
+        val tab = service.toChannelTab(url, sort)
         if (tab != null) {
             val channelUrl = url.toBaseChannelUrl(tab)
             val metadata = runCatching { ChannelInfo.getInfo(channelUrl) }.getOrNull()
@@ -74,7 +74,7 @@ class PipePipeChannelService : ChannelService {
 
     private fun extractMorePage(url: String, page: Page, sort: String?): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
-        val tab = url.toChannelTab(sort)
+        val tab = service.toChannelTab(url, sort)
         if (tab != null) {
             val extractor = service.channelTabExtractor(url, channelId(url.toBaseChannelUrl(tab), service), tab, sort)
             return extractor.getPage(page).toChannelTabResponse()

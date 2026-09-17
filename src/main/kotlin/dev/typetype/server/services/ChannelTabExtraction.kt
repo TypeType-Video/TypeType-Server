@@ -17,3 +17,8 @@ internal fun StreamingService.channelTabExtractor(
     val linkHandler = channelTabLHFactory.fromQuery(channelId, contentFilter, sort.toYouTubeChannelTabSortFilter())
     return getChannelTabExtractor(linkHandler)
 }
+
+internal fun StreamingService.toChannelTab(url: String, sort: String?): String? {
+    if (channelTabLHFactory == null) return null
+    return url.toChannelTab(sort)
+}
