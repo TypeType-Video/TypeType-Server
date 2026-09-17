@@ -75,7 +75,14 @@ object TestDatabase {
         if (initialized) return
         synchronized(this) {
             if (initialized) return
-            val (baseUrl, user, password) = runCatching {
+            val externalUrl = System.getenv("TEST_DATABASE_URL")?.takeIf(String::isNotBlank)
+            val (baseUrl, user, password) = if (externalUrl != null) {
+                Triple(
+                    externalUrl,
+                    firstNonBlank(System.getenv("TEST_DATABASE_USER"), "typetype"),
+                    firstNonBlank(System.getenv("TEST_DATABASE_PASSWORD"), "typetype"),
+                )
+            } else runCatching {
                 val c = container
                 Triple(c.jdbcUrl, c.username, c.password)
             }.getOrElse {
@@ -96,6 +103,7 @@ object TestDatabase {
     private fun ensureSchemaExists(baseUrl: String, user: String, password: String, schema: String): Unit {
         DriverManager.getConnection(baseUrl, user, password).use { connection ->
             connection.createStatement().use { statement ->
+                statement.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public")
                 statement.execute("CREATE SCHEMA IF NOT EXISTS \"$schema\"")
             }
         }
