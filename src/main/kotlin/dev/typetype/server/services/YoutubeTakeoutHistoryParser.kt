@@ -27,9 +27,7 @@ object YoutubeTakeoutHistoryParser {
                 return@mapNotNull null
             }
             val tailStart = match.range.last + 1
-            val tail = rowTailRegex.find(resolvedHtml, tailStart)
-                ?.takeIf { it.range.first == tailStart }
-                ?: return@mapNotNull null
+            val tail = rowTailRegex.matchAt(resolvedHtml, tailStart) ?: return@mapNotNull null
             val url = extractUrl(match.groupValues[1]) ?: return@mapNotNull null
             val title = decode(match.groupValues[2])
             if (YoutubeTakeoutUnavailableItem.matches(title)) return@mapNotNull null
