@@ -11,25 +11,23 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.exists
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.lowerCase
-import org.jetbrains.exposed.v1.core.notInSubQuery
+import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.stringParam
+import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import java.util.Locale
 
 class SubscriptionMembershipPageService {
     suspend fun getPage(userId: String, filter: SubscriptionMembershipFilter): SubscriptionMembershipPage =
         DatabaseFactory.query {
             SubscriptionMutationLock.acquire(userId)
             val owned = SubscriptionsTable.userId eq userId
-            val membershipUrls = SubscriptionGroupMembershipsTable
-                .select(SubscriptionGroupMembershipsTable.channelUrl)
-                .where { SubscriptionGroupMembershipsTable.userId eq userId }
-            val ungrouped = SubscriptionsTable.channelUrl notInSubQuery membershipUrls
+            val ungrouped = notExists(matchingMemberships(userId))
             val matching = owned and filterCondition(userId, filter)
             val total = SubscriptionsTable.selectAll().where { matching }.count()
             val items = SubscriptionsTable.selectAll().where { matching }
@@ -57,23 +55,26 @@ class SubscriptionMembershipPageService {
         }
 
     private fun filterCondition(userId: String, filter: SubscriptionMembershipFilter): Op<Boolean> {
-        val membershipUrls = SubscriptionGroupMembershipsTable
-            .select(SubscriptionGroupMembershipsTable.channelUrl)
-            .where {
-                val owned = SubscriptionGroupMembershipsTable.userId eq userId
-                filter.groupId?.let { owned and (SubscriptionGroupMembershipsTable.groupId eq it) } ?: owned
-            }
+        val memberships = matchingMemberships(userId, filter.groupId)
         val membership = when {
-            filter.ungrouped || filter.excluded -> SubscriptionsTable.channelUrl notInSubQuery membershipUrls
-            filter.groupId != null -> SubscriptionsTable.channelUrl inSubQuery membershipUrls
+            filter.ungrouped || filter.excluded -> notExists(memberships)
+            filter.groupId != null -> exists(memberships)
             else -> Op.TRUE
         }
-        val search = filter.search.trim().lowercase(Locale.ROOT)
+        val search = filter.search.trim()
         if (search.isEmpty()) return membership
-        val pattern = "%${search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")}%"
+        val escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        val pattern = stringParam("%$escaped%").lowerCase()
         return membership and ((SubscriptionsTable.name.lowerCase() like pattern) or
             (SubscriptionsTable.channelUrl.lowerCase() like pattern))
     }
+
+    private fun matchingMemberships(userId: String, groupId: String? = null): Query =
+        SubscriptionGroupMembershipsTable.select(SubscriptionGroupMembershipsTable.channelUrl).where {
+            val matching = (SubscriptionGroupMembershipsTable.userId eq userId) and
+                (SubscriptionGroupMembershipsTable.channelUrl eq SubscriptionsTable.channelUrl)
+            groupId?.let { matching and (SubscriptionGroupMembershipsTable.groupId eq it) } ?: matching
+        }
 
     private fun withMemberships(userId: String, items: List<SubscriptionItem>): List<SubscriptionGroupMembershipItem> {
         if (items.isEmpty()) return emptyList()

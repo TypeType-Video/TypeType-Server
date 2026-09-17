@@ -61,6 +61,9 @@ class SubscriptionMembershipPageServiceTest {
         val b = (groups.create(TEST_USER_ID, "B") as SubscriptionGroupWriteResult.Success).group
         groups.addSubscriptions(TEST_USER_ID, a.id, listOf(url(0), url(1)))
         groups.addSubscriptions(TEST_USER_ID, b.id, listOf(url(1), url(2)))
+        val foreign = (groups.create("foreign", "Private") as SubscriptionGroupWriteResult.Success).group
+        subscriptions.add("foreign", SubscriptionItem(url(3), "Foreign channel", "avatar"))
+        groups.addSubscription("foreign", foreign.id, url(3))
         val inGroup = pages.getPage(TEST_USER_ID, SubscriptionMembershipFilter(groupId = a.id, search = "same"))
         assertEquals(listOf(url(0), url(1)), inGroup.items.map { it.channelUrl })
         assertEquals(listOf(a.id, b.id).sorted(), inGroup.items[1].groupIds)
@@ -90,6 +93,33 @@ class SubscriptionMembershipPageServiceTest {
         assertEquals(url(2), selected.single().channelUrl)
         assertEquals(listOf(group.id), selected.single().groupIds)
         assertEquals(1, groups.getAll(TEST_USER_ID).single().channelCount)
+    }
+
+    @Test
+    fun `Unicode names match exact search without treating wildcards as patterns`() = runTest {
+        val names = listOf("École", "İstanbul", "ΟΣ", "İzmir_%\\'News")
+        for ((index, name) in names.withIndex()) {
+            subscriptions.add(TEST_USER_ID, SubscriptionItem(url(index), name, "avatar"))
+        }
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(url(99), "İzmirAXNews", "avatar"))
+        for ((index, name) in names.withIndex()) {
+            val page = pages.getPage(TEST_USER_ID, SubscriptionMembershipFilter(search = name))
+            assertEquals(1L, page.total, name)
+            assertEquals(listOf(url(index)), page.items.map { it.channelUrl }, name)
+        }
+        assertEquals("École", pages.getPage(TEST_USER_ID,
+            SubscriptionMembershipFilter(search = "ÉCOLE")).items.single().name)
+    }
+
+    @Test
+    fun `Unicode channel URLs use the same search normalization`() = runTest {
+        val item = subscriptions.add(TEST_USER_ID,
+            SubscriptionItem("https://example.com/İstanbul", "Ordinary channel", "avatar"))
+        for (search in listOf("İstanbul", "istanbul")) {
+            val page = pages.getPage(TEST_USER_ID, SubscriptionMembershipFilter(search = search))
+            assertEquals(1L, page.total, search)
+            assertEquals(item.channelUrl, page.items.single().channelUrl)
+        }
     }
 
     private fun url(index: Int): String = "https://www.youtube.com/channel/test${index.toString().padStart(4, '0')}"
