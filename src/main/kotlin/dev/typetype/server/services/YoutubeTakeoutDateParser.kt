@@ -14,9 +14,13 @@ import java.util.Locale
 object YoutubeTakeoutDateParser {
     private val ACTIVITY_PATTERNS = listOf(
         "d MMM yyyy, HH:mm:ss z",
+        "d MMM yyyy, H:mm:ss z",
         "d MMMM yyyy, HH:mm:ss z",
+        "d MMMM yyyy, H:mm:ss z",
         "d. MMM yyyy, HH:mm:ss z",
+        "d. MMM yyyy, H:mm:ss z",
         "d. MMMM yyyy, HH:mm:ss z",
+        "d. MMMM yyyy, H:mm:ss z",
         "MMM d, yyyy, HH:mm:ss z",
         "MMMM d, yyyy, HH:mm:ss z",
         "d MMM yyyy, h:mm:ss a z",

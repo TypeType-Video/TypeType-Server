@@ -102,6 +102,7 @@ class YoutubeTakeoutParserServiceTest {
         assertEquals(1_789_574_528_000L, parsed.history.single().watchedAt)
         assertEquals(1_789_574_528_000L, YoutubeTakeoutDateParser.parseEpochMillis("16 septiembre 2026, 18:02:08 CEST"))
         assertEquals(1_789_574_528_000L, YoutubeTakeoutDateParser.parseEpochMillis("16 de septiembre de 2026, 18:02:08 CEST"))
+        assertEquals(1_789_250_639_000L, YoutubeTakeoutDateParser.parseEpochMillis("13 sept 2026, 0:03:59 CEST"))
         Files.deleteIfExists(zip)
     }
 
