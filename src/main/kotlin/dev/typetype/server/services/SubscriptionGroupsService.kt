@@ -5,7 +5,6 @@ import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.models.SubscriptionGroupItem
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -21,18 +20,11 @@ import java.util.UUID
 
 class SubscriptionGroupsService {
     suspend fun getAll(userId: String): List<SubscriptionGroupItem> = DatabaseFactory.query {
-        val counts = SubscriptionGroupMembershipsTable.selectAll()
-            .where { SubscriptionGroupMembershipsTable.userId eq userId }
-            .groupingBy { it[SubscriptionGroupMembershipsTable.groupId] }
-            .eachCount()
-        SubscriptionGroupsTable.selectAll()
-            .where { SubscriptionGroupsTable.userId eq userId }
-            .orderBy(SubscriptionGroupsTable.createdAt to SortOrder.DESC)
-            .map { it.toItem(counts[it[SubscriptionGroupsTable.id]] ?: 0) }
+        SubscriptionGroupQueries.all(userId)
     }
 
     suspend fun exists(userId: String, groupId: String): Boolean = DatabaseFactory.query {
-        groupExists(userId, groupId)
+        SubscriptionGroupQueries.exists(userId, groupId)
     }
 
     suspend fun create(userId: String, rawName: String): SubscriptionGroupWriteResult {
@@ -176,10 +168,7 @@ class SubscriptionGroupsService {
             .map { it[SubscriptionGroupMembershipsTable.channelUrl] }
     }
 
-    private fun groupExists(userId: String, groupId: String): Boolean =
-        SubscriptionGroupsTable.selectAll().where {
-            (SubscriptionGroupsTable.id eq groupId) and (SubscriptionGroupsTable.userId eq userId)
-        }.any()
+    private fun groupExists(userId: String, groupId: String): Boolean = SubscriptionGroupQueries.exists(userId, groupId)
 
     private fun nameExists(userId: String, normalizedName: String): Boolean =
         SubscriptionGroupsTable.selectAll().where {
@@ -192,14 +181,6 @@ class SubscriptionGroupsService {
             (SubscriptionGroupMembershipsTable.userId eq userId) and
                 (SubscriptionGroupMembershipsTable.groupId eq groupId)
         }.count().toInt()
-
-    private fun ResultRow.toItem(channelCount: Int): SubscriptionGroupItem = SubscriptionGroupItem(
-        id = this[SubscriptionGroupsTable.id],
-        name = this[SubscriptionGroupsTable.name],
-        channelCount = channelCount,
-        createdAt = this[SubscriptionGroupsTable.createdAt],
-        updatedAt = this[SubscriptionGroupsTable.updatedAt],
-    )
 
     private fun normalizeDisplayName(value: String): String? =
         value.trim().takeIf { it.length in 1..MAX_GROUP_NAME_LENGTH }
