@@ -11,6 +11,7 @@ SettingsItem:
       default: 1
     defaultLandingPage: { type: string, default: home }
     autoplay: { type: boolean, default: true }
+    autoplayOnOpen: { type: boolean, default: true }
     volume: { type: number, format: double, default: 1.0 }
     muted: { type: boolean, default: false }
     notificationPopupsEnabled: { type: boolean, default: true }

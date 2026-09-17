@@ -9,6 +9,7 @@ data class SettingsItem(
     val defaultPlaybackSpeed: Double = 1.0,
     val defaultLandingPage: String = "home",
     val autoplay: Boolean = true,
+    val autoplayOnOpen: Boolean = true,
     val skipPlaylistAutoplayScreen: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
