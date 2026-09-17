@@ -29,6 +29,7 @@ internal fun Route.subscriptionsRoutes(
     groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
     pushNotificationService: PushNotificationService? = null,
 ) {
+    subscriptionMembershipPageRoutes(authService, groupsService)
     get("/subscriptions/group-memberships") {
         call.withJwtAuth(authService) { userId ->
             call.respond(subscriptionsService.getAllWithGroupMemberships(userId))

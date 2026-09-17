@@ -1,0 +1,72 @@
+Page:
+  get:
+    tags: [user-data]
+    summary: Read a bounded page of subscriptions with group memberships
+    description: |
+      Filtering, counting and pagination run in the database before channel rows and their
+      memberships are loaded. Rows are ordered by lowercase name and then canonical channel URL.
+      The zero-based page is an offset into current results, not a snapshot; changes between
+      requests may move rows. A page beyond the last returns empty items with the current total.
+      Group IDs and results are scoped to the authenticated profile. Unknown or inaccessible
+      groupId returns subscription_group_not_found. Omit groupId and ungrouped for all subscriptions.
+    parameters:
+      - name: page
+        in: query
+        schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+      - name: limit
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      - name: search
+        in: query
+        description: Case-insensitive literal substring of channel name or URL. Whitespace is trimmed; SQL wildcard characters are literal.
+        schema: { type: string, maxLength: 200 }
+      - name: groupId
+        in: query
+        schema: { type: string, format: uuid }
+      - name: ungrouped
+        in: query
+        description: Select channels in no group. Cannot be combined with groupId.
+        schema: { type: boolean, default: false }
+      - name: excluded
+        in: query
+        description: Select channels outside groupId, including channels in other groups. Requires groupId.
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: Requested page and counts, including all memberships for each returned channel.
+        content:
+          application/json:
+            schema: { $ref: ../components/subscriptions.yaml#/SubscriptionMembershipPage }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+Lookup:
+  post:
+    tags: [user-data]
+    summary: Refresh memberships for explicitly selected subscriptions
+    description: |
+      Read-only lookup for selections retained across pages. Accepts one channelUrl or up to
+      500 channelUrls, with a 2048-character URL limit and a 1 MiB request-body limit.
+      URLs are canonicalized and deduplicated. Returns only existing subscriptions owned by
+      the authenticated profile, with all their memberships; missing channels are omitted.
+      Results have no guaranteed order. This endpoint does not change subscriptions or groups.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipRequest }
+              - { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
+    responses:
+      '200':
+        description: Current memberships for the selected channels still subscribed to.
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 500
+              items: { $ref: ../components/subscriptions.yaml#/SubscriptionGroupMembershipItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '413': { $ref: ../components/common.yaml#/JsonError }
