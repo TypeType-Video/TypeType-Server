@@ -11,7 +11,11 @@ class YoutubeTakeoutSignalImportService(
     private val watchLaterService: WatchLaterService,
     private val historyService: HistoryService,
 ) {
-    suspend fun importFavorites(userId: String, items: List<FavoriteItem>): YoutubeTakeoutImportStats {
+    suspend fun importFavorites(
+        userId: String,
+        items: List<FavoriteItem>,
+        onProgress: () -> Unit = {},
+    ): YoutubeTakeoutImportStats {
         var imported = 0
         var skipped = 0
         val existing = favoritesService.getAll(userId).map { it.videoUrl }.toMutableSet()
@@ -21,11 +25,16 @@ class YoutubeTakeoutSignalImportService(
                 imported += 1
                 existing += item.videoUrl
             }
+            onProgress()
         }
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)
     }
 
-    suspend fun importWatchLater(userId: String, videos: List<PlaylistVideoItem>): YoutubeTakeoutImportStats {
+    suspend fun importWatchLater(
+        userId: String,
+        videos: List<PlaylistVideoItem>,
+        onProgress: () -> Unit = {},
+    ): YoutubeTakeoutImportStats {
         var imported = 0
         var skipped = 0
         val existing = watchLaterService.getAll(userId).map { it.url }.toMutableSet()
@@ -35,11 +44,16 @@ class YoutubeTakeoutSignalImportService(
                 imported += 1
                 existing += video.url
             }
+            onProgress()
         }
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)
     }
 
-    suspend fun importHistory(userId: String, items: List<HistoryItem>): YoutubeTakeoutImportStats {
+    suspend fun importHistory(
+        userId: String,
+        items: List<HistoryItem>,
+        onProgress: () -> Unit = {},
+    ): YoutubeTakeoutImportStats {
         var skipped = 0
         val existing = historyService.dedupKeys(userId).toMutableSet()
         val toInsert = mutableListOf<HistoryItem>()
@@ -49,6 +63,7 @@ class YoutubeTakeoutSignalImportService(
                 toInsert += item
                 existing += key
             }
+            onProgress()
         }
         val imported = historyService.addImportedBatch(userId, toInsert)
         return YoutubeTakeoutImportStats(imported = imported, skipped = skipped, failed = 0)

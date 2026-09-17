@@ -9,6 +9,7 @@ import dev.typetype.server.models.YoutubeTakeoutImportStats
 import dev.typetype.server.models.YoutubeTakeoutParsedData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.util.concurrent.atomic.AtomicLong
 
 class YoutubeTakeoutImporterService(
     private val subscriptionsService: SubscriptionsService,
@@ -16,8 +17,16 @@ class YoutubeTakeoutImporterService(
     private val signalImportService: YoutubeTakeoutSignalImportService,
     private val playlistKeyService: YoutubeTakeoutPlaylistKeyService = YoutubeTakeoutPlaylistKeyService(),
 ) {
-    suspend fun commit(userId: String, parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): YoutubeTakeoutImportReportItem = coroutineScope {
+    suspend fun commit(
+        userId: String,
+        parsed: YoutubeTakeoutParsedData,
+        plan: YoutubeTakeoutCommitPlan,
+        onProgress: (processed: Long, total: Long) -> Unit = { _, _ -> },
+    ): YoutubeTakeoutImportReportItem = coroutineScope {
         val (issues, issueSummary) = YoutubeTakeoutIssueService.build(parsed.warnings, parsed.errors, stage = "commit")
+        val total = importTotal(parsed, plan)
+        val processed = AtomicLong()
+        val progress = { onProgress(processed.incrementAndGet(), total) }
         val existingSubsDeferred = async { subscriptionsService.getAll(userId).map { it.channelUrl }.toSet() }
         val existingPlaylistsDeferred = async { playlistService.getAll(userId) }
         val sourceMappingsDeferred = async { playlistKeyService.getMappings(userId).toMutableMap() }
@@ -35,6 +44,7 @@ class YoutubeTakeoutImporterService(
                     existingSubs += canonicalUrl
                     subImported += 1
                 }
+                progress()
             }
         }
         var plImported = 0
@@ -47,6 +57,7 @@ class YoutubeTakeoutImporterService(
             parsed.playlists.forEach { item ->
                 if (YoutubeTakeoutSystemPlaylist.canonicalKey(item.name) != null || YoutubeTakeoutSystemPlaylist.canonicalKey(item.id) != null) {
                     plSkipped += 1
+                    progress()
                     return@forEach
                 }
                 val nameKey = item.name.lowercase()
@@ -68,6 +79,7 @@ class YoutubeTakeoutImporterService(
                     playlistKeyService.putMapping(userId, idKey, playlist.id)
                     sourceMappings[idKey] = playlist.id
                 }
+                progress()
             }
         }
         if (plan.importPlaylistItems) {
@@ -75,11 +87,17 @@ class YoutubeTakeoutImporterService(
                 val normalizedKey = playlistKey.lowercase()
                 if (YoutubeTakeoutSystemPlaylist.canonicalKey(normalizedKey) != null) {
                     itemSkipped += videos.size
+                    repeat(videos.size) { progress() }
                     return@forEach
                 }
                 val mappedId = sourceMappings[normalizedKey].orEmpty()
                 val mappedPlaylist = if (mappedId.isBlank()) null else playlistService.getById(userId, mappedId)
-                val playlist = mappedPlaylist ?: createdBySource[normalizedKey] ?: return@forEach
+                val playlist = mappedPlaylist ?: createdBySource[normalizedKey]
+                if (playlist == null) {
+                    itemSkipped += videos.size
+                    repeat(videos.size) { progress() }
+                    return@forEach
+                }
                 val existingUrls = playlistService.getById(userId, playlist.id)?.videos?.map { it.url }.orEmpty().toMutableSet()
                 videos.forEach { video ->
                     if (video.url in existingUrls) itemSkipped += 1 else {
@@ -87,12 +105,19 @@ class YoutubeTakeoutImporterService(
                         itemImported += 1
                         existingUrls += video.url
                     }
+                    progress()
                 }
             }
         }
-        val favoriteDeferred = if (plan.importFavorites) async { signalImportService.importFavorites(userId, favorites) } else null
-        val watchLaterDeferred = if (plan.importWatchLater) async { signalImportService.importWatchLater(userId, parsed.watchLater) } else null
-        val historyDeferred = if (plan.importHistory) async { signalImportService.importHistory(userId, parsed.history) } else null
+        val favoriteDeferred = if (plan.importFavorites) async {
+            signalImportService.importFavorites(userId, favorites) { progress() }
+        } else null
+        val watchLaterDeferred = if (plan.importWatchLater) async {
+            signalImportService.importWatchLater(userId, parsed.watchLater) { progress() }
+        } else null
+        val historyDeferred = if (plan.importHistory) async {
+            signalImportService.importHistory(userId, parsed.history) { progress() }
+        } else null
         val emptyStats = YoutubeTakeoutImportStats(0, 0, 0)
         val favoriteStats = favoriteDeferred?.await() ?: emptyStats
         val watchLaterStats = watchLaterDeferred?.await() ?: emptyStats
@@ -114,4 +139,13 @@ class YoutubeTakeoutImporterService(
         if (plan.importSubscriptions) SubscriptionFeedCacheInvalidation.invalidate(userId)
         report
     }
+
+    private fun importTotal(parsed: YoutubeTakeoutParsedData, plan: YoutubeTakeoutCommitPlan): Long = buildList {
+        if (plan.importSubscriptions) add(parsed.subscriptions.size.toLong())
+        if (plan.importPlaylists) add(parsed.playlists.size.toLong())
+        if (plan.importPlaylistItems) add(parsed.playlistItems.values.sumOf { it.size }.toLong())
+        if (plan.importFavorites) add(parsed.favorites.size.toLong())
+        if (plan.importWatchLater) add(parsed.watchLater.size.toLong())
+        if (plan.importHistory) add(parsed.history.size.toLong())
+    }.sum()
 }
