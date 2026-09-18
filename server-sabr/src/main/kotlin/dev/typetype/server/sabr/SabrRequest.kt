@@ -2,7 +2,7 @@ package dev.typetype.server.sabr
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest as PipeRequest
 
-internal class SabrSegmentRequest private constructor(
+class SabrSegmentRequest private constructor(
     val format: YoutubeSabrFormat,
     val isInitializationSegment: Boolean,
     val sequenceNumber: Int,

@@ -7,7 +7,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.TypeTypeYoutubeSabrInf
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe
 
 /** The only server entry point for PipePipe's SABR extraction API. */
-internal object SabrAdapter {
+object SabrAdapter {
     fun fetchSabrInfo(
         videoId: String,
         profile: YoutubeSabrClientProfile,

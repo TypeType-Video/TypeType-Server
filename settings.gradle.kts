@@ -11,6 +11,7 @@ dependencyResolutionManagement {
 include(":server-cache")
 include(":server-core")
 include(":server-db")
+include(":server-sabr")
 
 val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
     .orNull

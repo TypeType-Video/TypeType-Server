@@ -2,7 +2,7 @@ package dev.typetype.server.sabr
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange as PipeRange
 
-internal class SabrBufferedRange internal constructor(
+class SabrBufferedRange constructor(
     val itag: Int,
     val lastModified: Long,
     val xtags: String?,

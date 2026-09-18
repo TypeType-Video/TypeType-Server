@@ -4,7 +4,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaHeader as Pip
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrMediaSegment as PipeSegment
 import java.io.InputStream
 
-internal class SabrMediaHeader internal constructor(
+class SabrMediaHeader constructor(
     private val delegate: PipeHeader,
 ) {
     val headerId: Int get() = delegate.headerId
@@ -27,7 +27,7 @@ internal class SabrMediaHeader internal constructor(
     fun summarize(): String = delegate.summarize()
 }
 
-internal class SabrMediaSegment private constructor(
+class SabrMediaSegment private constructor(
     internal val delegate: PipeSegment,
 ) {
     val header: SabrMediaHeader = SabrMediaHeader(delegate.header)

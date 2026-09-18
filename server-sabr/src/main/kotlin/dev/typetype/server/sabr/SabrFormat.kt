@@ -3,7 +3,7 @@ package dev.typetype.server.sabr
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat as PipeFormat
 
 /** TypeType's stable representation of a provider media format. */
-internal class YoutubeSabrFormat internal constructor(
+class YoutubeSabrFormat constructor(
     internal val delegate: PipeFormat,
 ) {
     val isAudio: Boolean get() = delegate.isAudio
