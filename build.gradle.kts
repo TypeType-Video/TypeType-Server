@@ -25,6 +25,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":server-cache"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.17.Final"))
@@ -48,7 +49,6 @@ dependencies {
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("org.json:json:20260814")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    implementation("io.lettuce:lettuce-core:7.7.0.RELEASE")
     implementation("org.jetbrains.exposed:exposed-core:1.5.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.5.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
