@@ -10,14 +10,9 @@ import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-const val REQUEST_ID_HEADER = "X-Request-ID"
-
 private val requestIdAttribute = AttributeKey<String>("requestId")
 private val requestStartNanosAttribute = AttributeKey<Long>("requestStartNanos")
-private val requestIdContext = ThreadLocal<String?>()
 private val requestIdRegex = Regex("^[A-Za-z0-9._-]{8,128}$")
-
-fun currentRequestId(): String? = requestIdContext.get()
 
 fun ApplicationCall.requestId(): String = attributeOrNull(requestIdAttribute) ?: currentRequestId() ?: "unknown"
 
@@ -33,7 +28,7 @@ fun Application.installRequestObservability() {
         applicationCall.attributes.put(requestIdAttribute, requestId)
         applicationCall.attributes.put(requestStartNanosAttribute, System.nanoTime())
         applicationCall.response.headers.append(REQUEST_ID_HEADER, requestId, safeOnly = false)
-        withContext(requestIdContext.asContextElement(requestId)) {
+        withContext(requestContextElement(requestId)) {
             try {
                 proceed()
             } finally {

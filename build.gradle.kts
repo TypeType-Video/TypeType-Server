@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":server-domain"))
     implementation(project(":server-portability"))
     implementation(project(":server-playback"))
+    implementation(project(":server-services"))
     implementation(project(":server-sabr"))
     implementation(project(":server-token-gateway"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
@@ -74,46 +75,6 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
 }
-val buildInfoVersion = version.toString().trim().takeUnless { it.isBlank() || it == "unspecified" } ?: "0.0.0-dev"
-fun gitRevisionOrUnknown(): String = runCatching {
-    providers.exec { commandLine("git", "rev-parse", "HEAD") }
-        .standardOutput
-        .asText
-        .get()
-        .trim()
-        .ifBlank { "unknown" }
-}.getOrElse { "unknown" }
-
-val buildInfoRevision = providers.environmentVariable("GITHUB_SHA")
-    .map { it.trim().ifBlank { "unknown" } }
-    .getOrElse(gitRevisionOrUnknown())
-val buildInfoShortRevision = buildInfoRevision.takeIf { it != "unknown" }?.take(12) ?: "unknown"
-val buildInfoBuildTime = providers.environmentVariable("BUILD_TIME")
-    .orElse(providers.provider { Instant.now().toString() })
-    .get()
-val generatedBuildInfoDir = layout.buildDirectory.dir("generated/sources/buildInfo/main")
-val generateBuildInfo = tasks.register("generateBuildInfo") {
-    inputs.property("version", buildInfoVersion)
-    inputs.property("revision", buildInfoRevision)
-    inputs.property("shortRevision", buildInfoShortRevision)
-    inputs.property("buildTime", buildInfoBuildTime)
-    outputs.dir(generatedBuildInfoDir)
-    doLast {
-        val output = generatedBuildInfoDir.get().file("dev/typetype/server/BuildInfo.kt").asFile
-        output.parentFile.mkdirs()
-        output.writeText("""
-            package dev.typetype.server
-
-            object BuildInfo {
-                const val VERSION: String = "${buildInfoVersion.replace("\\", "\\\\").replace("\"", "\\\"")}"
-                const val REVISION: String = "${buildInfoRevision.replace("\\", "\\\\").replace("\"", "\\\"")}"
-                const val SHORT_REVISION: String = "${buildInfoShortRevision.replace("\\", "\\\\").replace("\"", "\\\"")}"
-                const val BUILD_TIME: String = "${buildInfoBuildTime.replace("\\", "\\\\").replace("\"", "\\\"")}"
-            }
-        """.trimIndent())
-    }
-}
-
 tasks.test {
     useJUnitPlatform {
         // network-tagged tests are off by default. Flip on for the live SABR probe:
@@ -180,10 +141,7 @@ tasks.check {
 
 kotlin {
     jvmToolchain(25)
-    sourceSets.named("main") { kotlin.srcDir(generatedBuildInfoDir) }
 }
-
-tasks.named("compileKotlin") { dependsOn(generateBuildInfo) }
 
 tasks.withType<AbstractCopyTask>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
