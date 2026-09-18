@@ -36,10 +36,12 @@ internal object BugReportValidation {
             context.screenHeight,
         ).filterNotNull()
         if (dimensions.any { it !in 1..100_000 }) return "Invalid display dimensions"
-        if (context.devicePixelRatio != null && context.devicePixelRatio !in 0.1..100.0) {
+        val devicePixelRatio = context.devicePixelRatio
+        if (devicePixelRatio != null && devicePixelRatio !in 0.1..100.0) {
             return "Invalid device pixel ratio"
         }
-        if (context.timezone != null && context.timezone.length > 128) return "Invalid timezone"
+        val timezone = context.timezone
+        if (timezone != null && timezone.length > 128) return "Invalid timezone"
         return null
     }
 }

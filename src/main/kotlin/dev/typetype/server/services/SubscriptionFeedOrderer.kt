@@ -41,8 +41,7 @@ internal class SubscriptionFeedOrderer {
 
     private fun VideoItem.feedTimestamp(): Long = when {
         uploaded >= 0L -> uploaded
-        publishedAt != null && publishedAt >= 0L -> publishedAt
-        else -> Long.MIN_VALUE
+        else -> publishedAt?.takeIf { it >= 0L } ?: Long.MIN_VALUE
     }
 }
 

@@ -36,7 +36,8 @@ class RssFeedReaderService internal constructor(
         val lastModified = RssDocumentRenderer.lastModified(stored.item, videos, now)
         val bytes = RssDocumentRenderer.render(stored.item, videos, baseUrl, lastModified)
         val etag = "\"${HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))}\""
-        if (stored.item.lastUsedAt == null || now - stored.item.lastUsedAt >= LAST_USED_WRITE_INTERVAL_MS) {
+        val lastUsedAt = stored.item.lastUsedAt
+        if (lastUsedAt == null || now - lastUsedAt >= LAST_USED_WRITE_INTERVAL_MS) {
             repository.touch(feedId, now)
         }
         return RssFeedReadResult.Ready(bytes, etag, lastModified, config.rssMinimumPollMinutes * 60)
