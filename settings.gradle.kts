@@ -1,6 +1,7 @@
 rootProject.name = "typetype-server"
 
 include(":server-core")
+include(":server-cache")
 
 val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
     .orNull
