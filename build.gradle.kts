@@ -25,6 +25,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":server-core"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.17.Final"))
