@@ -6,7 +6,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo as Pip
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrSession as PipeSession
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState as PipeState
 
-internal class YoutubeSabrSession(
+class YoutubeSabrSession(
     info: YoutubeSabrInfo,
     audioFormat: YoutubeSabrFormat,
     videoFormat: YoutubeSabrFormat,
@@ -80,7 +80,7 @@ internal class YoutubeSabrSession(
     fun prepareForForwardJump(request: SabrSegmentRequest, value: Long): Unit = delegate.prepareForForwardJump(request.delegate, value)
     fun prepareForMissingSegment(request: SabrSegmentRequest): Unit = delegate.prepareForMissingSegment(request.delegate)
 
-    internal class DemandResponseResult internal constructor(
+    class DemandResponseResult public constructor(
         private val delegate: PipeSession.DemandResponseResult,
     ) {
         val segmentCount: Int get() = delegate.segmentCount

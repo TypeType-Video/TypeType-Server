@@ -5,8 +5,8 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat as P
 import java.util.IdentityHashMap
 
 /** Provider-independent SABR metadata used by TypeType's orchestration layer. */
-internal class YoutubeSabrInfo internal constructor(
-    internal val delegate: PipeInfo,
+class YoutubeSabrInfo public constructor(
+    public val delegate: PipeInfo,
     private val formatCache: IdentityHashMap<PipeFormat, YoutubeSabrFormat> = IdentityHashMap(),
 ) {
     val profile: YoutubeSabrClientProfile

@@ -2,7 +2,7 @@ package dev.typetype.server.sabr
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.SabrBufferedRange as PipeRange
 
-internal class SabrBufferedRange internal constructor(
+class SabrBufferedRange public constructor(
     val itag: Int,
     val lastModified: Long,
     val xtags: String?,
@@ -12,7 +12,7 @@ internal class SabrBufferedRange internal constructor(
     val endSegmentIndex: Int,
     val timescale: Int,
 ) {
-    internal var delegate = PipeRange(
+    public var delegate = PipeRange(
         itag,
         lastModified,
         xtags,
@@ -25,7 +25,7 @@ internal class SabrBufferedRange internal constructor(
 
     fun summarize(): String = delegate.summarize()
 
-    internal companion object {
+    companion object {
         fun fromDelegate(delegate: PipeRange): SabrBufferedRange = SabrBufferedRange(
             delegate.itag,
             delegate.lastModified,

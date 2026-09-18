@@ -2,7 +2,7 @@ package dev.typetype.server.sabr
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState as PipeState
 
-internal class YoutubeSabrStreamState private constructor(
+class YoutubeSabrStreamState private constructor(
     internal val delegate: PipeState,
 ) {
     companion object {

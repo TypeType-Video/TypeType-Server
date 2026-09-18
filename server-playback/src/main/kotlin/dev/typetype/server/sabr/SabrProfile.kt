@@ -2,7 +2,7 @@ package dev.typetype.server.sabr
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile as PipeProfile
 
-internal enum class YoutubeSabrClientProfile(internal val delegate: PipeProfile) {
+enum class YoutubeSabrClientProfile(internal val delegate: PipeProfile) {
     WEB(PipeProfile.WEB),
     MWEB(PipeProfile.MWEB),
     WEB_EMBEDDED(PipeProfile.WEB_EMBEDDED),

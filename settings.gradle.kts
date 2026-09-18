@@ -4,6 +4,7 @@ include(":server-core")
 include(":server-cache")
 include(":server-db")
 include(":server-downloader-gateway")
+include(":server-playback")
 
 val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
     .orNull
