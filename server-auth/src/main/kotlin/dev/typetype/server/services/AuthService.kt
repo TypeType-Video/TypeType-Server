@@ -35,7 +35,7 @@ open class AuthService(
 
         val needsAdmin = !hasAdmin()
         val role = if (needsAdmin) "admin" else "user"
-        val publicUsername = name.trim().takeIf(ProfileService::isValidPublicUsername)
+        val publicUsername = name.trim().takeIf { it.length in 3..32 && Regex("^[a-zA-Z0-9._-]+$").matches(it) }
 
         DatabaseFactory.query {
             UsersTable.insert {

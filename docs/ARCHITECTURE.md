@@ -10,7 +10,7 @@ The server will be split by responsibility instead of by arbitrary file size:
 - `server-core`: shared contracts and stable common models
 - `server-cache`: Dragonfly and Redis infrastructure. **Extracted.**
 - `server-db`: Exposed tables, PostgreSQL access, repositories. **Extracted.**
-- `server-auth`: users, sessions, JWT and permissions
+- `server-auth`: users, sessions, JWT, OIDC and permissions. **Extracted.**
 - `server-playback`: SABR protocol adapter and playback primitives. **Protocol extracted.**
 - `server-token-gateway`: TypeType-Token client boundary
 - `server-downloader-gateway`: outbound HTTP and extractor downloader infrastructure. **Extracted.**

@@ -48,7 +48,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
-internal object ProfileDataDeletionService {
+object ProfileDataDeletionService {
     fun deleteUser(userId: String) {
         val feedIds = RssFeedsTable.selectAll().where { RssFeedsTable.userId eq userId }
             .map { it[RssFeedsTable.id] }
