@@ -54,7 +54,8 @@ class GitHubIssueService(
             appendLine("## API errors")
             report.context.apiErrors.take(10).forEach { error ->
                 appendLine("- endpoint=${redactDomains(error.endpoint)} status=${error.status} requestId=${redactDomains(error.requestId ?: "n/a")} code=${error.code ?: "n/a"} timestamp=${error.timestamp}")
-                if (!error.message.isNullOrBlank()) appendLine("  message=${redactDomains(error.message)}")
+                val message = error.message
+                if (!message.isNullOrBlank()) appendLine("  message=${redactDomains(message)}")
             }
         }
     }

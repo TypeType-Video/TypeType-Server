@@ -39,10 +39,13 @@ internal class SubscriptionFeedOrderer {
         else -> previousVideo.isUpcomingAt(previous.generatedAt)
     }
 
-    private fun VideoItem.feedTimestamp(): Long = when {
-        uploaded >= 0L -> uploaded
-        publishedAt != null && publishedAt >= 0L -> publishedAt
-        else -> Long.MIN_VALUE
+    private fun VideoItem.feedTimestamp(): Long {
+        val publishedAt = publishedAt
+        return when {
+            uploaded >= 0L -> uploaded
+            publishedAt != null && publishedAt >= 0L -> publishedAt
+            else -> Long.MIN_VALUE
+        }
     }
 }
 

@@ -31,13 +31,16 @@ fun Route.recommendationEventsRoutes(eventService: RecommendationEventService, a
             if ((request.eventType == "click" || request.eventType == "watch") && request.videoUrl.isNullOrBlank()) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
             }
-            if (request.watchRatio != null && (request.watchRatio < 0.0 || request.watchRatio > 1.0)) {
+            val watchRatio = request.watchRatio
+            if (watchRatio != null && (watchRatio < 0.0 || watchRatio > 1.0)) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid watchRatio"))
             }
-            if (request.watchDurationMs != null && request.watchDurationMs < 0) {
+            val watchDurationMs = request.watchDurationMs
+            if (watchDurationMs != null && watchDurationMs < 0) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid watchDurationMs"))
             }
-            if (request.contextKey != null && request.contextKey.length > 120) {
+            val providedContextKey = request.contextKey
+            if (providedContextKey != null && providedContextKey.length > 120) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid contextKey"))
             }
             val contextKey = request.contextKey ?: HomeRecommendationContextualBandit.contextKey(

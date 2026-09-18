@@ -30,6 +30,7 @@ dependencies {
     implementation(project(":server-db"))
     implementation(project(":server-downloader-gateway"))
     implementation(project(":server-auth"))
+    implementation(project(":server-domain"))
     implementation(project(":server-playback"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))
     implementation("com.fasterxml.jackson.core:jackson-core")
