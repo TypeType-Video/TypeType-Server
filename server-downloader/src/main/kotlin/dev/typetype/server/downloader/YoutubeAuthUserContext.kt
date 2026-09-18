@@ -9,7 +9,7 @@ object YoutubeAuthUserContext {
         value = authUser
     }
 
-    internal fun headerFor(url: String): String? {
+    fun headerFor(url: String): String? {
         val parsed = url.toHttpUrlOrNull() ?: return null
         val host = parsed.host.lowercase()
         val isYoutube = host == "youtube.com" || host.endsWith(".youtube.com")

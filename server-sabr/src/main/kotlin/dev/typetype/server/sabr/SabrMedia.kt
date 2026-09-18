@@ -28,7 +28,7 @@ class SabrMediaHeader constructor(
 }
 
 class SabrMediaSegment private constructor(
-    internal val delegate: PipeSegment,
+    val delegate: PipeSegment,
 ) {
     val header: SabrMediaHeader = SabrMediaHeader(delegate.header)
     val data: ByteArray get() = delegate.data

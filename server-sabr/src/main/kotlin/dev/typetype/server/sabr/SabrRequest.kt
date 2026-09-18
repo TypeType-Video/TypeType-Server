@@ -10,7 +10,7 @@ class SabrSegmentRequest private constructor(
 ) {
     private val delegateValue: PipeRequest by lazy(LazyThreadSafetyMode.SYNCHRONIZED, delegateFactory)
 
-    internal val delegate: PipeRequest
+    val delegate: PipeRequest
         get() = delegateValue
 
     companion object {

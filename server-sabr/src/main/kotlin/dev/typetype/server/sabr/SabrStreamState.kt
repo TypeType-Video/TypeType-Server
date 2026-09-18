@@ -3,7 +3,7 @@ package dev.typetype.server.sabr
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrStreamState as PipeState
 
 class YoutubeSabrStreamState private constructor(
-    internal val delegate: PipeState,
+    val delegate: PipeState,
 ) {
     companion object {
         const val TRACK_MODE_VIDEO_AND_AUDIO: Int = PipeState.TRACK_MODE_VIDEO_AND_AUDIO

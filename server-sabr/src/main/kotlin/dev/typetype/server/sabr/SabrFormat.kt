@@ -4,7 +4,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrFormat as P
 
 /** TypeType's stable representation of a provider media format. */
 class YoutubeSabrFormat constructor(
-    internal val delegate: PipeFormat,
+    val delegate: PipeFormat,
 ) {
     val isAudio: Boolean get() = delegate.isAudio
     val isVideo: Boolean get() = delegate.isVideo

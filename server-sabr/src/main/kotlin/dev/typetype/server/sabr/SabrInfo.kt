@@ -6,7 +6,7 @@ import java.util.IdentityHashMap
 
 /** Provider-independent SABR metadata used by TypeType's orchestration layer. */
 class YoutubeSabrInfo constructor(
-    internal val delegate: PipeInfo,
+    val delegate: PipeInfo,
     private val formatCache: IdentityHashMap<PipeFormat, YoutubeSabrFormat> = IdentityHashMap(),
 ) {
     val profile: YoutubeSabrClientProfile
