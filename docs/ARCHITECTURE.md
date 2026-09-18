@@ -13,7 +13,7 @@ The server will be split by responsibility instead of by arbitrary file size:
 - `server-auth`: users, sessions, JWT and permissions
 - `server-playback`: SABR, PO-token and playback sessions
 - `server-token-gateway`: TypeType-Token client boundary
-- `server-downloader-gateway`: TypeType-Downloader client boundary
+- `server-downloader-gateway`: outbound HTTP and extractor downloader infrastructure. **Extracted.**
 - `server-portability`: import and export workflows
 - `server-http`: public HTTP API routes
 - `server-admin`: administrative routes

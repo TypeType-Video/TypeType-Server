@@ -24,7 +24,7 @@ class OkHttpDownloader private constructor(
         fun instance(proxySelector: ProxySelector? = null): OkHttpDownloader =
             create(STREAMING_READ_TIMEOUT_MS, proxySelector)
 
-        internal fun create(
+        fun create(
             streamingReadTimeoutMs: Long,
             proxySelector: ProxySelector? = null,
         ): OkHttpDownloader {
@@ -121,5 +121,5 @@ class OkHttpDownloader private constructor(
     }
 }
 
-internal fun normalizeExtractorUrl(url: String): String =
+fun normalizeExtractorUrl(url: String): String =
     if (url.startsWith("/")) "https://www.youtube.com$url" else url
