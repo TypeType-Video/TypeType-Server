@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.services.AdminSettingsCache
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.AllowedPlaylistsTable
 import dev.typetype.server.db.tables.BlockedChannelsTable
@@ -49,7 +50,6 @@ import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.ProfileAccountsTable
 import dev.typetype.server.db.tables.PresenceKeysTable
-import dev.typetype.server.services.AdminSettingsService
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.testcontainers.containers.ContainerLaunchException
@@ -71,7 +71,7 @@ object TestDatabase {
     }
 
     fun setup() {
-        AdminSettingsService.clearCache()
+        AdminSettingsCache.clear()
         if (initialized) return
         synchronized(this) {
             if (initialized) return
@@ -158,6 +158,6 @@ object TestDatabase {
         RecommendationOnboardingStateTable.deleteAll()
         ProfileAccountsTable.deleteAll()
         PresenceKeysTable.deleteAll()
-        AdminSettingsService.clearCache()
+        AdminSettingsCache.clear()
     }
 }

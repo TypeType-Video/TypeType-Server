@@ -4,7 +4,7 @@ import dev.typetype.server.models.AdminBugReportDetailResponse
 import dev.typetype.server.models.BugApiErrorItem
 import dev.typetype.server.models.BugReportContextItem
 
-internal object GitHubIssueServiceTestReports {
+object GitHubIssueServiceTestReports {
     fun sampleReport(): AdminBugReportDetailResponse = AdminBugReportDetailResponse(
         id = "report-id",
         category = "player",

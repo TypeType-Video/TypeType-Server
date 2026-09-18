@@ -19,6 +19,7 @@ include(":server-http")
 include(":server-playback")
 include(":server-portability")
 include(":server-sabr")
+include(":server-test-support")
 include(":server-services")
 include(":server-token-gateway")
 

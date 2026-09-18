@@ -22,8 +22,24 @@ dependencies {
     implementation("com.github.Priveetee.PipePipeExtractor:extractor:a395a9ba16ae75987969ed9e7d330c928ad3bc20")
     implementation("com.fasterxml.jackson.core:jackson-core:2.22.2")
     implementation("org.slf4j:slf4j-api:2.0.16")
+    testImplementation("io.ktor:ktor-server-test-host-jvm:3.5.2")
+    testImplementation("io.ktor:ktor-server-content-negotiation-jvm:3.5.2")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.5.2")
+    testImplementation(testFixtures(project(":server-db")))
+    testImplementation(testFixtures(project(":server-services")))
+    testImplementation(testFixtures(project(":server-core")))
+    testImplementation(testFixtures(project(":server-cache")))
+    testImplementation(project(":server-test-support"))
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
     jvmToolchain(25)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

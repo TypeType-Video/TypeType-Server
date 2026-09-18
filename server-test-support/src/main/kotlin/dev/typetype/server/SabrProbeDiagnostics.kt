@@ -6,30 +6,30 @@ private const val DEFAULT_SABR_PROBE_VIDEO_ITAG = 137
 private const val DEFAULT_SABR_PROBE_AUDIO_ITAG = 140
 private const val DEFAULT_SABR_PROBE_TIMEOUT_MS = 60_000L
 
-internal fun sabrProbeTokenServiceUrl(): String =
+fun sabrProbeTokenServiceUrl(): String =
     envValue("SUBTITLE_SERVICE_URL") ?: "http://localhost:8081"
 
-internal fun sabrProbeVideoId(): String =
+fun sabrProbeVideoId(): String =
     envValue("SABR_PROBE_VIDEO")
         ?: envValues("SABR_PROBE_VIDEOS").firstOrNull()
         ?: DEFAULT_SABR_PROBE_VIDEO_ID
 
-internal fun sabrProbeVideoIds(): List<String> =
+fun sabrProbeVideoIds(): List<String> =
     envValues("SABR_PROBE_VIDEOS").ifEmpty { listOf(sabrProbeVideoId()) }
 
-internal fun sabrProbePlayerTimeMs(): Long =
+fun sabrProbePlayerTimeMs(): Long =
     envValue("SABR_PROBE_PLAYER_TIME_MS")?.toLongOrNull()?.takeIf { it >= 0L }
         ?: DEFAULT_SABR_PROBE_PLAYER_TIME_MS
 
-internal fun sabrProbeTimeoutMs(): Long =
+fun sabrProbeTimeoutMs(): Long =
     envValue("SABR_PROBE_FETCH_TIMEOUT_MS")?.toLongOrNull()?.takeIf { it > 0L }
         ?: envValue("SABR_PROBE_TIMEOUT_MS")?.toLongOrNull()?.takeIf { it > 0L }
         ?: DEFAULT_SABR_PROBE_TIMEOUT_MS
 
-internal fun sabrProbeAudioItag(): Int =
+fun sabrProbeAudioItag(): Int =
     envValue("SABR_PROBE_AUDIO_ITAG")?.toIntOrNull() ?: DEFAULT_SABR_PROBE_AUDIO_ITAG
 
-internal fun sabrProbeVideoItags(): List<Int> {
+fun sabrProbeVideoItags(): List<Int> {
     val explicit = envIntValues("SABR_PROBE_VIDEO_ITAGS")
     val primary = envValue("SABR_PROBE_VIDEO_ITAG")?.toIntOrNull() ?: DEFAULT_SABR_PROBE_VIDEO_ITAG
     val base = explicit.ifEmpty { listOf(primary) }

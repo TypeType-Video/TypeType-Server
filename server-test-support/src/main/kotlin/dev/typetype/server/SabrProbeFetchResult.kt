@@ -5,7 +5,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import dev.typetype.server.sabr.SabrMediaSegment
 import dev.typetype.server.sabr.SabrSegmentRequest
 
-internal suspend fun fetchSabrProbeSegment(
+data class SabrProbeFetchResult(
+    val segment: SabrMediaSegment?,
+    val elapsedMs: Long,
+    val timedOut: Boolean,
+    val error: Throwable?,
+)
+
+suspend fun fetchSabrProbeSegment(
     store: SabrSessionStore,
     holder: SabrSessionHolder,
     request: SabrSegmentRequest,

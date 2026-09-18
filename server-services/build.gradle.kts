@@ -1,5 +1,6 @@
 import java.time.Instant
 plugins {
+    `java-test-fixtures`
     kotlin("jvm")
     kotlin("plugin.serialization")
 }
@@ -30,6 +31,27 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-core:1.5.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.5.0")
     implementation("io.lettuce:lettuce-core:7.7.0.RELEASE")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
+    testImplementation("io.ktor:ktor-server-test-host-jvm:3.5.2")
+    testImplementation("io.ktor:ktor-server-content-negotiation-jvm:3.5.2")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.5.2")
+    testImplementation(testFixtures(project(":server-db")))
+    testImplementation(testFixtures(project(":server-services")))
+    testImplementation(testFixtures(project(":server-core")))
+    testImplementation(testFixtures(project(":server-cache")))
+    testFixturesImplementation(project(":server-cache"))
+    testFixturesImplementation(project(":server-db"))
+    testFixturesImplementation(testFixtures(project(":server-db")))
+    testFixturesImplementation("org.jetbrains.exposed:exposed-core:1.5.0")
+    testFixturesImplementation("org.jetbrains.exposed:exposed-jdbc:1.5.0")
+    testFixturesImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+"testFixturesImplementation"("io.lettuce:lettuce-core:7.7.0.RELEASE")
+    testImplementation(project(":server-test-support"))
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
@@ -79,3 +101,7 @@ val generateBuildInfo = tasks.register("generateBuildInfo") {
 sourceSets.named("main") { kotlin.srcDir(generatedBuildInfoDir) }
 
 tasks.named("compileKotlin") { dependsOn(generateBuildInfo) }
+
+tasks.test {
+    useJUnitPlatform()
+}

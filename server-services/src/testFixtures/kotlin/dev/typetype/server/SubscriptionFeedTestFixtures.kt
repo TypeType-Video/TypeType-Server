@@ -5,7 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.models.VideoItem
 
-internal object SubscriptionFeedTestFixtures {
+object SubscriptionFeedTestFixtures {
     fun video(
         uploaded: Long,
         channel: String = "Ch",

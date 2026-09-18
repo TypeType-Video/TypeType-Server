@@ -8,7 +8,7 @@ import dev.typetype.server.services.HomeRecommendationSessionIntent
 import dev.typetype.server.services.HomeRecommendationSourceTag
 import dev.typetype.server.services.HomeRecommendationTaggedVideo
 
-internal object HomeRecommendationItemFixtures {
+object HomeRecommendationItemFixtures {
     val context: HomeRecommendationSessionContext = HomeRecommendationSessionContext(
         intent = HomeRecommendationSessionIntent.AUTO,
         deviceClass = HomeRecommendationDeviceClass.UNKNOWN,

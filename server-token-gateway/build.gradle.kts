@@ -17,6 +17,8 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp-jvm:3.5.2")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("org.json:json:20260814")
+    testImplementation("io.ktor:ktor-server-test-host-jvm:3.5.2")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.5.2")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")

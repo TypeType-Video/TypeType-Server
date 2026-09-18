@@ -17,7 +17,7 @@ class AdminSettingsService(
 ) {
 
     suspend fun get(): AdminSettingsItem {
-        cachedSettings?.let { return it }
+        AdminSettingsCache.get()?.let { return it }
         val settings = DatabaseFactory.query {
             AdminSettingsTable.selectAll().singleOrNull()?.let {
                 AdminSettingsItem(
@@ -43,7 +43,7 @@ class AdminSettingsService(
                 ).normalized()
             } ?: defaultSettings().normalized()
         }
-        cachedSettings = settings
+        AdminSettingsCache.set(settings)
         return settings
     }
 
@@ -98,7 +98,7 @@ class AdminSettingsService(
                 }
             }
         }
-        cachedSettings = settings
+        AdminSettingsCache.set(settings)
         return settings
     }
 
@@ -141,11 +141,8 @@ class AdminSettingsService(
     }
 
     companion object {
-        @Volatile
-        private var cachedSettings: AdminSettingsItem? = null
-
         fun clearCache() {
-            cachedSettings = null
+            AdminSettingsCache.clear()
         }
     }
 }

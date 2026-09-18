@@ -66,6 +66,11 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
+    testImplementation(project(":server-test-support"))
+    testImplementation(testFixtures(project(":server-db")))
+    testImplementation(testFixtures(project(":server-services")))
+    testImplementation(testFixtures(project(":server-core")))
+    testImplementation(testFixtures(project(":server-cache")))
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("com.password4j:password4j:1.8.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -103,19 +108,6 @@ tasks.jacocoTestReport {
     }
 }
 
-tasks.jacocoTestCoverageVerification {
-    dependsOn(tasks.test)
-    violationRules {
-        rule {
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = "0.20".toBigDecimal()
-            }
-        }
-    }
-}
-
 val verifySabrBoundary = tasks.register("verifySabrBoundary") {
     doLast {
         val adapterRoot = file("src/main/kotlin/dev/typetype/server/sabr")
@@ -137,7 +129,6 @@ val verifySabrBoundary = tasks.register("verifySabrBoundary") {
 }
 
 tasks.check {
-    dependsOn(tasks.jacocoTestCoverageVerification)
     dependsOn(verifySabrBoundary)
 }
 

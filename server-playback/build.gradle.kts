@@ -1,4 +1,5 @@
 plugins {
+    `java-test-fixtures`
     kotlin("jvm")
     kotlin("plugin.serialization")
 }
@@ -19,6 +20,9 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-core:1.5.0")
     implementation("org.jetbrains.exposed:exposed-jdbc:1.5.0")
     implementation("org.slf4j:slf4j-api:2.0.16")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.5.2")
+    testImplementation(testFixtures(project(":server-db")))
+    testImplementation(project(":server-test-support"))
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")

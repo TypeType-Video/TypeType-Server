@@ -4,7 +4,7 @@ import dev.typetype.server.sabr.SabrMediaSegment
 import dev.typetype.server.sabr.SabrSegmentRequest
 import dev.typetype.server.sabr.YoutubeSabrFormat
 
-internal fun printSabrProbeFormat(label: String, format: YoutubeSabrFormat): Unit {
+fun printSabrProbeFormat(label: String, format: YoutubeSabrFormat): Unit {
     println(
         "$label format itag=${format.itag} audio=${format.isAudio} video=${format.isVideo} " +
             "size=${format.width}x${format.height} bitrate=${format.bitrate} mime=${format.mimeType} " +
@@ -14,7 +14,7 @@ internal fun printSabrProbeFormat(label: String, format: YoutubeSabrFormat): Uni
     )
 }
 
-internal fun printSabrProbeFetch(
+fun printSabrProbeFetch(
     label: String,
     holder: SabrSessionHolder,
     request: SabrSegmentRequest,
@@ -34,7 +34,7 @@ internal fun printSabrProbeFetch(
     result.error?.let { println("$label error ${it.javaClass.simpleName}: ${it.message}") }
 }
 
-internal fun sabrProbeSegmentHeader(segment: SabrMediaSegment): String {
+fun sabrProbeSegmentHeader(segment: SabrMediaSegment): String {
     val header = segment.header
     return "headerId=${header.headerId} videoId=${header.videoId} itag=${header.itag} " +
         "seq=${header.sequenceNumber} init=${header.isInitSegment} startMs=${header.startMs} " +
@@ -42,7 +42,7 @@ internal fun sabrProbeSegmentHeader(segment: SabrMediaSegment): String {
         "contentLength=${header.contentLength} bytes=${segment.length} summary=${header.summarize()}"
 }
 
-internal fun sabrProbeRequestSummary(
+fun sabrProbeRequestSummary(
     holder: SabrSessionHolder,
     request: SabrSegmentRequest,
 ): String {

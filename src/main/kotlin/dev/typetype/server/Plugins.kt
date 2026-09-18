@@ -21,6 +21,7 @@ import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.websocket.WebSockets
 import io.ktor.util.AttributeKey
+import dev.typetype.server.configureStatusPages
 import dev.typetype.server.routes.TooManyRequestsBodyAttribute
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -96,28 +97,3 @@ fun Application.configurePlugins(authService: AuthService) {
 
 
 
-internal fun Application.configureStatusPages() {
-    val log = LoggerFactory.getLogger("RequestLogger")
-    install(StatusPages) {
-        status(HttpStatusCode.TooManyRequests) { call, status ->
-            if (call.attributes.contains(TooManyRequestsBodyAttribute)) return@status
-            if (!call.response.headers.contains(HttpHeaders.RetryAfter)) call.response.headers.append(HttpHeaders.RetryAfter, "60")
-            call.respond(status, ErrorResponse("Too many requests", "rate_limited"))
-        }
-        exception<IllegalArgumentException> { call, cause ->
-            log.warn("Bad request: ${cause.message}")
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request", "bad_request"))
-        }
-        exception<Throwable> { call, cause ->
-            if (cause is io.ktor.utils.io.ClosedWriteChannelException) return@exception
-            if (cause is kotlinx.coroutines.CancellationException) throw cause
-            // Ktor's multipart producer can fail outside the route's receive block.
-            if (call.request.path() == "/portability/imports" && cause.isMultipartSizeLimit()) {
-                call.respondPortabilityError(dev.typetype.server.portability.PortabilityUploadTooLargeException())
-                return@exception
-            }
-            log.error("Unhandled exception requestId=${call.requestId()} path=${call.request.path()}", cause)
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Internal server error", "internal_error"))
-        }
-    }
-}

@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.sabr.SabrProtocolException
+import dev.typetype.server.sabr.SabrRecoverableException
 import io.mockk.every
 import io.mockk.coEvery
 import io.mockk.coVerify
