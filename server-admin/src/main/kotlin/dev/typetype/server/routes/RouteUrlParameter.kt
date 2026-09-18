@@ -3,7 +3,7 @@ package dev.typetype.server.routes
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.queryString
 
-internal fun ApplicationCall.urlTailParameter(name: String): String? {
+fun ApplicationCall.urlTailParameter(name: String): String? {
     val pathUrl = parameters.getAll(name)?.joinToString("/") ?: return null
     val normalizedPathUrl = pathUrl.withUrlSchemeSlashes()
     val queryString = request.queryString()

@@ -25,6 +25,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":server-admin"))
     implementation(project(":server-auth"))
     implementation(project(":server-cache"))
     implementation(project(":server-core"))

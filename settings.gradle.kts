@@ -8,6 +8,7 @@ dependencyResolutionManagement {
     }
 }
 
+include(":server-admin")
 include(":server-auth")
 include(":server-cache")
 include(":server-core")
