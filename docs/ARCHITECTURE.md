@@ -9,7 +9,7 @@ The server will be split by responsibility instead of by arbitrary file size:
 - `server-domain`: pure business types and domain errors
 - `server-core`: shared contracts and stable common models
 - `server-cache`: Dragonfly and Redis infrastructure. **Extracted.**
-- `server-db`: Exposed tables, PostgreSQL access, repositories
+- `server-db`: Exposed tables, PostgreSQL access, repositories. **Extracted.**
 - `server-auth`: users, sessions, JWT and permissions
 - `server-playback`: SABR, PO-token and playback sessions
 - `server-token-gateway`: TypeType-Token client boundary
