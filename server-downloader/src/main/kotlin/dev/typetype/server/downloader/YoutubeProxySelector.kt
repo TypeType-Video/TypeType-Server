@@ -7,7 +7,7 @@ import java.net.ProxySelector
 import java.net.SocketAddress
 import java.net.URI
 
-internal class YoutubeProxySelector private constructor(
+class YoutubeProxySelector private constructor(
     private val proxy: Proxy,
 ) : ProxySelector() {
     override fun select(uri: URI): List<Proxy> =

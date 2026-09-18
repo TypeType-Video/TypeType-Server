@@ -2,7 +2,7 @@ package dev.typetype.server.downloader
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-internal object YoutubeAuthUserContext {
+object YoutubeAuthUserContext {
     @Volatile private var value: Int? = null
 
     fun set(authUser: Int?): Unit {
