@@ -8,7 +8,7 @@ import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.HistoryService
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
-import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.SubscriptionFeedCacheKeys
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
@@ -36,7 +36,7 @@ class SubscriptionFeedCacheInvalidationTakeoutUnitTest {
         TestDatabase.truncateAll()
         cache.clear()
         val feed = SubscriptionFeedService(SubscriptionsService(), FakeChannelService(), cache)
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidatorImpl(cache, feed))
     }
 
     @Test

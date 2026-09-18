@@ -13,6 +13,8 @@ include(":server-cache")
 include(":server-core")
 include(":server-db")
 include(":server-downloader")
+include(":server-domain")
+include(":server-portability")
 include(":server-sabr")
 include(":server-token-gateway")
 

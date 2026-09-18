@@ -4,7 +4,7 @@ import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.models.SettingsItem
 import dev.typetype.server.services.TypeTypeBackupLibraryRestore
 
-internal object TypeTypePortabilitySettingsImport {
+object TypeTypePortabilitySettingsImport {
     fun write(userId: String, source: PortabilityRecordSource, onRecord: () -> Unit): Long {
         var count = 0L
         source.forEach(PortabilityCategory.SETTINGS) { record ->

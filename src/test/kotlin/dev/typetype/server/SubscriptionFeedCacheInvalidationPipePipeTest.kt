@@ -6,7 +6,7 @@ import dev.typetype.server.routes.subscriptionFeedRoutes
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.PipePipeBackupImporterService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
-import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
 import io.ktor.client.request.forms.MultiPartFormDataContent
@@ -51,7 +51,7 @@ class SubscriptionFeedCacheInvalidationPipePipeTest {
     fun clean() = runBlocking {
         TestDatabase.truncateAll()
         cache.clear()
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidatorImpl(cache, feed))
     }
 
     @Test

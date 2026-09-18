@@ -71,8 +71,3 @@ private fun toAllowedPlaylistItem(row: ResultRow): AllowedPlaylistItem = Allowed
     allowedAt = row[AllowedPlaylistsTable.allowedAt],
     global = row[AllowedPlaylistsTable.scope] == ALLOW_SCOPE_GLOBAL,
 )
-
-internal fun normalizePlaylistKey(value: String): String = value.trim()
-    .substringBefore('#')
-    .removeSuffix("/")
-    .replace("http://", "https://")

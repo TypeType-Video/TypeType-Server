@@ -34,7 +34,7 @@ import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
-import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.TypeTypeBackupService
 import dev.typetype.server.services.UserVideoMetadataRepairService
 import dev.typetype.server.services.VideoMetadataResolver
@@ -102,7 +102,7 @@ internal class ServiceRegistry(
     )
     init {
         SubscriptionFeedCacheInvalidation.configure(
-            SubscriptionFeedCacheInvalidator(cache, subscriptionFeedService),
+            SubscriptionFeedCacheInvalidatorImpl(cache, subscriptionFeedService),
         )
     }
     val notificationsService = NotificationsService(subscriptionFeedService)

@@ -161,9 +161,6 @@ class BlockedService {
     }
 }
 
-internal fun normalizeBlockedKeyword(value: String): String =
-    Normalizer.normalize(value, Normalizer.Form.NFKC).trim().lowercase()
-
 internal fun containsBlockedKeyword(title: String, keyword: String): Boolean {
     val normalizedKeyword = normalizeBlockedKeyword(keyword)
     return normalizedKeyword.isNotEmpty() && normalizeBlockedKeyword(title).contains(normalizedKeyword)
