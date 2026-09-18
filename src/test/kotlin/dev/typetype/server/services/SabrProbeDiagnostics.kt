@@ -1,63 +1,47 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.sabr.SabrMediaSegment
-import dev.typetype.server.sabr.SabrSegmentRequest
-import dev.typetype.server.sabr.YoutubeSabrFormat
+private const val DEFAULT_SABR_PROBE_VIDEO_ID = "MO7hCeL-zRU"
+private const val DEFAULT_SABR_PROBE_PLAYER_TIME_MS = 321_601L
+private const val DEFAULT_SABR_PROBE_VIDEO_ITAG = 137
+private const val DEFAULT_SABR_PROBE_AUDIO_ITAG = 140
+private const val DEFAULT_SABR_PROBE_TIMEOUT_MS = 60_000L
 
-internal fun printSabrProbeFormat(label: String, format: YoutubeSabrFormat): Unit {
-    println(
-        "$label format itag=${format.itag} audio=${format.isAudio} video=${format.isVideo} " +
-            "size=${format.width}x${format.height} bitrate=${format.bitrate} mime=${format.mimeType} " +
-            "quality=${format.qualityLabel} audioTrack=${format.audioTrackId} " +
-            "xtags=${format.xtags} drc=${format.isDrc} original=${format.isOriginalAudio} " +
-            "approxDurationMs=${format.approxDurationMs}"
-    )
+internal fun sabrProbeTokenServiceUrl(): String =
+    envValue("SUBTITLE_SERVICE_URL") ?: "http://localhost:8081"
+
+internal fun sabrProbeVideoId(): String =
+    envValue("SABR_PROBE_VIDEO")
+        ?: envValues("SABR_PROBE_VIDEOS").firstOrNull()
+        ?: DEFAULT_SABR_PROBE_VIDEO_ID
+
+internal fun sabrProbeVideoIds(): List<String> =
+    envValues("SABR_PROBE_VIDEOS").ifEmpty { listOf(sabrProbeVideoId()) }
+
+internal fun sabrProbePlayerTimeMs(): Long =
+    envValue("SABR_PROBE_PLAYER_TIME_MS")?.toLongOrNull()?.takeIf { it >= 0L }
+        ?: DEFAULT_SABR_PROBE_PLAYER_TIME_MS
+
+internal fun sabrProbeTimeoutMs(): Long =
+    envValue("SABR_PROBE_FETCH_TIMEOUT_MS")?.toLongOrNull()?.takeIf { it > 0L }
+        ?: envValue("SABR_PROBE_TIMEOUT_MS")?.toLongOrNull()?.takeIf { it > 0L }
+        ?: DEFAULT_SABR_PROBE_TIMEOUT_MS
+
+internal fun sabrProbeAudioItag(): Int =
+    envValue("SABR_PROBE_AUDIO_ITAG")?.toIntOrNull() ?: DEFAULT_SABR_PROBE_AUDIO_ITAG
+
+internal fun sabrProbeVideoItags(): List<Int> {
+    val explicit = envIntValues("SABR_PROBE_VIDEO_ITAGS")
+    val primary = envValue("SABR_PROBE_VIDEO_ITAG")?.toIntOrNull() ?: DEFAULT_SABR_PROBE_VIDEO_ITAG
+    val base = explicit.ifEmpty { listOf(primary) }
+    val extra720 = envValue("SABR_PROBE_720P_ITAG")?.toIntOrNull()
+    return (base + listOfNotNull(extra720)).distinct()
 }
 
-internal fun printSabrProbeFetch(
-    label: String,
-    holder: SabrSessionHolder,
-    request: SabrSegmentRequest,
-    result: SabrProbeFetchResult,
-): Unit {
-    val outcome = when {
-        result.timedOut -> "timeout"
-        result.error != null -> "error"
-        result.segment == null -> "miss"
-        else -> "hit"
-    }
-    println(
-        "$label request ${sabrProbeRequestSummary(holder, request)} " +
-            "elapsedMs=${result.elapsedMs} outcome=$outcome"
-    )
-    result.segment?.let { println("$label header ${sabrProbeSegmentHeader(it)}") }
-    result.error?.let { println("$label error ${it.javaClass.simpleName}: ${it.message}") }
-}
+private fun envValue(name: String): String? =
+    System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
 
-internal fun sabrProbeSegmentHeader(segment: SabrMediaSegment): String {
-    val header = segment.header
-    return "headerId=${header.headerId} videoId=${header.videoId} itag=${header.itag} " +
-        "seq=${header.sequenceNumber} init=${header.isInitSegment} startMs=${header.startMs} " +
-        "durationMs=${header.durationMs} bitrateBps=${header.bitrateBps} " +
-        "contentLength=${header.contentLength} bytes=${segment.length} summary=${header.summarize()}"
-}
+private fun envValues(name: String): List<String> =
+    envValue(name)?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
 
-internal fun sabrProbeRequestSummary(
-    holder: SabrSessionHolder,
-    request: SabrSegmentRequest,
-): String {
-    val expectedStartMs = if (request.isInitializationSegment) {
-        -1L
-    } else {
-        holder.session.streamState.getSegmentStartMs(request.format, request.sequenceNumber)
-    }
-    val expectedEndMs = if (request.isInitializationSegment) {
-        -1L
-    } else {
-        holder.session.streamState.getSegmentEndMs(request.format, request.sequenceNumber)
-    }
-    return "itag=${request.format.itag} seq=${request.sequenceNumber} init=${request.isInitializationSegment} " +
-        "expectedStartMs=$expectedStartMs expectedEndMs=$expectedEndMs " +
-        "edgeMs=${holder.session.streamState.getMinBufferedEndMs()} " +
-        "requestNumber=${holder.session.requestNumber} cachedBytes=${holder.session.cachedBytes}"
-}
+private fun envIntValues(name: String): List<Int> =
+    envValues(name).mapNotNull { it.toIntOrNull() }

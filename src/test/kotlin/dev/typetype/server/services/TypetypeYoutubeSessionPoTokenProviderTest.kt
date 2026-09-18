@@ -1,96 +1,97 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SubtitleItem
+import dev.typetype.server.testStreamResponse
+import kotlinx.coroutines.runBlocking
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.schabi.newpipe.extractor.localization.ContentCountry
-import org.schabi.newpipe.extractor.localization.Localization
-import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken
-import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoTokenProvider
 
-class TypetypeYoutubeSessionPoTokenProviderTest {
-    @AfterEach
-    fun clearAuthenticatedProvider(): Unit =
-        TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(null)
-
+class StreamYouTubeSubtitleResolverTest {
     @Test
-    fun `exposes the session token only inside its scope`() {
-        TypetypeYoutubeSessionPoTokenProvider.withToken(token("visitor", "player-token")) {
-            assertEquals("visitor", currentToken()?.visitorData)
-            assertEquals("player-token", currentToken()?.poToken)
-        }
+    fun `resolution uses fresh inventory and preserves live state`() = runBlocking {
+        val resolver = StreamYouTubeSubtitleResolver(
+            streamService = streamService(
+                listOf(track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=de", false)),
+                isLive = true,
+            ),
+            fetchInventory = {
+                YouTubeSubtitleInventoryResult.Ready(
+                    listOf(track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en", false)),
+                )
+            },
+        )
 
-        assertNull(currentToken())
+        val result = resolver.resolve(selection(YouTubeSubtitleVariant.Manual))
+
+        val ready = result as YouTubeSubtitleResolution.Ready
+        assertTrue(ready.track.isLive)
+        assertEquals("en", ready.track.content.toHttpUrl().queryParameter("lang"))
     }
 
     @Test
-    fun `restores the outer token after a nested scope`() {
-        TypetypeYoutubeSessionPoTokenProvider.withToken(token("outer", "outer-token")) {
-            TypetypeYoutubeSessionPoTokenProvider.withToken(token("inner", "inner-token")) {
-                assertEquals("inner", currentToken()?.visitorData)
-            }
-            assertEquals("outer", currentToken()?.visitorData)
-        }
+    fun `stream inventory is used when fresh inventory is unavailable`() = runBlocking {
+        val resolver = StreamYouTubeSubtitleResolver(
+            streamService = streamService(
+                listOf(track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en", false)),
+            ),
+            fetchInventory = { YouTubeSubtitleInventoryResult.Unavailable },
+        )
 
-        assertNull(currentToken())
+        assertTrue(resolver.resolve(selection(YouTubeSubtitleVariant.Manual)) is YouTubeSubtitleResolution.Ready)
     }
 
     @Test
-    fun `clears the token when the scoped call fails`() {
-        runCatching {
-            TypetypeYoutubeSessionPoTokenProvider.withToken(token("visitor", "player-token")) {
-                error("failed")
-            }
-        }
+    fun `manual and automatic tracks remain distinct`() {
+        val manual = track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en", false)
+        val automatic = track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en&kind=asr", true)
 
-        assertNull(currentToken())
+        assertTrue(manual.matchesYouTubeSubtitle(selection(YouTubeSubtitleVariant.Manual)))
+        assertFalse(manual.matchesYouTubeSubtitle(selection(YouTubeSubtitleVariant.Auto)))
+        assertTrue(automatic.matchesYouTubeSubtitle(selection(YouTubeSubtitleVariant.Auto)))
+        assertFalse(automatic.matchesYouTubeSubtitle(selection(YouTubeSubtitleVariant.Manual)))
     }
 
     @Test
-    fun `uses the authenticated provider outside a SABR scope`() {
-        TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(provider("auth", "auth-token"))
+    fun `translated selection preserves source language and requested translation`() {
+        val track = track(
+            "https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en&kind=asr&tlang=de",
+            true,
+        )
+        val selection = selection(YouTubeSubtitleVariant.Auto).copy(
+            language = "fr",
+            sourceLanguage = "en",
+            translationLanguage = "fr",
+        )
 
-        assertEquals("auth", currentToken()?.visitorData)
-        assertEquals("auth-token", currentToken()?.poToken)
+        assertTrue(track.matchesYouTubeSubtitle(selection))
+        val resolved = requireNotNull(track.contentForYouTubeSubtitle(selection)).toHttpUrl()
+        assertEquals("en", resolved.queryParameter("lang"))
+        assertEquals("fr", resolved.queryParameter("tlang"))
+        assertEquals("vtt", resolved.queryParameter("fmt"))
     }
 
-    @Test
-    fun `prefers the SABR token over the authenticated provider`() {
-        TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(provider("auth", "auth-token"))
-
-        TypetypeYoutubeSessionPoTokenProvider.withToken(token("sabr", "sabr-token")) {
-            assertEquals("sabr", currentToken()?.visitorData)
-            assertEquals("sabr-token", currentToken()?.poToken)
-        }
+    private fun streamService(subtitles: List<SubtitleItem>, isLive: Boolean = false) = object : StreamService {
+        override suspend fun getStreamInfo(url: String) = ExtractionResult.Success(
+            testStreamResponse().copy(subtitles = subtitles, isLive = isLive, isLiveContent = isLive),
+        )
     }
 
-    private fun currentToken() = TypetypeYoutubeSessionPoTokenProvider.getSessionPoToken(
-        "MWEB",
-        "2.20260801.00.00",
-        "test-user-agent",
-        Localization("en", "US"),
-        ContentCountry("US"),
-        false,
+    private fun track(url: String, automatic: Boolean) = SubtitleItem(
+        url = url,
+        mimeType = "application/ttml+xml",
+        languageTag = "en",
+        displayLanguageName = "English",
+        isAutoGenerated = automatic,
     )
 
-    private fun token(visitorData: String, playerToken: String) = SabrTokenBundle(
-        videoId = "video",
-        visitorBoundPoToken = playerToken,
-        visitorBoundPoTokenBytes = byteArrayOf(1),
-        visitorData = visitorData,
-        videoBoundPoToken = "video-token",
-        videoBoundPoTokenBytes = byteArrayOf(2),
+    private fun selection(variant: YouTubeSubtitleVariant) = YouTubeSubtitleSelection(
+        videoId = "abcdefghijk",
+        language = "en",
+        variant = variant,
+        format = YouTubeSubtitleFormat.Vtt,
     )
-
-    private fun provider(visitorData: String, poToken: String) = object : YoutubeSessionPoTokenProvider {
-        override fun getSessionPoToken(
-            clientName: String,
-            clientVersion: String,
-            userAgent: String?,
-            localization: Localization,
-            contentCountry: ContentCountry,
-            loggedIn: Boolean,
-        ) = YoutubeSessionPoToken(visitorData, poToken)
-    }
 }

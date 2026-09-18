@@ -6,6 +6,7 @@ dependencies {
     api(project(":server-sabr"))
     api(project(":server-core"))
     implementation(project(":server-db"))
+    implementation(project(":server-downloader"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.slf4j:slf4j-api:2.0.16")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
