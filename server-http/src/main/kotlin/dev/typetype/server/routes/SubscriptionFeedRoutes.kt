@@ -2,7 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.SubscriptionFeedPreparingResponse
-import dev.typetype.server.preserveTooManyRequestsBody
+import dev.typetype.server.routes.preserveTooManyRequestsBody
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.SubscriptionFeedPageResult
 import dev.typetype.server.services.SubscriptionFeedService

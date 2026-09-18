@@ -16,7 +16,7 @@ internal fun parsePortabilityFormat(value: String?): PortabilityFormat? {
         ?: throw IllegalArgumentException("Unsupported portability format")
 }
 
-internal suspend fun ApplicationCall.respondPortabilityError(error: Exception) {
+suspend fun ApplicationCall.respondPortabilityError(error: Exception) {
     if (error is kotlinx.coroutines.CancellationException) throw error
     if (error.isMultipartSizeLimit()) {
         respondPortabilityError(PortabilityUploadTooLargeException())

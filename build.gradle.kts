@@ -34,6 +34,7 @@ dependencies {
     implementation(project(":server-portability"))
     implementation(project(":server-playback"))
     implementation(project(":server-services"))
+    implementation(project(":server-http"))
     implementation(project(":server-sabr"))
     implementation(project(":server-token-gateway"))
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.2"))

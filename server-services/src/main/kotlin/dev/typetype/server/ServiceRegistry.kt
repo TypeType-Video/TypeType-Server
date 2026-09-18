@@ -41,7 +41,7 @@ import dev.typetype.server.services.VideoMetadataResolver
 import dev.typetype.server.services.WatchLaterService
 import dev.typetype.server.services.YoutubeTakeoutFactory
 import java.net.ProxySelector
-internal class ServiceRegistry(
+class ServiceRegistry(
     cache: DragonflyService,
     subtitleServiceUrl: String,
     youtubeSessionEncryptionKey: String?,

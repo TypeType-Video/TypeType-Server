@@ -1,7 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.preserveTooManyRequestsBody
+import dev.typetype.server.routes.preserveTooManyRequestsBody
 import dev.typetype.server.services.YouTubeSubtitleContentResult
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders

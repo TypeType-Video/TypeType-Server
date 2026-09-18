@@ -53,7 +53,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.routing
 
-internal fun Application.installApplicationRoutes(
+fun Application.installApplicationRoutes(
     svc: ServiceRegistry,
     authService: AuthService,
     authSessionConfig: AuthSessionConfig,

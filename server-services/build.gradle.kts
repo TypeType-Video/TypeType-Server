@@ -8,6 +8,8 @@ dependencies {
     api(project(":server-core"))
     api(project(":server-domain"))
     api(project(":server-playback"))
+    api(project(":server-auth"))
+    api(project(":server-downloader"))
     implementation(project(":server-auth"))
     implementation(project(":server-cache"))
     implementation(project(":server-db"))
