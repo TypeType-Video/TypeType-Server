@@ -25,6 +25,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":server-auth"))
     implementation(project(":server-cache"))
     implementation(project(":server-core"))
     implementation(project(":server-db"))
@@ -58,9 +59,8 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
-    implementation("com.password4j:password4j:1.8.4")
-    implementation("com.auth0:java-jwt:4.6.1")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testImplementation("com.password4j:password4j:1.8.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
