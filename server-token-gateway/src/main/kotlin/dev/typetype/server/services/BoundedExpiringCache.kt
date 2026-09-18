@@ -3,7 +3,7 @@ package dev.typetype.server.services
 import java.time.Duration
 import java.util.LinkedHashMap
 
-internal class BoundedExpiringCache<K, V>(
+class BoundedExpiringCache<K, V>(
     private val maxEntries: Int,
     private val maxWeight: Long = Long.MAX_VALUE,
     ttl: Duration,

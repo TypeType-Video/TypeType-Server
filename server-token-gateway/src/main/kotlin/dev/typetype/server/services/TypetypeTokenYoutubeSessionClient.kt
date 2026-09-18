@@ -18,7 +18,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.coroutines.resume
 
-internal class TypetypeTokenYoutubeSessionClient(
+class TypetypeTokenYoutubeSessionClient(
     private val tokenServiceUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
 ) {

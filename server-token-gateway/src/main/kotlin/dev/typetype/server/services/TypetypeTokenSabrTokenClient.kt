@@ -8,7 +8,7 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-internal class TypetypeTokenSabrTokenClient(
+class TypetypeTokenSabrTokenClient(
     private val tokenServiceUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
 ) {

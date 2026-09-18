@@ -5,7 +5,7 @@ import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 
-internal object AuthenticatedYoutubeVisitorData {
+object AuthenticatedYoutubeVisitorData {
     fun fetch(
         localization: Localization = Localization("en", "US"),
         contentCountry: ContentCountry = ContentCountry("US"),

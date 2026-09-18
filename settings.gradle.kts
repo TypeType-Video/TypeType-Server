@@ -14,6 +14,7 @@ include(":server-core")
 include(":server-db")
 include(":server-downloader")
 include(":server-sabr")
+include(":server-token-gateway")
 
 val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
     .orNull

@@ -9,7 +9,7 @@ import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
-internal class TypetypeTokenYoutubeSessionPoTokenProvider(
+class TypetypeTokenYoutubeSessionPoTokenProvider(
     private val boundTokenFetcher: (String) -> String?,
     private val visitorDataFetcher: (Localization, ContentCountry) -> String,
     private val nowMillis: () -> Long = System::currentTimeMillis,

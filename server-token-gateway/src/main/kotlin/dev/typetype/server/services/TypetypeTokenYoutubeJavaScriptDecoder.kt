@@ -10,7 +10,7 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException
 import org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptDecoder
 
-internal class TypetypeTokenYoutubeJavaScriptDecoder(
+class TypetypeTokenYoutubeJavaScriptDecoder(
     private val tokenServiceUrl: String,
     private val client: OkHttpClient = OkHttpClient(),
 ) : YoutubeJavaScriptDecoder {

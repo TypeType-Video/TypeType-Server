@@ -2,7 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.sabr.YoutubeSabrInfo
 
-internal data class TokenYoutubeSession(
+data class TokenYoutubeSession(
     val info: YoutubeSabrInfo,
     val token: SabrTokenBundle?,
     val title: String,
@@ -19,7 +19,7 @@ internal data class TokenYoutubeSession(
     val hlsUrl: String = "",
 )
 
-internal fun TokenYoutubeSession.preparedSabrInfo(): SabrPreparedInfo? {
+fun TokenYoutubeSession.preparedSabrInfo(): SabrPreparedInfo? {
     val boundToken = token?.takeIf { it.visitorData == info.visitorData } ?: return null
     return SabrPreparedInfo(info, boundToken, isLive, isLiveContent)
         .takeIf(SabrPreparedInfo::hasAudioAndVideoFormats)

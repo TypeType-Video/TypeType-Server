@@ -2,7 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.sabr.YoutubeSabrInfo
 
-internal class SabrPreparedInfo(
+class SabrPreparedInfo(
     val info: YoutubeSabrInfo,
     val initialToken: SabrTokenBundle?,
     val isLive: Boolean = false,
@@ -10,5 +10,5 @@ internal class SabrPreparedInfo(
     val source: SabrPreparedSource = SabrPreparedSource.PUBLIC,
 )
 
-internal fun SabrPreparedInfo.hasAudioAndVideoFormats(): Boolean =
+fun SabrPreparedInfo.hasAudioAndVideoFormats(): Boolean =
     info.formats.any { it.isAudio } && info.formats.any { it.isVideo }
