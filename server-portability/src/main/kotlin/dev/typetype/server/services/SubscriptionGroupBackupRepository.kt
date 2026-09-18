@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.Locale
 import java.util.UUID
 
-internal object SubscriptionGroupBackupRepository {
+object SubscriptionGroupBackupRepository {
     suspend fun export(
         userId: String,
         subscriptionUrls: Set<String>,

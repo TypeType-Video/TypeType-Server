@@ -4,7 +4,7 @@ import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.models.TypeTypeBackupItem
 import dev.typetype.server.models.TypeTypeRestoreSummary
 
-internal object TypeTypeBackupRestoreWriter {
+object TypeTypeBackupRestoreWriter {
     suspend fun restore(
         userId: String,
         backup: TypeTypeBackupItem,
