@@ -12,6 +12,11 @@ SettingsItem:
     defaultLandingPage: { type: string, default: home }
     autoplay: { type: boolean, default: true }
     autoplayOnOpen: { type: boolean, default: true }
+    autoplayCountdownSeconds:
+      type: integer
+      minimum: 0
+      maximum: 60
+      default: 10
     volume: { type: number, format: double, default: 1.0 }
     muted: { type: boolean, default: false }
     notificationPopupsEnabled: { type: boolean, default: true }

@@ -10,6 +10,7 @@ object SettingsTable : Table("settings") {
     val defaultLandingPage = text("default_landing_page").default("home")
     val autoplay = bool("autoplay").default(true)
     val autoplayOnOpen = bool("autoplay_on_open").default(true)
+    val autoplayCountdownSeconds = integer("autoplay_countdown_seconds").default(10)
     val skipPlaylistAutoplayScreen = bool("skip_playlist_autoplay_screen").default(false)
     val volume = double("volume").default(1.0)
     val muted = bool("muted").default(false)

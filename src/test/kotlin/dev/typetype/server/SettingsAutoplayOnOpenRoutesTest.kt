@@ -49,6 +49,7 @@ class SettingsAutoplayOnOpenRoutesTest {
         val body = response.bodyAsText()
         assertTrue(body.contains("\"autoplay\":true"))
         assertTrue(body.contains("\"autoplayOnOpen\":true"))
+        assertTrue(body.contains("\"autoplayCountdownSeconds\":10"))
     }
 
     @Test
@@ -68,5 +69,23 @@ class SettingsAutoplayOnOpenRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(body.contains("\"autoplay\":false"))
         assertTrue(body.contains("\"autoplayOnOpen\":true"))
+    }
+
+    @Test
+    fun `autoplay countdown is persisted with safe bounds`() = testApplication {
+        application {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
+            routing { settingsRoutes(service, auth) }
+        }
+        val response = client.put("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"autoplayCountdownSeconds":120}""")
+        }
+        val body = client.get("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }.bodyAsText()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("\"autoplayCountdownSeconds\":60"))
     }
 }

@@ -23,6 +23,7 @@ internal fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultLandingPage = this[SettingsTable.defaultLandingPage],
     autoplay = this[SettingsTable.autoplay],
     autoplayOnOpen = this[SettingsTable.autoplayOnOpen],
+    autoplayCountdownSeconds = this[SettingsTable.autoplayCountdownSeconds],
     skipPlaylistAutoplayScreen = this[SettingsTable.skipPlaylistAutoplayScreen],
     volume = this[SettingsTable.volume],
     muted = this[SettingsTable.muted],
@@ -64,6 +65,7 @@ internal fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.defaultLandingPage] = settings.defaultLandingPage
     this[SettingsTable.autoplay] = settings.autoplay
     this[SettingsTable.autoplayOnOpen] = settings.autoplayOnOpen
+    this[SettingsTable.autoplayCountdownSeconds] = settings.autoplayCountdownSeconds
     this[SettingsTable.skipPlaylistAutoplayScreen] = settings.skipPlaylistAutoplayScreen
     this[SettingsTable.volume] = settings.volume
     this[SettingsTable.muted] = settings.muted
@@ -105,6 +107,7 @@ internal fun SettingsItem.normalized(): SettingsItem = copy(
     defaultPlaybackSpeed = defaultPlaybackSpeed.takeIf { it.isFinite() }
         ?.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED) ?: 1.0,
     accessMode = accessMode.toAccessMode(),
+    autoplayCountdownSeconds = autoplayCountdownSeconds.coerceIn(0, 60),
     sponsorBlockCategoryActions = sponsorBlockCategoryActions.withDefaultSponsorBlockCategoryActions(),
     sponsorBlockMinimumDuration = sponsorBlockMinimumDuration.coerceAtLeast(0),
     deArrowTitleMode = deArrowTitleMode.takeIf { it in DEARROW_TITLE_MODES } ?: "dearrow",

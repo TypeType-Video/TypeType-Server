@@ -10,6 +10,7 @@ data class SettingsItem(
     val defaultLandingPage: String = "home",
     val autoplay: Boolean = true,
     val autoplayOnOpen: Boolean = true,
+    val autoplayCountdownSeconds: Int = 10,
     val skipPlaylistAutoplayScreen: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
