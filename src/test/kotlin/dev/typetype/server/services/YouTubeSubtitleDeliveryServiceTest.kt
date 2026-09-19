@@ -122,6 +122,16 @@ class YouTubeSubtitleDeliveryServiceTest {
         assertEquals(0, fetches.get())
     }
 
+    @Test
+    fun `upstream subtitle failure is isolated as unavailable`() = runTest {
+        val service = service(
+            resolver = { readyTrack() },
+            fetcher = { _, _ -> error("ReCaptcha required") },
+        )
+
+        assertEquals(YouTubeSubtitleContentResult.Unavailable, service.fetch(SELECTION))
+    }
+
     private fun service(
         resolver: suspend (YouTubeSubtitleSelection) -> YouTubeSubtitleResolution,
         fetcher: suspend (String, YouTubeSubtitleFormat) -> YouTubeSubtitleFetchResult,

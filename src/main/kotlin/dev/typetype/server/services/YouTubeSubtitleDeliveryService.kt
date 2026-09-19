@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 
@@ -28,8 +29,12 @@ internal class YouTubeSubtitleDeliveryService(
             pending.complete(result)
             result
         } catch (error: Throwable) {
-            pending.completeExceptionally(error)
-            throw error
+            if (error is CancellationException) {
+                pending.cancel(error)
+                throw error
+            }
+            pending.complete(YouTubeSubtitleContentResult.Unavailable)
+            YouTubeSubtitleContentResult.Unavailable
         } finally {
             inFlight.remove(selection.cacheKey, pending)
             upstreamPermits.release()

@@ -5,6 +5,7 @@ import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamResponse
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -56,7 +57,14 @@ internal class PipePipeStreamService(
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
                         val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
-                            response.copy(subtitles = subtitleService.fetchSubtitles(streamInfo.id))
+                            val subtitles = try {
+                                subtitleService.fetchSubtitles(streamInfo.id)
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            response.copy(subtitles = subtitles)
                         } else {
                             response
                         }

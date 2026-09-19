@@ -74,6 +74,11 @@ internal class ExtractionServiceRegistry(
     val httpClient = OkHttpClient.Builder()
         .apply { youtubeProxySelector?.let(::proxySelector) }
         .build()
+    val subtitleHttpClient = httpClient.newBuilder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .callTimeout(15, TimeUnit.SECONDS)
+        .build()
     val proxyHttpClient: OkHttpClient = httpClient.newBuilder()
         .dispatcher(proxyDispatcher())
         .connectionPool(ConnectionPool(64, 5, TimeUnit.MINUTES))
@@ -82,7 +87,7 @@ internal class ExtractionServiceRegistry(
         .followRedirects(true)
         .build()
     val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
-    val youtubeSubtitleService = YouTubeSubtitleService(httpClient, subtitleServiceUrl)
+    val youtubeSubtitleService = YouTubeSubtitleService(subtitleHttpClient, subtitleServiceUrl)
     private val bilibiliRelatedService = BilibiliRelatedService()
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
@@ -130,9 +135,9 @@ internal class ExtractionServiceRegistry(
     val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
         StreamYouTubeSubtitleResolver(youtubeSabrStreamService, youtubeSubtitleService::fetchSubtitleInventory),
         TokenYouTubeSubtitleContentFetcher(
-            httpClient,
+            subtitleHttpClient,
             subtitleServiceUrl,
-            OkHttpYouTubeSubtitleContentFetcher(httpClient),
+            OkHttpYouTubeSubtitleContentFetcher(subtitleHttpClient),
         ),
         YouTubeSubtitleCache(cache),
     )
