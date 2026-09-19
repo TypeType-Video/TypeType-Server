@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   prepare-image:
-    runs-on: [self-hosted, Linux, X64, r730]
+    runs-on: [self-hosted, Linux, X64, ci-stack]
     permissions:
       contents: read
     outputs:
@@ -235,7 +235,7 @@ jobs:
   notify-orchestrator:
     needs: [prepare-image, build-and-push]
     if: github.ref_name == 'dev' || github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: [self-hosted, Linux, X64, r730]
+    runs-on: [self-hosted, Linux, X64, ci-stack]
     permissions:
       contents: read
     env:
