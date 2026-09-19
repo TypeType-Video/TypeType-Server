@@ -18,6 +18,19 @@ SubscriptionGroupMembershipItem:
       type: array
       uniqueItems: true
       items: { type: string, format: uuid }
+SubscriptionMembershipPage:
+  type: object
+  required: [items, total, totalSubscriptions, ungroupedCount, page, limit]
+  properties:
+    items:
+      type: array
+      maxItems: 100
+      items: { $ref: '#/SubscriptionGroupMembershipItem' }
+    total: { type: integer, format: int64, minimum: 0, description: Number of subscriptions matching all filters. }
+    totalSubscriptions: { type: integer, format: int64, minimum: 0, description: Unfiltered account subscription count. }
+    ungroupedCount: { type: integer, format: int64, minimum: 0, description: Unfiltered account count with no memberships. }
+    page: { type: integer, minimum: 0, maximum: 1000000 }
+    limit: { type: integer, minimum: 1, maximum: 100 }
 SubscriptionCreateRequest:
   type: object
   required: [channelUrl, name, avatarUrl]
