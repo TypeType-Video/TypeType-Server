@@ -76,7 +76,7 @@ jobs:
 
   build-platform:
     needs: prepare-image
-    runs-on: [self-hosted, Linux, X64, r730, docker]
+    runs-on: [self-hosted, Linux, X64, ci-stack, docker]
     timeout-minutes: 20
     permissions:
       contents: read
@@ -150,7 +150,7 @@ jobs:
 
   build-and-push:
     needs: [prepare-image, build-platform]
-    runs-on: [self-hosted, Linux, X64, r730, docker]
+    runs-on: [self-hosted, Linux, X64, ci-stack, docker]
     timeout-minutes: 10
     permissions:
       contents: read
