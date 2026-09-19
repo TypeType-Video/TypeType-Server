@@ -11,6 +11,7 @@ import okhttp3.Request
 import java.io.ByteArrayInputStream
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 internal val GOOGLEVIDEO_URL_REGEX = Regex("""https://[a-z0-9.\-]+\.googlevideo\.com/\S+""")
 private val CPN_TRACKING_PARAM_REGEX = Regex("[&?]cpn=[^&]*")
@@ -30,6 +31,11 @@ class OkHttpProxyService(
     private val mediaHandleService: ProviderMediaHandleService? = null,
 ) : ProxyService, ProviderMediaAwareProxyService {
     private val executor = ProxyHttpExecutor(client)
+    private val boundedExecutor = ProxyHttpExecutor(
+        client.newBuilder()
+            .callTimeout(30, TimeUnit.SECONDS)
+            .build(),
+    )
 
     override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> =
         pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = false)
@@ -53,6 +59,7 @@ class OkHttpProxyService(
             val fragment = if (hashIdx >= 0) url.substring(hashIdx + 1) else ""
             val resolvedDomandBid = domandBid ?: if (fragment.isNotBlank()) parseNicoCookie(fragment) else null
             validateProxyUrl(fetchUrl)?.let { return@withContext ExtractionResult.BadRequest(it) }
+            val requestExecutor = if (rangeHeader == null) boundedExecutor else executor
             runCatching {
                 val cleanUrl = stripTrackingParams(fetchUrl)
                 val bilibili = isBilibili(cleanUrl)
@@ -67,9 +74,9 @@ class OkHttpProxyService(
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 val request = builder.build()
                 if (bilibili && rangeHeader != null) {
-                    return@withContext readBilibiliRangeWithRetry(executor::execute, request, requestContext::ensureActive)
+                    return@withContext readBilibiliRangeWithRetry(requestExecutor::execute, request, requestContext::ensureActive)
                 }
-                executor.execute(request)
+                requestExecutor.execute(request)
             }.fold(
                 onSuccess = { response ->
                     val body = response.body
