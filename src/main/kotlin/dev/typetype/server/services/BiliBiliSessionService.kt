@@ -107,6 +107,10 @@ class BiliBiliSessionService(
         return decrypted
     }
 
+    suspend fun markUsed(userId: String) = store.markUsed(userId)
+
+    suspend fun markNeedsReconnect(userId: String) = store.markNeedsReconnect(userId)
+
     private fun parseSessDataExpiry(cookieHeader: String): Long? {
         val sessData = cookieHeader.split(";")
             .map { it.trim() }

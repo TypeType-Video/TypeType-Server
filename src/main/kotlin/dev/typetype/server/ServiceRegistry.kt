@@ -10,6 +10,7 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.BiliBiliSessionCrypto
 import dev.typetype.server.services.BiliBiliSessionService
+import dev.typetype.server.services.BiliBiliSessionStreamService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.CustomAvatarService
 import dev.typetype.server.services.DeArrowService
@@ -78,6 +79,10 @@ internal class ServiceRegistry(
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
     val nicoNicoStreamService = extraction.nicoNicoStreamService
     val bilibiliStreamService = extraction.bilibiliStreamService
+    val bilibiliSessionStreamService = BiliBiliSessionStreamService(
+        bilibiliStreamService,
+        bilibiliSessionService,
+    )
     val streamService = extraction.streamService
     val searchService = extraction.searchService
     val trendingService = extraction.trendingService

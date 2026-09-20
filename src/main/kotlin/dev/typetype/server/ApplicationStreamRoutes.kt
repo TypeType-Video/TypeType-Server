@@ -33,6 +33,7 @@ internal fun Route.installStreamRoutes(
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             providerMediaHandleService = svc.providerMediaHandleService,
             sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
+            bilibiliSessionStreamInfo = { userId, url -> svc.bilibiliSessionStreamService.getStreamInfo(userId, url) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
             },

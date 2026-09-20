@@ -18,4 +18,5 @@ internal data class StreamRouteDependencies(
     val providerMediaHandleService: ProviderMediaHandleService?,
     val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)?,
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
+    val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
 )

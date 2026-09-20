@@ -41,6 +41,7 @@ fun Route.streamRoutes(
     bilibiliStreamService: StreamService = streamService,
     sabrBootstrapStreamService: StreamService = streamService,
     youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 ) {
     val dependencies = StreamRouteDependencies(
@@ -52,6 +53,7 @@ fun Route.streamRoutes(
         providerMediaHandleService = providerMediaHandleService,
         sabrStreamContractFilter = sabrStreamContractFilter,
         youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
+        bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
     )
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
     streamRoute(
@@ -189,6 +191,14 @@ private suspend fun resolveStreamInfo(
     publicResult: ExtractionResult<StreamResponse>,
     dependencies: StreamRouteDependencies,
 ): StreamResolution {
+    if (deliveryMode == StreamDeliveryMode.BiliBili) {
+        val bilibiliInfo = dependencies.bilibiliSessionStreamInfo
+        if (bilibiliInfo != null && userId != null) {
+            val bilibiliResult = bilibiliInfo(userId, url)
+            if (bilibiliResult != null) return StreamResolution(bilibiliResult, authenticated = true)
+        }
+        return StreamResolution(publicResult)
+    }
     val authenticatedInfo = dependencies.youtubeSessionSabrStreamInfo
     if (!deliveryMode.isSabr() || authenticatedInfo == null) {
         return StreamResolution(publicResult)
