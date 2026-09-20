@@ -81,7 +81,7 @@ class BiliBiliQrLoginService(
         private const val GENERATE_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
         private const val POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
         private const val QR_TTL_MS = 180_000L
-        private const val WEB_USER_AGENT =
+        internal const val WEB_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     }
 }

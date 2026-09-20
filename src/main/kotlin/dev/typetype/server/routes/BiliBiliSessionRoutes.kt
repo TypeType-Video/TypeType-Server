@@ -40,6 +40,21 @@ fun Route.biliBiliSessionRoutes(service: BiliBiliSessionService, authService: Au
             call.respond(service.pollQrLogin(userId, request.qrcodeKey))
         }
     }
+    get("/bilibili-session/health") {
+        call.withJwtAuth(authService) { userId ->
+            val result = service.healthCheck(userId)
+            val status = when (result) {
+                is dev.typetype.server.services.BiliBiliHealthResult.Healthy -> "healthy"
+                is dev.typetype.server.services.BiliBiliHealthResult.Expired -> "expired"
+                is dev.typetype.server.services.BiliBiliHealthResult.RateLimited -> "rate_limited"
+                is dev.typetype.server.services.BiliBiliHealthResult.Disconnected -> "disconnected"
+                is dev.typetype.server.services.BiliBiliHealthResult.Unconfigured -> "unconfigured"
+                is dev.typetype.server.services.BiliBiliHealthResult.Error -> "error"
+            }
+            call.respond(dev.typetype.server.models.BiliBiliHealthResponse(status = status))
+        }
+    }
+
     get("/bilibili-session/status") {
         call.withJwtAuth(authService) { userId ->
             call.respond(service.status(userId))

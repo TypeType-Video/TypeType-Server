@@ -23,6 +23,12 @@ data class BiliBiliQrPollRequest(
 )
 
 @Serializable
+data class BiliBiliHealthResponse(
+    val status: String,
+    val message: String = "",
+)
+
+@Serializable
 data class BiliBiliQrPollResponse(
     val status: String,
     val message: String = "",
