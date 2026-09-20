@@ -113,6 +113,7 @@ class OkHttpDownloader private constructor(
         request.headers().forEach { (name, values) ->
             values.forEach { value -> builder.addHeader(name, value) }
         }
+        BilibiliCookieContext.headerFor(normalizedUrl)?.let { builder.header("Cookie", it) }
         YoutubeAuthUserContext.headerFor(normalizedUrl)?.let {
             builder.header(YOUTUBE_AUTH_USER_HEADER, it)
         }
