@@ -69,10 +69,7 @@ class BiliBiliQrLoginService(
                         BiliBiliQrPollResult.Error("Missing SESSDATA in response")
                     }
                 }
-                86038 -> BiliBiliQrPollResult.Expired
-                86090 -> BiliBiliQrPollResult.Scanned
-                86001 -> BiliBiliQrPollResult.Waiting
-                else -> BiliBiliQrPollResult.Error("Unexpected code: $code")
+                else -> classifyBiliBiliQrCode(code)
             }
         }
     }
@@ -84,6 +81,14 @@ class BiliBiliQrLoginService(
         internal const val WEB_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     }
+}
+
+internal fun classifyBiliBiliQrCode(code: Int): BiliBiliQrPollResult = when (code) {
+    86038 -> BiliBiliQrPollResult.Expired
+    86090 -> BiliBiliQrPollResult.Scanned
+    // The current web endpoint uses 86101 while the QR is still waiting to be scanned.
+    86001, 86101 -> BiliBiliQrPollResult.Waiting
+    else -> BiliBiliQrPollResult.Error("Unexpected code: $code")
 }
 
 sealed class BiliBiliQrGenerateResult {
