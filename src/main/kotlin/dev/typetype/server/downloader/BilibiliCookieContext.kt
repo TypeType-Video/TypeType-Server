@@ -13,6 +13,6 @@ internal object BilibiliCookieContext {
         val parsed = url.toHttpUrlOrNull() ?: return null
         val host = parsed.host.lowercase()
         val isBilibiliApi = host == "bilibili.com" || host.endsWith(".bilibili.com")
-        return cookieHeader?.takeIf { isBilibiliApi }
+        return cookieHeader?.takeIf { parsed.isHttps && isBilibiliApi }
     }
 }

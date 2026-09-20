@@ -18,6 +18,7 @@ class BilibiliCookieContextTest {
                 "SESSDATA=session; bili_jct=csrf",
                 BilibiliCookieContext.headerFor("https://www.bilibili.com/video/BV1"),
             )
+            assertNull(BilibiliCookieContext.headerFor("http://api.bilibili.com/x/player"))
             assertNull(BilibiliCookieContext.headerFor("https://upos-sz-mirrorali.bilivideo.com/video"))
             assertNull(BilibiliCookieContext.headerFor("https://example.com/video"))
         } finally {
