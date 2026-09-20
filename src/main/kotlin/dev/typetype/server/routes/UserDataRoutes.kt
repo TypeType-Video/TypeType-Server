@@ -47,6 +47,7 @@ internal fun Route.userDataRoutes(
     notificationsRoutes(svc.notificationsService, authService)
     pushNotificationRoutes(svc.pushNotificationService, authService)
     youtubeSessionRoutes(svc.youtubeSessionService, authService)
+    biliBiliSessionRoutes(svc.bilibiliSessionService, authService)
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, svc.customAvatarService, authService)
     customAvatarRoutes(svc.customAvatarService, authService)

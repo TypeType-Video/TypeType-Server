@@ -8,6 +8,8 @@ import dev.typetype.server.services.AllowedChannelsService
 import dev.typetype.server.services.AllowedPlaylistsService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
+import dev.typetype.server.services.BiliBiliSessionCrypto
+import dev.typetype.server.services.BiliBiliSessionService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.CustomAvatarService
 import dev.typetype.server.services.DeArrowService
@@ -64,6 +66,11 @@ internal class ServiceRegistry(
         youtubeProxySelector,
     )
     val youtubeSessionService = extraction.youtubeSessionService
+    val bilibiliSessionService = BiliBiliSessionService(
+        System.getenv("BILIBILI_SESSION_ENCRYPTION_KEY")?.let { secret ->
+            if (secret.length >= 32) BiliBiliSessionCrypto.fromSecret(secret) else null
+        },
+    )
     val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
