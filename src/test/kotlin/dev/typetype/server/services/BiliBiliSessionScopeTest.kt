@@ -10,7 +10,7 @@ class BiliBiliSessionScopeTest {
     @Test
     fun `withCredentials sets and clears tokens`() = runBlocking {
         val bilibili = ServiceList.BiliBili
-        BiliBiliSessionScope.withCredentials("SESSDATA=test; bili_jct=csrf") {
+        BiliBiliSessionScope.withCredentials("test-user", "SESSDATA=test; bili_jct=csrf") {
             assertEquals("SESSDATA=test; bili_jct=csrf", bilibili.tokens)
         }
         assertEquals("", bilibili.tokens)

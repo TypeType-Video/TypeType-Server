@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.downloader.BilibiliCookieContext
 import org.schabi.newpipe.extractor.ServiceList
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -11,9 +12,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 object BiliBiliSessionScope {
     private const val PUBLIC_PERMITS = 64
     private val permits = Semaphore(PUBLIC_PERMITS, true)
+    private val userRequestTimestamps = ConcurrentHashMap<String, ArrayDeque<Long>>()
+    private const val MAX_REQUESTS_PER_WINDOW = 30
+    private const val RATE_WINDOW_MS = 60_000L
 
-    suspend fun <T> withCredentials(cookieHeader: String, block: suspend () -> T): T =
-        withPermits(PUBLIC_PERMITS) {
+    suspend fun <T> withCredentials(userId: String, cookieHeader: String, block: suspend () -> T): T {
+        checkRateLimit(userId)
+        return withPermits(PUBLIC_PERMITS) {
             val bilibili = ServiceList.BiliBili
             try {
                 bilibili.setTokens(cookieHeader)
@@ -26,6 +31,7 @@ object BiliBiliSessionScope {
                 BilibiliCookieContext.set(null)
             }
         }
+    }
 
     suspend fun <T> withoutCredentials(block: suspend () -> T): T =
         withPermits(1) {
@@ -39,6 +45,18 @@ object BiliBiliSessionScope {
                 BilibiliCookieContext.set(null)
             }
         }
+
+    private fun checkRateLimit(userId: String) {
+        val now = System.currentTimeMillis()
+        val queue = userRequestTimestamps.computeIfAbsent(userId) { ArrayDeque() }
+        synchronized(queue) {
+            while (queue.isNotEmpty() && queue.first() < now - RATE_WINDOW_MS) queue.removeFirst()
+            if (queue.size >= MAX_REQUESTS_PER_WINDOW) {
+                throw BiliBiliRateLimitException(MAX_REQUESTS_PER_WINDOW)
+            }
+            queue.addLast(now)
+        }
+    }
 
     private suspend fun <T> withPermits(count: Int, block: suspend () -> T): T {
         val acquired = AtomicBoolean(false)
@@ -58,3 +76,6 @@ object BiliBiliSessionScope {
     private const val PERMIT_ACQUIRE_TIMEOUT_MS = 15_000L
     private val BILIBILI_COOKIE_FUNCTIONS = setOf("high_res", "ai_subtitle")
 }
+
+class BiliBiliRateLimitException(val maxRequests: Int) :
+    RuntimeException("BiliBili rate limit exceeded: max $maxRequests requests per minute")
