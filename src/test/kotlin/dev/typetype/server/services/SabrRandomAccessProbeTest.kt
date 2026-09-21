@@ -1,159 +1,139 @@
 package dev.typetype.server.services
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
+import io.mockk.every
+import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import org.schabi.newpipe.extractor.NewPipe
-import dev.typetype.server.sabr.SabrSegmentRequest
-import dev.typetype.server.sabr.YoutubeSabrFormat
-import dev.typetype.server.sabr.YoutubeSabrInfo
-import org.schabi.newpipe.extractor.stream.StreamInfo
+import dev.typetype.server.sabr.SabrNextRequestPolicy
+import dev.typetype.server.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 
-@EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
-@Tag("network")
-class SabrRandomAccessProbeTest {
-    private val tokenServiceUrl: String =
-        sabrProbeTokenServiceUrl()
+class SabrPumpRuntimeTest {
+    @Test
+    fun `startup and seek cushions follow PipePipe policy`() {
+        var now = 1_000L
+        val holder = holder(policy(targetAudioMs = 4_000, targetVideoMs = 7_000), playerTimeMs = 1_000L)
+        val runtime = SabrPumpRuntime { now }
+
+        assertEquals(25_000L, runtime.targetReadaheadCushionMs(holder))
+        now += 25_001L
+        assertEquals(7_000L, runtime.targetReadaheadCushionMs(holder))
+
+        runtime.activateSeekMode()
+        assertEquals(5_000L, runtime.targetReadaheadCushionMs(holder))
+        now += 8_000L
+        assertEquals(7_000L, runtime.targetReadaheadCushionMs(holder))
+    }
 
     @Test
-    fun `fetches post seek stateful responses`(): Unit = runBlocking {
-        NewPipeInitializer.init()
-        val videoId = sabrProbeVideoId()
-        val videoItags = sabrProbeVideoItags()
-        val audioItag = sabrProbeAudioItag()
-        val playerTimeMs = sabrProbePlayerTimeMs()
-        val timeoutMs = sabrProbeTimeoutMs()
-        val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
-        try {
-            println(
-                "config videoId=$videoId playerTimeMs=$playerTimeMs audioItag=$audioItag " +
-                    "videoItags=${videoItags.joinToString(",")} timeoutMs=$timeoutMs " +
-                    "contract=stateful-pump"
+    fun `readahead cushions scale with playback rate while remaining bounded`() {
+        var now = 1_000L
+        val holder = holder(
+            policy(targetAudioMs = 4_000, targetVideoMs = 7_000),
+            playerTimeMs = 1_000L,
+            playbackRate = 4.0f,
+        )
+        val runtime = SabrPumpRuntime { now }
+
+        assertEquals(60_000L, runtime.targetReadaheadCushionMs(holder))
+        now += 25_001L
+        assertEquals(28_000L, runtime.targetReadaheadCushionMs(holder))
+        runtime.activateSeekMode()
+        assertEquals(20_000L, runtime.targetReadaheadCushionMs(holder))
+    }
+
+    @Test
+    fun `server heartbeat bypasses time throttling`() {
+        var now = 1_000L
+        val holder = holder(
+            policy(targetAudioMs = 3_000, targetVideoMs = 3_000, maximumRequestGapMs = 5_000),
+            playerTimeMs = 1_000L,
+            edgeMs = 13_000L,
+        )
+        val runtime = SabrPumpRuntime { now }
+        now += 25_001L
+
+        assertTrue(runtime.isThrottled(holder))
+        runtime.recordRequest()
+        now += 4_999L
+        assertTrue(runtime.isThrottled(holder))
+        now += 1L
+        assertFalse(runtime.isThrottled(holder))
+    }
+
+    @Test
+    fun `startup request caps reported server ahead`() {
+        var now = 1_000L
+        val holder = holder(policy(), playerTimeMs = 1_000L)
+        val runtime = SabrPumpRuntime { now }
+
+        assertEquals(34_000L, runtime.requestPlayerTimeMs(holder, edgeMs = 50_000L))
+        now += 25_000L
+        assertEquals(1_000L, runtime.requestPlayerTimeMs(holder, edgeMs = 50_000L))
+        assertEquals(34_000L, runtime.demandPlayerTimeMs(holder, edgeMs = 50_000L))
+    }
+
+    @Test
+    fun `deferred request stays recoverable for watchdog`() {
+        var now = 1_000L
+        val runtime = SabrPumpRuntime { now }
+        runtime.beginDemand("140:44")
+        now += SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS
+
+        assertEquals(
+            SabrDemandRecoveryAction.WAIT,
+            runtime.demandRecoveryAction("140:44", requestPerformed = false, resolved = false),
+        )
+    }
+
+    @Test
+    fun `response without demanded segment is readvertised once`() {
+        val runtime = SabrPumpRuntime { 1_000L }
+        runtime.beginDemand("140:44")
+
+        assertEquals(
+            SabrDemandRecoveryAction.READVERTISE_TRACK,
+            runtime.demandRecoveryAction("140:44", requestPerformed = true, resolved = false),
+        )
+        repeat(5) {
+            assertEquals(
+                SabrDemandRecoveryAction.WAIT,
+                runtime.demandRecoveryAction("140:44", requestPerformed = true, resolved = false),
             )
-            if (System.getenv("SABR_PROBE_EXTRACT_FIRST") != "false") {
-                store.rememberExtractedInfo(videoId, extractSabrInfo(videoId))
-            }
-            val prepared = store.fetchInfo(videoId, playerTimeMs, cachedFirst = true) ?: error("SABR probe failed")
-            val info = prepared.info
-            val audio = requireAudioFormat(info.formats, audioItag)
-            printSabrProbeFormat("audio", audio)
-            for (videoItag in videoItags) {
-                val video = requireVideoFormat(info.formats, videoItag)
-                printSabrProbeFormat("video", video)
-                val startedAt = System.nanoTime()
-                val preparation = SabrPlaybackSessionService(store).prepare(
-                    videoId = videoId,
-                    userId = "sabr-random-access-video-$videoItag",
-                    prepared = prepared,
-                    audio = audio,
-                    video = video,
-                    startTimeMs = playerTimeMs,
-                )
-                val holder = preparation.holder
-                assertInitData(store, holder, audio)
-                assertInitData(store, holder, video)
-                holder.setActiveTracks(videoActive = true, audioActive = true)
-                holder.setPlayerTimeMs(playerTimeMs)
-                val requests = listOf(audio, video).map { format ->
-                    SabrSegmentRequest.media(format, holder.playbackStartSequence(format, playerTimeMs))
-                }
-                requests.forEach { request ->
-                    println("pump target[$videoItag] ${sabrProbeRequestSummary(holder, request)}")
-                }
-                val segments = withTimeoutOrNull(timeoutMs) {
-                    requests.map { request ->
-                        store.requestSegmentDemand(holder, request, holder.activeGeneration())
-                        awaitCachedSegment(store, holder, request)
-                    }
-                }
-                val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000L
-                println("pump[$videoItag] elapsedMs=$elapsedMs segments=${segments?.size ?: -1}")
-                println("pump[$videoItag] trace=${holder.session.diagnosticTrace}")
-                segments.orEmpty().forEach {
-                    println(
-                        "pump[$videoItag] itag=${it.itag} seq=${it.sequence} startMs=${it.startMs} " +
-                            "durationMs=${it.durationMs} bytes=${it.length}"
-                    )
-                }
-                assertTrue(
-                    segments.orEmpty().any { it.covers(video, playerTimeMs) },
-                    "video[$videoItag] pump bytes",
-                )
-                assertTrue(
-                    segments.orEmpty().any { it.covers(audio, playerTimeMs) },
-                    "audio[$videoItag] pump bytes",
-                )
-            }
-        } finally {
-            store.release()
         }
     }
 
-    private suspend fun awaitCachedSegment(
-        store: SabrSessionStore,
-        holder: SabrSessionHolder,
-        request: SabrSegmentRequest,
-    ): CachedSabrSegment {
-        var segment = store.cachedSegment(holder, request)
-        while (segment == null) {
-            delay(50L)
-            segment = store.cachedSegment(holder, request)
-        }
-        return segment
+    private fun holder(
+        policy: SabrNextRequestPolicy,
+        playerTimeMs: Long,
+        edgeMs: Long = 0L,
+        playbackRate: Float = 1.0f,
+    ): SabrSessionHolder {
+        val holder = mockk<SabrSessionHolder>()
+        val session = mockk<YoutubeSabrSession>()
+        val state = mockk<YoutubeSabrStreamState>()
+        every { holder.session } returns session
+        every { holder.playerTimeMs() } returns playerTimeMs
+        every { holder.playbackRate() } returns playbackRate
+        every { holder.readerTailMs() } returns 1L
+        every { session.streamState } returns state
+        every { session.cachedBytes } returns 0L
+        every { state.getMinBufferedEndMs() } returns edgeMs
+        every { state.nextRequestPolicy } returns policy
+        return holder
     }
 
-    private suspend fun assertInitData(
-        store: SabrSessionStore,
-        holder: SabrSessionHolder,
-        format: YoutubeSabrFormat,
-    ): Unit {
-        val data = store.fetchInitializationData(holder, format)
-        println("init itag=${format.itag} bytes=${data?.size ?: -1}")
-        if (data == null || data.isEmpty()) println("init trace=${holder.session.diagnosticTrace}")
-        assertTrue(data?.isNotEmpty() == true, "init bytes for itag ${format.itag}")
-    }
-
-    private fun requireAudioFormat(
-        formats: List<YoutubeSabrFormat>,
-        audioItag: Int,
-    ): YoutubeSabrFormat =
-        formats.filter { it.itag == audioItag && it.isAudio }
-            .maxWithOrNull(compareBy<YoutubeSabrFormat> { it.isOriginalAudio }
-                .thenBy { it.xtags.isNullOrBlank() }
-                .thenBy { !it.isDrc }
-                .thenBy { it.bitrate })
-            ?: error("No SABR audio format for itag $audioItag")
-
-    private fun extractSabrInfo(videoId: String): YoutubeSabrInfo {
-        val service = NewPipe.getServiceByUrl("https://www.youtube.com/watch?v=$videoId")
-        val linkHandler = service.streamLHFactory.fromUrl("https://www.youtube.com/watch?v=$videoId")
-        val extractor = service.getStreamExtractor(linkHandler)
-        extractor.fetchPage()
-        val streamInfo = StreamInfo.getInfo(extractor)
-        return sequence {
-            streamInfo.videoStreams.forEach { yield(it.deliveryMethodInfo) }
-            streamInfo.videoOnlyStreams.forEach { yield(it.deliveryMethodInfo) }
-            streamInfo.audioStreams.forEach { yield(it.deliveryMethodInfo) }
-        }.filterIsInstance<YoutubeSabrInfo>()
-            .first { it.videoId == videoId }
-    }
-
-    private fun requireVideoFormat(
-        formats: List<YoutubeSabrFormat>,
-        videoItag: Int,
-    ): YoutubeSabrFormat =
-        formats.firstOrNull { it.itag == videoItag && it.isVideo }
-            ?: error("No SABR video format for itag $videoItag")
-
-    private fun CachedSabrSegment.covers(format: YoutubeSabrFormat, playerTimeMs: Long): Boolean {
-        if (length <= 0 || init || itag != format.itag) return false
-        val startMs = this.startMs
-        val durationMs = this.durationMs
-        return startMs >= 0 && durationMs > 0 &&
-            playerTimeMs >= startMs && playerTimeMs < startMs + durationMs
+    private fun policy(
+        targetAudioMs: Int = -1,
+        targetVideoMs: Int = -1,
+        maximumRequestGapMs: Int = -1,
+    ): SabrNextRequestPolicy {
+        val policy = mockk<SabrNextRequestPolicy>()
+        every { policy.targetAudioReadaheadMs } returns targetAudioMs
+        every { policy.targetVideoReadaheadMs } returns targetVideoMs
+        every { policy.maxTimeSinceLastRequestMs } returns maximumRequestGapMs
+        return policy
     }
 }

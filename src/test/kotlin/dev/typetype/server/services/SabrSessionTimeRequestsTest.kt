@@ -1,189 +1,78 @@
 package dev.typetype.server.services
 
-import io.mockk.every
-import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import dev.typetype.server.sabr.SabrMediaHeader
-import dev.typetype.server.sabr.SabrMediaSegment
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty
 import dev.typetype.server.sabr.SabrSegmentRequest
-import dev.typetype.server.sabr.YoutubeSabrFormat
-import dev.typetype.server.sabr.YoutubeSabrInfo
-import dev.typetype.server.sabr.YoutubeSabrSession
-import dev.typetype.server.sabr.YoutubeSabrStreamState
-import java.time.Instant
 
-class SabrSessionTimeRequestsTest {
-    @Test
-    fun `playback start sequence is clamped to the known final segment`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 137, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 91
-        every { state.getEndSegment(audio) } returns 90L
-        every { state.getEndSegment(video) } returns 0L
-        val holder = holder(session, audio, video)
+@EnabledIfSystemProperty(named = "sabr.probe", matches = "true")
+@Tag("network")
+class SabrSessionStoreTest {
 
-        assertEquals(90, holder.playbackStartSequence(audio, 88_168L))
-    }
+    private val tokenServiceUrl: String =
+        sabrProbeTokenServiceUrl()
 
     @Test
-    fun `playback start sequence stays valid without an indexed end`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 137, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 88_168L) } returns 33
-        every { state.getEndSegment(audio) } returns 0L
-        every { state.getEndSegment(video) } returns 0L
-        val holder = holder(session, audio, video)
+    fun storeRoundTrip(): Unit = runBlocking {
+        NewPipeInitializer.init()
+        val store = SabrSessionStore(tokenServiceUrl = tokenServiceUrl)
+        val videoId = sabrProbeVideoId()
+        val playerTimeMs = sabrProbePlayerTimeMs()
+        val timeoutMs = sabrProbeTimeoutMs()
+        val audioItag = sabrProbeAudioItag()
+        val videoItag = sabrProbeVideoItags().first()
+        val userId = "sabr-probe-user"
 
-        assertEquals(33, holder.playbackStartSequence(audio, 88_168L))
+        println(
+            "\n========== SABR store round-trip: $videoId " +
+                "playerTimeMs=$playerTimeMs timeoutMs=$timeoutMs =========="
+        )
+        val prepared = store.fetchInfo(videoId) ?: error("SABR probe failed")
+        val info = prepared.info
+        val audio = info.formats.firstOrNull { it.itag == audioItag && it.isAudio }
+            ?: info.findBestAudioFormat()
+        val video = info.formats.firstOrNull { it.itag == videoItag && it.isVideo }
+            ?: info.findLowestVideoFormat()
+        println("probe picked: audio=${audio?.itag} video=${video?.itag}")
+        check(audio != null && video != null)
+        printSabrProbeFormat("audio", audio)
+        printSabrProbeFormat("video", video)
+
+        val holder = store.getOrCreate(videoId, userId, info, audio, video, prepared.initialToken)
+        store.ensureWarmed(holder)
+        holder.setActiveTracks(videoActive = true, audioActive = true)
+        holder.setPlayerTimeMs(playerTimeMs)
+        println("session complete (cold): ${holder.session.isComplete}")
+
+        val requests = listOf(
+            SabrSegmentRequest.initialization(video),
+            SabrSegmentRequest.initialization(audio),
+        ) + mediaRequestsForProbe(holder, video, audio, playerTimeMs)
+        for ((i, req) in requests.withIndex()) {
+            val result = fetchSabrProbeSegment(store, holder, req, timeoutMs)
+            printSabrProbeFetch("req[$i]", holder, req, result)
+        }
+        println("session complete after fetches: ${holder.session.isComplete}")
+
+        val looked = store.lookup(videoId, userId, audio.itag, video.itag)
+        println("lookup same key: ${looked === holder}")
+
+        store.release()
     }
 
-    @Test
-    fun `mediaRequestsAt returns active audio and video requests for player time`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 137, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.setActiveTrackTypes(any(), any()) } returns Unit
-        every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 321_601L) } returns 33
-        val holder = holder(session, audio, video)
-
-        val requests = holder.mediaRequestsAt(321_601L)
-
-        assertEquals(listOf(137, 140), requests.map { it.format.itag })
-        assertEquals(listOf(64, 33), requests.map { it.sequenceNumber })
+    private fun mediaRequestsForProbe(
+        holder: SabrSessionHolder,
+        video: dev.typetype.server.sabr.YoutubeSabrFormat,
+        audio: dev.typetype.server.sabr.YoutubeSabrFormat,
+        playerTimeMs: Long,
+    ): List<SabrSegmentRequest> {
+        val videoSequence = System.getenv("SABR_PROBE_VIDEO_SEQUENCE")?.toIntOrNull()
+        val audioSequence = System.getenv("SABR_PROBE_AUDIO_SEQUENCE")?.toIntOrNull()
+        if (videoSequence == null && audioSequence == null) return holder.mediaRequestsAt(playerTimeMs)
+        return listOfNotNull(
+            videoSequence?.let { SabrSegmentRequest.media(video, it) },
+            audioSequence?.let { SabrSegmentRequest.media(audio, it) },
+        )
     }
-
-    @Test
-    fun `mediaRequestsAt uses mapped video and audio sequences`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 247, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.setActiveTrackTypes(any(), any()) } returns Unit
-        every { state.getSegmentNumberAtOrAfterTimeMs(video, 340_000L) } returns 64
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 340_000L) } returns 35
-        val holder = holder(session, audio, video)
-
-        val requests = holder.mediaRequestsAt(340_000L)
-
-        assertEquals(listOf(247, 140), requests.map { it.format.itag })
-        assertEquals(listOf(64, 35), requests.map { it.sequenceNumber })
-    }
-
-    @Test
-    fun `mediaRequestsAt excludes inactive tracks`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 137, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.setActiveTrackTypes(any(), any()) } returns Unit
-        every { state.getSegmentNumberAtOrAfterTimeMs(video, 321_601L) } returns 64
-        val holder = holder(session, audio, video)
-        holder.setActiveTracks(videoActive = true, audioActive = false)
-
-        val requests = holder.mediaRequestsAt(321_601L)
-
-        assertEquals(listOf(137), requests.map { it.format.itag })
-        assertEquals(listOf(64), requests.map { it.sequenceNumber })
-    }
-
-    @Test
-    fun `reposition keeps a non adjacent live boundary request pending`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 248, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.setActiveTrackTypes(any(), any()) } returns Unit
-        every { state.getSegmentStartMs(audio, 100) } returns 995_000L
-        every { session.getCachedSegment(any()) } returns null
-        val holder = holder(session, audio, video)
-        val observed = mediaSegment(audio.itag, sequence = 102, startMs = 995_010L)
-        holder.markExpectedLive()
-        holder.observeMediaSegment(observed)
-        every {
-            session.getCachedSegment(match {
-                it.format.itag == audio.itag && it.sequenceNumber == 102
-            })
-        } returns observed
-        val request = SabrSegmentRequest.media(audio, 100)
-
-        val missing = holder.repositionTargets(listOf(request), playerTimeMs = 995_000L, generation = 0L)
-
-        assertEquals(listOf(request), missing)
-    }
-
-    @Test
-    fun `reposition advances to the next warmed live segment from inside a boundary`() {
-        val audio = sabrFormat(itag = 140, isAudio = true)
-        val video = sabrFormat(itag = 248, isAudio = false)
-        val session = mockk<YoutubeSabrSession>()
-        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns state
-        every { state.setActiveTrackTypes(any(), any()) } returns Unit
-        every { session.getCachedSegment(any()) } returns null
-        val holder = holder(session, audio, video)
-        val observed = mediaSegment(audio.itag, sequence = 101, startMs = 1_000_000L, durationMs = 5_000L)
-        holder.markExpectedLive()
-        holder.observeMediaSegment(observed)
-        every {
-            session.getCachedSegment(match {
-                it.format.itag == audio.itag && it.sequenceNumber == 101
-            })
-        } returns observed
-        val request = SabrSegmentRequest.media(audio, 100)
-
-        val missing = holder.repositionTargets(listOf(request), playerTimeMs = 996_200L, generation = 0L)
-
-        assertEquals(emptyList<SabrSegmentRequest>(), missing)
-        assertEquals(1_000_000L, holder.readerPosition(audio))
-    }
-
-    private fun sabrFormat(itag: Int, isAudio: Boolean): YoutubeSabrFormat {
-        val format = mockk<YoutubeSabrFormat>()
-        every { format.itag } returns itag
-        every { format.isAudio } returns isAudio
-        every { format.isVideo } returns !isAudio
-        return format
-    }
-
-    private fun mediaSegment(
-        itag: Int,
-        sequence: Int,
-        startMs: Long,
-        durationMs: Long = 0L,
-    ): SabrMediaSegment {
-        val header = mockk<SabrMediaHeader>(relaxed = true)
-        every { header.itag } returns itag
-        every { header.sequenceNumber } returns sequence
-        every { header.startMs } returns startMs
-        every { header.durationMs } returns durationMs
-        every { header.isInitSegment } returns false
-        return mockk { every { this@mockk.header } returns header }
-    }
-
-    private fun holder(
-        session: YoutubeSabrSession,
-        audio: YoutubeSabrFormat,
-        video: YoutubeSabrFormat,
-    ): SabrSessionHolder = SabrSessionHolder(
-        session,
-        mockk<YoutubeSabrInfo>(),
-        audio,
-        video,
-        "session",
-        SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
-        Instant.now(),
-    )
 }

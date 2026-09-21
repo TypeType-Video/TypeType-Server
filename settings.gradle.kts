@@ -1,5 +1,28 @@
 rootProject.name = "typetype-server"
 
+dependencyResolutionManagement {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+include(":server-admin")
+include(":server-auth")
+include(":server-cache")
+include(":server-core")
+include(":server-db")
+include(":server-downloader")
+include(":server-domain")
+include(":server-http")
+include(":server-playback")
+include(":server-portability")
+include(":server-sabr")
+include(":server-test-support")
+include(":server-services")
+include(":server-token-gateway")
+
 val localPipePipeExtractor = providers.gradleProperty("pipePipeExtractorPath")
     .orNull
     ?.let { file(it) }

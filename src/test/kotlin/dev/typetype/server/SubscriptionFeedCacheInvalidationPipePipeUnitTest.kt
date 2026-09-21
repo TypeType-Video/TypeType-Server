@@ -4,7 +4,7 @@ import dev.typetype.server.services.PipePipeBackupPersisterService
 import dev.typetype.server.services.PipePipeBackupSnapshotItem
 import dev.typetype.server.services.PipePipeBackupSubscriptionItem
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
-import dev.typetype.server.services.SubscriptionFeedCacheInvalidator
+import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.SubscriptionFeedCacheKeys
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionsService
@@ -29,7 +29,7 @@ class SubscriptionFeedCacheInvalidationPipePipeUnitTest {
         TestDatabase.truncateAll()
         cache.clear()
         val feed = SubscriptionFeedService(SubscriptionsService(), FakeChannelService(), cache)
-        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidator(cache, feed))
+        SubscriptionFeedCacheInvalidation.configure(SubscriptionFeedCacheInvalidatorImpl(cache, feed))
     }
 
     @Test

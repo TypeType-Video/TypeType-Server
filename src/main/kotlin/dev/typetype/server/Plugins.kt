@@ -21,6 +21,8 @@ import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.websocket.WebSockets
 import io.ktor.util.AttributeKey
+import dev.typetype.server.configureStatusPages
+import dev.typetype.server.routes.TooManyRequestsBodyAttribute
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
@@ -34,15 +36,7 @@ private const val PROXY_STORYBOARD_RATE_LIMIT = 1200
 private const val USER_DATA_RATE_LIMIT = 120
 private const val MAX_WEBSOCKET_FRAME_BYTES = 64L * 1024L * 1024L
 private val RATE_LIMIT_WINDOW = 1.minutes
-private val preserveTooManyRequestsBodyAttribute = AttributeKey<Unit>("preserveTooManyRequestsBody")
 
-val EXTRACTION_ZONE = RateLimitName("extraction")
-val DEARROW_ZONE = RateLimitName("dearrow")
-val STREAMS_ZONE = RateLimitName("streams")
-val CHANNEL_ZONE = RateLimitName("channel")
-val PROXY_ZONE = RateLimitName("proxy")
-val PROXY_STORYBOARD_ZONE = RateLimitName("proxy-storyboard")
-val USER_DATA_ZONE = RateLimitName("user-data")
 
 fun Application.configurePlugins(authService: AuthService) {
     installRequestObservability()
@@ -101,32 +95,5 @@ fun Application.configurePlugins(authService: AuthService) {
     configureStatusPages()
 }
 
-internal fun ApplicationCall.preserveTooManyRequestsBody() {
-    attributes.put(preserveTooManyRequestsBodyAttribute, Unit)
-}
 
-internal fun Application.configureStatusPages() {
-    val log = LoggerFactory.getLogger("RequestLogger")
-    install(StatusPages) {
-        status(HttpStatusCode.TooManyRequests) { call, status ->
-            if (call.attributes.contains(preserveTooManyRequestsBodyAttribute)) return@status
-            if (!call.response.headers.contains(HttpHeaders.RetryAfter)) call.response.headers.append(HttpHeaders.RetryAfter, "60")
-            call.respond(status, ErrorResponse("Too many requests", "rate_limited"))
-        }
-        exception<IllegalArgumentException> { call, cause ->
-            log.warn("Bad request: ${cause.message}")
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request", "bad_request"))
-        }
-        exception<Throwable> { call, cause ->
-            if (cause is io.ktor.utils.io.ClosedWriteChannelException) return@exception
-            if (cause is kotlinx.coroutines.CancellationException) throw cause
-            // Ktor's multipart producer can fail outside the route's receive block.
-            if (call.request.path() == "/portability/imports" && cause.isMultipartSizeLimit()) {
-                call.respondPortabilityError(dev.typetype.server.portability.PortabilityUploadTooLargeException())
-                return@exception
-            }
-            log.error("Unhandled exception requestId=${call.requestId()} path=${call.request.path()}", cause)
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Internal server error", "internal_error"))
-        }
-    }
-}
+
