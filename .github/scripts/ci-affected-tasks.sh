@@ -10,6 +10,11 @@ before="${GITHUB_EVENT_BEFORE:-}"
 zero_sha="0000000000000000000000000000000000000000"
 sha="${GITHUB_SHA:-$(git rev-parse HEAD)}"
 output_file="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
+task_name="${AFFECTED_GRADLE_TASK:-build}"
+case "$task_name" in
+  build|test) ;;
+  *) echo "Unsupported affected Gradle task: $task_name" >&2; exit 2 ;;
+esac
 
 emit_tasks() {
   if [[ -z "$1" ]]; then
@@ -24,7 +29,7 @@ emit_tasks() {
 }
 
 if [[ "$event_name" != "push" && "$event_name" != "pull_request" ]]; then
-  emit_tasks "build"
+  emit_tasks "$task_name"
   exit 0
 fi
 
@@ -49,7 +54,7 @@ elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
     git diff --name-only -z "HEAD^...$sha"
   )
 else
-  emit_tasks "build"
+  emit_tasks "$task_name"
   exit 0
 fi
 
@@ -110,7 +115,7 @@ for file in "${changed_files[@]}"; do
 done
 
 if [[ "$full_build" == true ]]; then
-  emit_tasks "build"
+  emit_tasks "$task_name"
   exit 0
 fi
 
@@ -149,7 +154,7 @@ mark_affected() {
 for module in "${!changed_modules[@]}"; do
   if [[ ! -f "$module/build.gradle.kts" ]]; then
     echo "Changed module no longer exists: $module" >&2
-    emit_tasks "build"
+    emit_tasks "$task_name"
     exit 0
   fi
 
@@ -158,7 +163,7 @@ done
 
 module_tasks="$(
   for module in "${!affected_modules[@]}"; do
-    printf ':%s:build\n' "$module"
+    printf ':%s:%s\n' "$module" "$task_name"
   done | sort
 )"
 

@@ -16,6 +16,8 @@ jobs:
     runs-on: [self-hosted, Linux, X64, ci-stack]
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Isolate Gradle user home
         run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-user-home" >> "$GITHUB_ENV"
@@ -28,18 +30,35 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Run tests and coverage report
-        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
+      - name: Detect affected test modules
+        id: affected
+        env:
+          AFFECTED_GRADLE_TASK: test
+        run: bash .github/scripts/ci-affected-tasks.sh
+
+      - name: Run affected tests and coverage report
+        if: steps.affected.outputs.tasks != ''
+        env:
+          TASKS: ${{ steps.affected.outputs.tasks }}
+        run: |
+          readarray -t task_args <<<"$TASKS"
+          printf 'Running affected tests:\n%s\n' "$TASKS"
+          ./gradlew "${task_args[@]}" --parallel --max-workers=32
+          ./gradlew jacocoTestReport jacocoTestCoverageVerification --parallel --max-workers=32
+
+      - name: No coverage required
+        if: steps.affected.outputs.tasks == ''
+        run: echo "No source or build changes require coverage."
 
       - name: Upload coverage HTML report
-        if: always()
+        if: always() && steps.affected.outputs.tasks != ''
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-html-report
           path: build/reports/jacoco/test/html
 
       - name: Upload coverage XML report
-        if: always()
+        if: always() && steps.affected.outputs.tasks != ''
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-xml-report
