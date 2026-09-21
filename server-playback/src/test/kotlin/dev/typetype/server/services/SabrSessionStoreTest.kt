@@ -55,6 +55,21 @@ class SabrSessionRegistryTest {
     }
 
     @Test
+    fun `active live playback requests refresh idle eviction timestamp`() {
+        val registry = SabrSessionRegistry()
+        val holder = holder("live", Instant.EPOCH)
+        holder.markExpectedLive()
+        registry.put(holder.key, holder)
+
+        assertSame(holder, registry.lookupByToken("live", holder.sessionToken))
+        assertSame(holder, registry.lookupByToken("live", holder.sessionToken, holder.audioFormat.itag))
+
+        registry.evictIdle(Instant.now().minusSeconds(1))
+
+        assertSame(holder, registry.lookupByToken(holder.sessionToken))
+    }
+
+    @Test
     fun `healthy session remains reusable`() {
         val registry = SabrSessionRegistry()
         val key = key("healthy")
