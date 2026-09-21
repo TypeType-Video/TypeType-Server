@@ -232,7 +232,7 @@ class SabrPlaybackWindowBuilderTest {
         )
         assertTrue(result.isReady)
         assertTrue(result.response.endOfStream)
-        assertEquals(898_000L, result.response.durationMs)
+        assertEquals(897_000L, result.response.durationMs)
         coVerify(exactly = 0) { store.cachedSegment(holder, match { it.sequenceNumber > 100 }) }
     }
 

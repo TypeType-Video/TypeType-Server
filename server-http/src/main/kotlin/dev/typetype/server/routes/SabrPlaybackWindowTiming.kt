@@ -12,7 +12,7 @@ internal fun SabrSessionHolder.durationMs(): Long {
     }
     val audioEndMs = indexedEndMs(audioFormat)
     val videoEndMs = indexedEndMs(videoFormat)
-    if (audioEndMs > 0L && videoEndMs > 0L) return maxOf(audioEndMs, videoEndMs)
+    if (audioEndMs > 0L && videoEndMs > 0L) return minOf(audioEndMs, videoEndMs)
     return maxOf(audioFormat.approxDurationMs, videoFormat.approxDurationMs, 0L)
 }
 
