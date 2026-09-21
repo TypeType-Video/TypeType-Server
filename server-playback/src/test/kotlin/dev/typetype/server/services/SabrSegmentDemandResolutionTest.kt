@@ -6,6 +6,7 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import dev.typetype.server.sabr.SabrMediaHeader
 import dev.typetype.server.sabr.SabrMediaSegment
@@ -17,6 +18,20 @@ import dev.typetype.server.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 class SabrSegmentCacheTest {
+    @Test
+    fun `segment demand refreshes session idle timestamp`() {
+        val audio = format(140, isAudio = true)
+        val video = format(137, isAudio = false)
+        val holder = holder(audio, video)
+        val stale = holder.lastRequestAt
+        val request = SabrSegmentRequest.media(audio, 1)
+
+        holder.requestSegmentDemand(request)
+
+        assertTrue(holder.lastRequestAt.isAfter(stale))
+        SabrSegmentDemandTracker.clearAll()
+    }
+
     @Test
     fun `vod cache observes media without copying segment bytes`() {
         val segmentCache = SabrSegmentCache()
@@ -57,6 +72,8 @@ class SabrSegmentCacheTest {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
+        every { session.isBeyondEnd(any()) } returns false
         every { state.setActiveTrackTypes(any(), any()) } returns Unit
         return SabrSessionHolder(
             session = session,

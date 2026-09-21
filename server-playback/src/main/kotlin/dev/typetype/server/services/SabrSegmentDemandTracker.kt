@@ -105,6 +105,7 @@ fun SabrSessionHolder.requestSegmentDemand(
     generation: Long = activeGeneration(),
     registeredAtMs: Long = System.currentTimeMillis(),
 ): Unit = synchronized(this) {
+    touch()
     val state = playbackState()
     if (generation == activeGeneration() && state != SabrPlaybackState.TERMINAL && state != SabrPlaybackState.NETWORK_FAILED) {
         SabrSegmentDemandTracker.request(this, request, registeredAtMs)
