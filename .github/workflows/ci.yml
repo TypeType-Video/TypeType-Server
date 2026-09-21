@@ -18,6 +18,8 @@ jobs:
     runs-on: [self-hosted, Linux, X64, ci-stack]
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Isolate Gradle user home
         run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/gradle-user-home" >> "$GITHUB_ENV"
@@ -29,5 +31,19 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Build
-        run: ./gradlew build --max-workers=8
+      - name: Detect affected Gradle modules
+        id: affected
+        run: bash .github/scripts/ci-affected-tasks.sh
+
+      - name: Build affected modules
+        env:
+          TASKS: ${{ steps.affected.outputs.tasks }}
+        run: |
+          if [[ -z "$TASKS" ]]; then
+            echo "No Gradle compilation or tests are required."
+            exit 0
+          fi
+
+          readarray -t task_args <<<"$TASKS"
+          printf 'Running:\n%s\n' "$TASKS"
+          ./gradlew "${task_args[@]}" --parallel --max-workers=32
