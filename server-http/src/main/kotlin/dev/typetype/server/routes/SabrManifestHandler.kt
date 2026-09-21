@@ -89,7 +89,7 @@ internal class SabrManifestHandler(
             prepared.info,
             audioToken?.selectedItag ?: call.request.queryParameters["audioItag"]?.toIntOrNull(),
             audioToken?.selectedAudioTrackId ?: call.request.queryParameters["audioTrackId"],
-            requireAac = true,
+            requireAac = false,
         )
             ?: return call.respond(
                 HttpStatusCode.UnprocessableEntity,
@@ -149,7 +149,7 @@ internal class SabrManifestHandler(
         if (preflight(holder, startTimeMs)) return holder
         sabrSessionStore.release(holder)
         val refreshed = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = false) ?: prepared
-        val refreshedAudio = SabrFormatSelector.audio(refreshed.info, audio.itag, audio.audioTrackId, requireAac = true)
+        val refreshedAudio = SabrFormatSelector.audio(refreshed.info, audio.itag, audio.audioTrackId, requireAac = false)
             ?: return null
         val refreshedVideo = SabrFormatSelector.video(refreshed.info, video.itag) ?: return null
         val fresh = createHolder(videoId, userId, refreshed, refreshedAudio, refreshedVideo, startTimeMs, purpose)

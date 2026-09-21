@@ -87,6 +87,46 @@ class SabrStreamContractFilterTest {
         assertEquals(setOf("avc1.4d4028", "vp9", "av01.0.08M.08"), sabr.videoOnlyStreams.map { it.codec }.toSet())
     }
 
+    @Test
+    fun `sabr contract exposes Opus audio for browsers without AAC MSE`() = runTest {
+        val aac = audioFormat(140, "audio/mp4; codecs=\"mp4a.40.2\"")
+        val opus = audioFormat(249, "audio/webm; codecs=\"opus\"")
+        val video = videoFormat(137, "video/mp4; codecs=\"avc1.4d4028\"")
+        val info = mockk<YoutubeSabrInfo> {
+            every { formats } returns listOf(aac, opus, video)
+            every { findFormatByItag(any()) } answers {
+                formats.firstOrNull { it.itag == firstArg<Int>() }
+            }
+        }
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.fetchInfo(VIDEO_ID, cachedFirst = true) } returns SabrPreparedInfo(info, null)
+        val aacStream = testAudioStream(
+            itag = 140,
+            deliveryMethod = "sabr",
+            sabrSessionUrl = "/sabr/session/$VIDEO_ID?audioItag=140",
+        )
+        val opusStream = aacStream.copy(
+            itag = 249,
+            codec = "opus",
+            mimeType = "audio/webm",
+            format = "WEBM",
+            sabrSessionUrl = "/sabr/session/$VIDEO_ID?audioItag=249",
+        )
+        val filtered = testStreamResponse(
+            videoOnlyStreams = listOf(
+                testVideoStream(itag = 137).copy(
+                    deliveryMethod = "sabr",
+                    sabrSessionUrl = "/sabr/session/$VIDEO_ID?videoItag=137",
+                ),
+            ),
+            audioStreams = listOf(aacStream),
+        ).withPlayableSabrStreams(YOUTUBE_URL, store).onlySabrStreams()
+
+        assertEquals(setOf(140, 249), filtered.audioStreams.map { it.itag }.toSet())
+        assertEquals("audio/webm", filtered.audioStreams.first { it.itag == 249 }.mimeType)
+        assertEquals("opus", filtered.audioStreams.first { it.itag == 249 }.codec)
+    }
+
     private fun videoFormat(itag: Int, mime: String): YoutubeSabrFormat =
         mockk(relaxed = true) {
             every { isAudio } returns false
@@ -96,6 +136,23 @@ class SabrStreamContractFilterTest {
             every { height } returns 1080
             every { width } returns 1920
             every { qualityLabel } returns "1080p"
+        }
+
+    private fun audioFormat(itag: Int, mime: String): YoutubeSabrFormat =
+        mockk(relaxed = true) {
+            every { isAudio } returns true
+            every { isVideo } returns false
+            every { this@mockk.itag } returns itag
+            every { mimeType } returns mime
+            every { audioTrackId } returns null
+            every { isOriginalAudio } returns true
+            every { isDrc } returns false
+            every { xtags } returns null
+            every { bitrate } returns 128000
+            every { width } returns 0
+            every { height } returns 0
+            every { qualityLabel } returns null
+            every { contentLength } returns 1_000_000L
         }
 
     private companion object {

@@ -56,7 +56,7 @@ internal class SabrSessionDescriptorHandler(
             prepared.info,
             call.request.queryParameters["audioItag"]?.toIntOrNull(),
             call.request.queryParameters["audioTrackId"],
-            requireAac = true,
+            requireAac = false,
         ) ?: return call.respond(
             HttpStatusCode.UnprocessableEntity,
             ErrorResponse("No SABR audio for this video", "no_playable_streams"),
@@ -109,7 +109,7 @@ internal class SabrSessionDescriptorHandler(
         if (preflight(holder, startTimeMs)) return holder
         sabrSessionStore.release(holder)
         val refreshed = sabrSessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = false) ?: prepared
-        val refreshedAudio = SabrFormatSelector.audio(refreshed.info, audio.itag, audio.audioTrackId, requireAac = true)
+        val refreshedAudio = SabrFormatSelector.audio(refreshed.info, audio.itag, audio.audioTrackId, requireAac = false)
             ?: return null
         val refreshedVideo = SabrFormatSelector.video(refreshed.info, video.itag) ?: return null
         val fresh = createHolder(videoId, userId, refreshed, refreshedAudio, refreshedVideo, startTimeMs)

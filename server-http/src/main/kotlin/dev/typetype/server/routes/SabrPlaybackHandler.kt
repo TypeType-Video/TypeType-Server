@@ -72,7 +72,7 @@ internal class SabrPlaybackHandler(
             prepared.info,
             request.audioItag ?: holder.audioFormat.itag,
             request.audioTrackId ?: holder.audioFormat.audioTrackId,
-            requireAac = true,
+            requireAac = false,
         ) ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
         val video = SabrFormatSelector.video(prepared.info, request.videoItag ?: holder.videoFormat.itag)
             ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR video for this video"))
@@ -184,7 +184,7 @@ internal class SabrPlaybackHandler(
         prepared.info,
         request.audioItag,
         request.audioTrackId,
-        requireAac = true,
+        requireAac = false,
     ) ?: run {
         call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("No SABR audio for this video"))
         null
