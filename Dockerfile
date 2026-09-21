@@ -9,8 +9,22 @@ COPY gradlew ./
 COPY gradle/ ./gradle/
 RUN ./gradlew --version --no-daemon -q
 COPY build.gradle.kts gradle.properties settings.gradle.kts* ./
-RUN ./gradlew dependencies --no-daemon -q || true
 COPY src/ ./src/
+COPY server-admin/ ./server-admin/
+COPY server-auth/ ./server-auth/
+COPY server-cache/ ./server-cache/
+COPY server-core/ ./server-core/
+COPY server-db/ ./server-db/
+COPY server-domain/ ./server-domain/
+COPY server-downloader/ ./server-downloader/
+COPY server-http/ ./server-http/
+COPY server-playback/ ./server-playback/
+COPY server-portability/ ./server-portability/
+COPY server-sabr/ ./server-sabr/
+COPY server-test-support/ ./server-test-support/
+COPY server-services/ ./server-services/
+COPY server-token-gateway/ ./server-token-gateway/
+RUN ./gradlew dependencies --no-daemon -q || true
 RUN ./gradlew shadowJar --no-daemon -q -PappVersion="$APP_VERSION"
 
 FROM eclipse-temurin:25-jre-alpine AS runner
