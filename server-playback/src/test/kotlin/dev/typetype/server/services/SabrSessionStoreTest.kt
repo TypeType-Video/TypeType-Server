@@ -63,6 +63,7 @@ class SabrSessionRegistryTest {
 
         assertSame(holder, registry.lookupByToken("live", holder.sessionToken))
         assertSame(holder, registry.lookupByToken("live", holder.sessionToken, holder.audioFormat.itag))
+        assertSame(holder, registry.lookupByItag("live", "user", holder.audioFormat.itag))
 
         registry.evictIdle(Instant.now().minusSeconds(1))
 
