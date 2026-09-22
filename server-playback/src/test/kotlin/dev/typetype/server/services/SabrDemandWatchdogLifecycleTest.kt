@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import dev.typetype.server.sabr.SabrSegmentRequest
@@ -97,6 +98,67 @@ class SabrDemandWatchdogBackoffTest {
             assertTrue(job.isCompleted)
             assertTrue(expired)
             assertEquals("SABR demand stalled for 299:50", holder.terminalFailure())
+        }
+    }
+
+    @Test
+    fun `future live demand waits past deadline in the same generation`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            every { holder.session.isLive } returns true
+            every { holder.session.streamState.isLive } returns true
+            every { holder.session.streamState.getMaxSegment(holder.videoFormat) } returns 49
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val job = launch {
+                SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS)
+            runCurrent()
+            advanceTimeBy(LIVE_EDGE_POLL_MS)
+            runCurrent()
+
+            assertFalse(job.isCompleted)
+            assertEquals(SabrPlaybackState.WAITING_FOR_LIVE, holder.playbackState())
+            assertEquals("299:50", holder.pendingSegmentDemandSummary())
+            assertEquals(0L, holder.activeGeneration())
+            assertEquals(null, holder.terminalFailure())
+            job.cancel()
+        }
+    }
+
+    @Test
+    fun `stalled live attempt is cancelled and requeued`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            every { holder.session.isLive } returns true
+            every { holder.session.streamState.isLive } returns true
+            every { holder.session.streamState.getMaxSegment(holder.videoFormat) } returns 49
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            assertTrue(holder.beginInFlightSegmentDemand(request, identity, futureLiveRequest = true))
+            var cancelled = false
+            holder.registerInFlightDemandCancellation(identity) { cancelled = true }
+            val demand = requireNotNull(holder.inFlightSegmentDemand())
+
+            assertTrue(
+                SabrDemandAttemptFinisher.interruptStalledInFlightDemand(
+                    holder,
+                    demand,
+                    nowMs = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
+                    expectedDelayMs = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
+                ),
+            )
+
+            assertTrue(cancelled)
+            assertEquals(SabrPlaybackState.WAITING_FOR_LIVE, holder.playbackState())
+            assertNotEquals(identity, holder.segmentDemandIdentity(request))
+            assertEquals(0L, holder.activeGeneration())
+            assertEquals(null, holder.terminalFailure())
         }
     }
 

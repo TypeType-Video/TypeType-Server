@@ -4,10 +4,12 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import dev.typetype.server.sabr.SabrMediaHeader
 import dev.typetype.server.sabr.SabrMediaSegment
+import dev.typetype.server.sabr.SabrSegmentRequest
 import dev.typetype.server.sabr.YoutubeSabrFormat
 import dev.typetype.server.sabr.YoutubeSabrInfo
 import dev.typetype.server.sabr.YoutubeSabrSession
@@ -34,6 +36,24 @@ class SabrLivePumpStepTest {
 
         assertTrue(pumps == 0)
         assertFalse(immediate)
+    }
+
+    @Test
+    fun `live pump waits when the next demand is not published yet`() = runTest {
+        SabrSegmentDemandTracker.clearAll()
+        try {
+            val fixture = fixture(playerTimeMs = 100_000L, observedEndMs = 103_000L)
+            every { fixture.holder.session.isLive } returns true
+            every { fixture.holder.session.streamState.isLive } returns true
+            every { fixture.holder.session.streamState.getMaxSegment(fixture.holder.videoFormat) } returns 100
+            fixture.holder.requestSegmentDemand(SabrSegmentRequest.media(fixture.holder.videoFormat, 101))
+
+            pumpLiveReadAhead(fixture.holder, SabrPumpRuntime(), { 0 }) { _, _ -> }
+
+            assertEquals(SabrPlaybackState.WAITING_FOR_LIVE, fixture.holder.playbackState())
+        } finally {
+            SabrSegmentDemandTracker.clearAll()
+        }
     }
 
     private fun fixture(playerTimeMs: Long, observedEndMs: Long): Fixture {
