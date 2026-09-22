@@ -1,9 +1,8 @@
 package dev.typetype.server.services
 
-/** Validates the optional instance-wide BiliBili cookie used by extraction. */
+/** Validates cookies captured for an authenticated BiliBili user session. */
 data class BilibiliCookieConfig internal constructor(
     val cookieHeader: String?,
-    val wasProvided: Boolean,
 ) {
     val isConfigured: Boolean
         get() = cookieHeader != null
@@ -13,13 +12,10 @@ data class BilibiliCookieConfig internal constructor(
         private val COOKIE_NAME = Regex("[!#\\$%&'*+.^_`|~0-9A-Za-z-]+")
         private val ACCOUNT_COOKIE_NAMES = setOf("SESSDATA", "bili_jct", "buvid3", "DedeUserID")
 
-        fun fromEnvironment(read: (String) -> String? = System::getenv): BilibiliCookieConfig =
-            fromRaw(SecretConfigReader.read("BILIBILI_COOKIE", read))
-
         fun fromRaw(raw: String?): BilibiliCookieConfig {
             val supplied = raw?.trim()?.takeIf { it.isNotEmpty() }
-                ?: return BilibiliCookieConfig(cookieHeader = null, wasProvided = false)
-            return BilibiliCookieConfig(cookieHeader = normalize(supplied), wasProvided = true)
+                ?: return BilibiliCookieConfig(cookieHeader = null)
+            return BilibiliCookieConfig(cookieHeader = normalize(supplied))
         }
 
         private fun normalize(raw: String): String? {
