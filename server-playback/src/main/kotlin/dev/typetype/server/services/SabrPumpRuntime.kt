@@ -37,6 +37,9 @@ class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis)
         if (demandKey == requestKey) resetDemandRecovery()
     }
 
+    fun demandNeedsTargetedShape(requestKey: String): Boolean =
+        demandKey == requestKey && demandTrackReadvertised
+
     fun demandRecoveryAction(
         requestKey: String,
         requestPerformed: Boolean,

@@ -112,7 +112,7 @@ class SabrSessionPumpLoop(
                 identity = demandIdentity,
                 wasFutureLiveRequest = wasFutureLiveRequest,
                 runtime = runtime,
-                pump = { pumpDemand(holder, localization, request, runtime) },
+                pump = { pumpDemand(holder, localization, request, demandIdentity, runtime) },
                 onResolved = { onResolved(holder, it) },
             )
         }
@@ -166,6 +166,7 @@ class SabrSessionPumpLoop(
         holder: SabrSessionHolder,
         localization: Localization,
         request: SabrSegmentRequest,
+        identity: String,
         runtime: SabrPumpRuntime,
     ): YoutubeSabrSession.DemandResponseResult {
         val edgeMs = holder.session.streamState.getMinBufferedEndMs()
@@ -175,6 +176,12 @@ class SabrSessionPumpLoop(
             if (holder.isHistoricalLiveRequest(request)) {
                 holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 holder.prepareForHistoricalLiveRewind(request)
+                return withTargetedRequestShape(holder, request, prepareSession = false) {
+                    pumpUntilCached(holder, localization, request, runtime)
+                }
+            }
+            if (runtime.demandNeedsTargetedShape(identity)) {
+                holder.setPlaybackState(SabrPlaybackState.REPOSITIONING)
                 return withTargetedRequestShape(holder, request, prepareSession = false) {
                     pumpUntilCached(holder, localization, request, runtime)
                 }
