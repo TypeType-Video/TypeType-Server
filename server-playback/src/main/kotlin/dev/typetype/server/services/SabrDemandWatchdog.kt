@@ -13,29 +13,48 @@ class SabrDemandWatchdog(
             if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return false
             val inFlightDemand = holder.inFlightSegmentDemand()
             if (inFlightDemand != null) {
+                val nowMs = clock()
+                val backoffRemainingMs = holder.session.demandBackoffRemainingMs
                 if (holder.isLiveDemandOutsideRecoverableWindow(inFlightDemand.request) &&
-                    SabrDemandAttemptFinisher.expireStalledInFlightDemand(holder, inFlightDemand, recoverable = true)
+                    SabrDemandAttemptFinisher.expireStalledInFlightDemand(
+                        holder,
+                        inFlightDemand,
+                        recoverable = true,
+                        nowMs = nowMs,
+                    )
                 ) {
                     return true
                 }
                 if (inFlightDemand.futureLiveRequest) holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
-                val nowMs = clock()
-                val backoffRemainingMs = holder.session.demandBackoffRemainingMs
                 val lastProgressAtMs = inFlightDemand.observeProgress(holder.session.mediaProgressVersion, nowMs)
                 val completedIdle = holder.session.getCachedSegment(inFlightDemand.request) != null &&
                     nowMs - lastProgressAtMs >= SabrPumpPolicy.COMPLETED_DEMAND_IDLE_MS
                 if (completedIdle && SabrDemandAttemptFinisher.interruptCompletedInFlightDemand(holder, inFlightDemand)) {
                     return true
                 }
-                if (deadline.isExpired(
-                        inFlightDemand.identity,
-                        inFlightDemand.registeredAtMs,
-                        nowMs,
-                        backoffRemainingMs,
-                    ) &&
-                    SabrDemandAttemptFinisher.expireStalledInFlightDemand(holder, inFlightDemand)
-                ) {
-                    return true
+                val deadlineAtMs = deadline.deadlineAtMs(
+                    inFlightDemand.identity,
+                    inFlightDemand.registeredAtMs,
+                    nowMs,
+                    backoffRemainingMs,
+                )
+                if (nowMs >= deadlineAtMs) {
+                    if (inFlightDemand.futureLiveRequest) {
+                        SabrDemandAttemptFinisher.interruptStalledInFlightDemand(
+                            holder,
+                            inFlightDemand,
+                            nowMs = nowMs,
+                            expectedDelayMs = (deadlineAtMs - inFlightDemand.registeredAtMs).coerceAtLeast(0L),
+                        )
+                    } else if (SabrDemandAttemptFinisher.expireStalledInFlightDemand(
+                            holder,
+                            inFlightDemand,
+                            nowMs = nowMs,
+                            expectedDelayMs = (deadlineAtMs - inFlightDemand.registeredAtMs).coerceAtLeast(0L),
+                        )
+                    ) {
+                        return true
+                    }
                 }
                 delay(nextCheckDelayMs(backoffRemainingMs, inFlightDemand.futureLiveRequest))
                 continue
@@ -57,18 +76,26 @@ class SabrDemandWatchdog(
             }
             if (futureLiveRequest) {
                 holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
+                delay(nextCheckDelayMs(holder.session.demandBackoffRemainingMs, futureLiveRequest))
+                continue
             }
             val identity = holder.segmentDemandIdentity(request)
             val registeredAtMs = identity?.let { holder.segmentDemandRegisteredAtMs(request, it) }
             val nowMs = clock()
             val backoffRemainingMs = holder.session.demandBackoffRemainingMs
-            if (identity != null && registeredAtMs != null && deadline.isExpired(
+            val deadlineAtMs = identity?.let { demandIdentity ->
+                registeredAtMs?.let { registered ->
+                    deadline.deadlineAtMs(demandIdentity, registered, nowMs, backoffRemainingMs)
+                }
+            }
+            if (identity != null && registeredAtMs != null && deadlineAtMs != null && nowMs >= deadlineAtMs &&
+                SabrDemandAttemptFinisher.expireStalledDemand(
+                    holder,
+                    request,
                     identity,
-                    registeredAtMs,
-                    nowMs,
-                    backoffRemainingMs,
-                ) &&
-                SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity, futureLiveRequest)
+                    nowMs = nowMs,
+                    expectedDelayMs = (deadlineAtMs - registeredAtMs).coerceAtLeast(0L),
+                )
             ) {
                 return true
             }

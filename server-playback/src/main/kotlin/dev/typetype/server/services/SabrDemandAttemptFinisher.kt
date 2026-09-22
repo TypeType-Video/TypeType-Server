@@ -11,14 +11,59 @@ object SabrDemandAttemptFinisher {
             if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
             if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
             if (holder.session.getCachedSegment(demand.request) == null) return@synchronized false
+            holder.requestInFlightDemandInterruption(
+                demand.identity,
+                SabrDemandInterruption(
+                    action = SabrDemandInterruptionAction.RESTART,
+                    atMs = System.currentTimeMillis(),
+                    reason = "completed_demand",
+                ),
+            )
             holder.setPlaybackState(SabrPlaybackState.IDLE)
             true
         }
+
+    fun interruptStalledInFlightDemand(
+        holder: SabrSessionHolder,
+        demand: SabrInFlightDemand,
+        nowMs: Long,
+        expectedDelayMs: Long,
+    ): Boolean = synchronized(holder) {
+        val state = holder.playbackState()
+        if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
+        if (!demand.futureLiveRequest || holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+        if (holder.session.getCachedSegment(demand.request) != null) return@synchronized false
+        if (!holder.requeueSegmentDemand(demand.request, demand.identity, nowMs)) return@synchronized false
+        holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
+        holder.requestInFlightDemandInterruption(
+            demand.identity,
+            SabrDemandInterruption(
+                action = SabrDemandInterruptionAction.WAIT_FOR_LIVE,
+                atMs = nowMs,
+                reason = "future_live_not_published",
+            ),
+        )
+        SabrPumpLogger.expired(
+            holder,
+            demand.request,
+            recoverable = true,
+            registeredAtMs = demand.registeredAtMs,
+            nowMs = nowMs,
+            expectedDelayMs = expectedDelayMs,
+            reason = "future_live_not_published",
+            attempts = demand.attempts(),
+            lastAttemptDurationMs = demand.lastAttemptDurationMs(),
+            event = "demand_requeued",
+        )
+        true
+    }
 
     fun expireStalledInFlightDemand(
         holder: SabrSessionHolder,
         demand: SabrInFlightDemand,
         recoverable: Boolean = demand.futureLiveRequest,
+        nowMs: Long = System.currentTimeMillis(),
+        expectedDelayMs: Long = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
     ): Boolean =
         synchronized(holder) {
             val state = holder.playbackState()
@@ -26,7 +71,25 @@ object SabrDemandAttemptFinisher {
             if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
             holder.clearSegmentDemands()
             val message = "SABR demand stalled for ${demand.request.summary()}"
-            SabrPumpLogger.expired(holder, demand.request, recoverable)
+            holder.requestInFlightDemandInterruption(
+                demand.identity,
+                SabrDemandInterruption(
+                    action = SabrDemandInterruptionAction.RESTART,
+                    atMs = nowMs,
+                    reason = "terminal_deadline",
+                ),
+            )
+            SabrPumpLogger.expired(
+                holder,
+                demand.request,
+                recoverable,
+                registeredAtMs = demand.registeredAtMs,
+                nowMs = nowMs,
+                expectedDelayMs = expectedDelayMs,
+                reason = "terminal_deadline",
+                attempts = demand.attempts(),
+                lastAttemptDurationMs = demand.lastAttemptDurationMs(),
+            )
             holder.failTerminal(if (recoverable) sabrRecoverableFailureMessage(message) else message)
             true
         }
@@ -36,12 +99,22 @@ object SabrDemandAttemptFinisher {
         request: SabrSegmentRequest,
         identity: String,
         recoverable: Boolean = false,
+        nowMs: Long = System.currentTimeMillis(),
+        expectedDelayMs: Long = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
     ): Boolean = synchronized(holder) {
         val state = holder.playbackState()
         if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
         val current = holder.nextSegmentDemand() ?: return@synchronized false
         if (!current.matches(request) || holder.segmentDemandIdentity(current) != identity) return@synchronized false
-        SabrPumpLogger.expired(holder, request, recoverable)
+        SabrPumpLogger.expired(
+            holder,
+            request,
+            recoverable,
+            registeredAtMs = holder.segmentDemandRegisteredAtMs(request, identity),
+            nowMs = nowMs,
+            expectedDelayMs = expectedDelayMs,
+            reason = "terminal_deadline",
+        )
         fail(holder, request, identity, recoverable)
     }
 

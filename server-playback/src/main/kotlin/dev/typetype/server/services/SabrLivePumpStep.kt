@@ -18,7 +18,8 @@ internal suspend fun pumpLiveReadAhead(
     holder.setPlaybackState(SabrPlaybackState.REQUESTING)
     withLiveContinuationRequestShape(holder) { pump() }
     val cached = holder.cacheObservedLiveContinuation(onResolved)
-    holder.setPlaybackState(SabrPlaybackState.IDLE)
+    val waitingForLive = cached == 0 && holder.nextSegmentDemand()?.let(holder::isFutureLiveRequest) == true
+    holder.setPlaybackState(if (waitingForLive) SabrPlaybackState.WAITING_FOR_LIVE else SabrPlaybackState.IDLE)
     return cached > 0 && holder.observedLiveAheadMs() < targetAheadMs
 }
 
