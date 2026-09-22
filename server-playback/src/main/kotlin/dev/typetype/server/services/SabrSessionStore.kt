@@ -92,7 +92,6 @@ class SabrSessionStore(
     fun startPump(holder: SabrSessionHolder) {
         scope.launchSabrPump(pump, registry, holder, pumpLoopIntervalMs)
     }
-
     fun warmPlaybackAsync(holder: SabrSessionHolder) {
         if (holder.playerTimeMs() > 0L) return
         if (holder.playbackState() == SabrPlaybackState.REQUESTING || holder.playbackState() == SabrPlaybackState.REPOSITIONING) return
