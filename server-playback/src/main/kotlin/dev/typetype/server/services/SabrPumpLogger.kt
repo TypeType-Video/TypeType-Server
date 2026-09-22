@@ -52,15 +52,42 @@ object SabrPumpLogger {
         )
     }
 
-    fun expired(holder: SabrSessionHolder, request: SabrSegmentRequest, recoverable: Boolean): Unit {
+    fun expired(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        recoverable: Boolean,
+        registeredAtMs: Long? = null,
+        nowMs: Long = System.currentTimeMillis(),
+        expectedDelayMs: Long? = null,
+        reason: String = "deadline",
+        attempts: Int = 0,
+        lastAttemptDurationMs: Long = -1L,
+        event: String = "demand_expired",
+    ): Unit {
+        val liveHeadTimeMs = holder.livePlaybackSnapshot()?.headTimeMs ?: -1L
+        val segmentEndMs = runCatching { holder.playbackSegmentEndMs(request.format, request.sequenceNumber) }
+            .getOrDefault(-1L)
+        val bufferedEdgeMs = holder.session.streamState.getMinBufferedEndMs()
+        val ageMs = registeredAtMs?.let { (nowMs - it).coerceAtLeast(0L) } ?: -1L
         logger.warn(
-            "sabr_pump event=demand_expired videoId={} request={} recoverable={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
+            "sabr_pump event={} videoId={} request={} track={} sequence={} recoverable={} ageMs={} registeredAtMs={} expectedDelayMs={} liveHeadTimeMs={} segmentEndMs={} bufferedEdgeMs={} lastAttemptDurationMs={} attempts={} reason={} state={} requestNumber={} readerHeadMs={} readerTailMs={} cachedBytes={}",
+            event,
             holder.key.videoId,
             request.summary(),
+            if (request.format.isAudio) "audio" else "video",
+            request.sequenceNumber,
             recoverable,
+            ageMs,
+            registeredAtMs ?: -1L,
+            expectedDelayMs ?: -1L,
+            liveHeadTimeMs,
+            segmentEndMs,
+            bufferedEdgeMs,
+            lastAttemptDurationMs,
+            attempts,
+            reason,
             holder.playbackState(),
             holder.session.requestNumber,
-            holder.session.streamState.getMinBufferedEndMs(),
             holder.readerHeadMs(),
             holder.readerTailMs(),
             holder.session.cachedBytes,

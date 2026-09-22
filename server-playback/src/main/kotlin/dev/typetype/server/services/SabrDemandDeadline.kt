@@ -15,12 +15,19 @@ class SabrDemandDeadline(
         registeredAtMs: Long,
         nowMs: Long,
         backoffRemainingMs: Long,
-    ): Boolean {
+    ): Boolean = nowMs >= deadlineAtMs(identity, registeredAtMs, nowMs, backoffRemainingMs)
+
+    fun deadlineAtMs(
+        identity: String,
+        registeredAtMs: Long,
+        nowMs: Long,
+        backoffRemainingMs: Long,
+    ): Long {
         if (this.identity != identity || this.registeredAtMs != registeredAtMs) {
             reset(identity, registeredAtMs)
         }
         extendForBackoff(nowMs, backoffRemainingMs)
-        return nowMs >= expiresAtMs
+        return expiresAtMs
     }
 
     private fun reset(identity: String, registeredAtMs: Long) {

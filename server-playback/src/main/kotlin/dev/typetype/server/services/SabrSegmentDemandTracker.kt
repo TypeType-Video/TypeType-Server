@@ -72,6 +72,19 @@ object SabrSegmentDemandTracker {
         return demand.registeredAtMs.takeIf { identity(requestKey, demand) == identity }
     }
 
+    fun requeue(
+        holder: SabrSessionHolder,
+        request: SabrSegmentRequest,
+        identity: String,
+        registeredAtMs: Long,
+    ): Boolean {
+        val requestKey = key(holder, request)
+        val demand = demands[requestKey] ?: return false
+        if (identity(requestKey, demand) != identity) return false
+        val replacement = SegmentDemand(request, order.incrementAndGet(), registeredAtMs)
+        return demands.replace(requestKey, demand, replacement)
+    }
+
     fun clear(holder: SabrSessionHolder, request: SabrSegmentRequest, identity: String): Boolean {
         val requestKey = key(holder, request)
         val demand = demands[requestKey] ?: return false
@@ -127,6 +140,12 @@ fun SabrSessionHolder.isSegmentDemandActive(request: SabrSegmentRequest, identit
 
 fun SabrSessionHolder.segmentDemandRegisteredAtMs(request: SabrSegmentRequest, identity: String): Long? =
     SabrSegmentDemandTracker.registeredAtMs(this, request, identity)
+
+internal fun SabrSessionHolder.requeueSegmentDemand(
+    request: SabrSegmentRequest,
+    identity: String,
+    registeredAtMs: Long,
+): Boolean = SabrSegmentDemandTracker.requeue(this, request, identity, registeredAtMs)
 
 fun SabrSessionHolder.clearSegmentDemand(request: SabrSegmentRequest, identity: String): Boolean =
     SabrSegmentDemandTracker.clear(this, request, identity)
