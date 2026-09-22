@@ -115,6 +115,7 @@ class SabrPumpRuntimeTest {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { holder.session } returns session
+        every { holder.expectsLive() } returns false
         every { holder.playerTimeMs() } returns playerTimeMs
         every { holder.playbackRate() } returns playbackRate
         every { holder.readerTailMs() } returns 1L

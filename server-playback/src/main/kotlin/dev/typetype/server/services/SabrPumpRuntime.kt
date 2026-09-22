@@ -62,14 +62,31 @@ class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis)
     }
 
     fun targetReadaheadCushionMs(holder: SabrSessionHolder): Long {
+        var usesLiveReadAhead = false
         val baseCushionMs = when {
             isSeekMode() -> SabrPumpPolicy.SEEK_READAHEAD_CUSHION_MS
             isStartupBurst() -> SabrPumpPolicy.STARTUP_BURST_READAHEAD_CUSHION_MS
             holder.playerTimeMs() == 0L && holder.readerTailMs() == 0L ->
                 SabrPumpPolicy.STARTUP_READAHEAD_CUSHION_MS
+            holder.livePlaybackSnapshot()?.active == true -> {
+                usesLiveReadAhead = true
+                liveReadaheadCushionMs(holder)
+            }
             else -> serverReadaheadCushionMs(holder)
         }
-        return rateAwareCushionMs(baseCushionMs, holder.playbackRate())
+        val maximumCushionMs = if (usesLiveReadAhead) baseCushionMs else MAX_RATE_AWARE_CUSHION_MS
+        return rateAwareCushionMs(baseCushionMs, holder.playbackRate(), maximumCushionMs)
+    }
+
+    private fun liveReadaheadCushionMs(holder: SabrSessionHolder): Long {
+        val bitsPerSecond = holder.videoFormat.bitrate.toLong().coerceAtLeast(0L) +
+            holder.audioFormat.bitrate.toLong().coerceAtLeast(0L)
+        if (bitsPerSecond <= 0L) return SabrPumpPolicy.LIVE_READAHEAD_CUSHION_MS
+        val bytesPerMs = (bitsPerSecond / 8_000L).coerceAtLeast(1L)
+        val memoryBoundMs = SabrPumpPolicy.MAX_AHEAD_BYTES / bytesPerMs
+        return SabrPumpPolicy.LIVE_READAHEAD_CUSHION_MS.coerceAtMost(
+            memoryBoundMs.coerceAtLeast(SabrPumpPolicy.MIN_SERVER_READAHEAD_CUSHION_MS),
+        )
     }
 
     private fun serverReadaheadCushionMs(holder: SabrSessionHolder): Long {
@@ -82,8 +99,8 @@ class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis)
         )
     }
 
-    private fun rateAwareCushionMs(baseMs: Long, playbackRate: Float): Long =
-        (baseMs * playbackRate.coerceIn(0.25f, 4.0f)).roundToLong().coerceAtMost(MAX_RATE_AWARE_CUSHION_MS)
+    private fun rateAwareCushionMs(baseMs: Long, playbackRate: Float, maximumMs: Long): Long =
+        (baseMs * playbackRate.coerceIn(0.25f, 4.0f)).roundToLong().coerceAtMost(maximumMs)
 
     private fun cappedServerAheadPlayerTimeMs(holder: SabrSessionHolder, edgeMs: Long): Long =
         maxOf(holder.playerTimeMs(), edgeMs - SabrPumpPolicy.SERVER_AHEAD_MARGIN_MS)

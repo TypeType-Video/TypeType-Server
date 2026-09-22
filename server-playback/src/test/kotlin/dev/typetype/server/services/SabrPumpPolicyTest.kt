@@ -19,10 +19,38 @@ import dev.typetype.server.sabr.SabrSegmentRequest
 import dev.typetype.server.sabr.YoutubeSabrFormat
 import dev.typetype.server.sabr.YoutubeSabrInfo
 import dev.typetype.server.sabr.YoutubeSabrSession
+import dev.typetype.server.sabr.YoutubeSabrStreamState
 import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrPumpLauncherTest {
+    @Test
+    fun `active live playback keeps a bounded larger read ahead cushion`() {
+        val audio = format(140, isAudio = true)
+        val video = format(136, isAudio = false)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.isLive } returns true
+        every { state.isLive } returns true
+        every { state.isPostLiveDvr } returns false
+        val holder = SabrSessionHolder(
+            session = session,
+            info = mockk<YoutubeSabrInfo>(),
+            audioFormat = audio,
+            videoFormat = video,
+            sessionToken = "session-token",
+            key = SabrSessionKey("video", "user", audio.itag, null, video.itag, 0L),
+            lastRequestAt = Instant.EPOCH,
+        )
+        holder.setPlayerTimeMs(100_000L)
+        var now = 0L
+        val runtime = SabrPumpRuntime { now }
+        now = 30_000L
+
+        assertEquals(90_000L, runtime.targetReadaheadCushionMs(holder))
+    }
+
     @Test
     fun `watchdog ignores companion progress for missing demand`() = runTest {
         SabrSegmentDemandTracker.clearAll()
@@ -226,6 +254,7 @@ class SabrPumpLauncherTest {
         val format = mockk<YoutubeSabrFormat>()
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
+        every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
         return format
     }
 }
