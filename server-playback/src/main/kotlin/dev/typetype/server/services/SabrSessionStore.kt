@@ -71,7 +71,8 @@ class SabrSessionStore(
             isolatedSourceId,
         )
         registry.getReusable(key)?.let { return it }
-        registry.ensureCapacity(maxSessions)
+        val activeCutoff = Instant.now().minus(idleEviction)
+        registry.ensureCapacity(maxSessions, activeCutoff)
         val holder = sessionFactory.create(
             key,
             info,
@@ -84,7 +85,7 @@ class SabrSessionStore(
         )
         val active = registry.put(key, holder)
         if (active !== holder) return active
-        registry.trimToCapacity(maxSessions, holder)
+        registry.trimToCapacity(maxSessions, holder, activeCutoff)
         if (startPump) startPump(holder)
         return holder
     }
@@ -125,6 +126,7 @@ class SabrSessionStore(
             .takeIf { cached -> cached.all { it != null } }?.filterNotNull()
 
     suspend fun cachedSegment(holder: SabrSessionHolder, request: SabrSegmentRequest): CachedSabrSegment? {
+        holder.touch()
         holder.session.getCachedSegment(request)?.let {
             segmentCache.put(holder, it)
             holder.clearSegmentDemand(request)
@@ -166,11 +168,10 @@ class SabrSessionStore(
     suspend fun fetchSegment(
         holder: SabrSessionHolder,
         request: SabrSegmentRequest,
-    ): SabrMediaSegment? = pump.fetchSegment(holder, request)
+    ): SabrMediaSegment? = holder.also { it.touch() }.let { pump.fetchSegment(it, request) }
 
     suspend fun fetchMediaAt(holder: SabrSessionHolder, playerTimeMs: Long): List<SabrMediaSegment>? =
-        pump.fetchMediaAt(holder, playerTimeMs)
-
+        holder.also { it.touch() }.let { pump.fetchMediaAt(it, playerTimeMs) }
     suspend fun fetchInitializationData(
         holder: SabrSessionHolder,
         format: YoutubeSabrFormat,

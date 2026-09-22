@@ -32,6 +32,20 @@ class SabrSessionRegistryTest {
     }
 
     @Test
+    fun `capacity eviction keeps a recently active live session`() {
+        val registry = SabrSessionRegistry()
+        val live = holder("live", Instant.now()).also { it.markExpectedLive() }
+        val idle = holder("idle", Instant.EPOCH)
+        registry.put(live.key, live)
+        registry.put(idle.key, idle)
+
+        registry.ensureCapacity(2, Instant.now().minusSeconds(60))
+
+        assertSame(live, registry.get(live.key))
+        assertNull(registry.get(idle.key))
+    }
+
+    @Test
     fun `idle eviction removes stale sessions`() {
         val registry = SabrSessionRegistry()
         val staleKey = key("stale")

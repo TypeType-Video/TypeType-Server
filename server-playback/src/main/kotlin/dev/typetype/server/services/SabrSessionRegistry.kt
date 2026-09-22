@@ -2,11 +2,13 @@ package dev.typetype.server.services
 
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import org.slf4j.LoggerFactory
 
 class SabrSessionRegistry {
     private val sessions = ConcurrentHashMap<SabrSessionKey, SabrSessionHolder>()
     private val sessionsByToken = ConcurrentHashMap<String, SabrSessionHolder>()
     private val mutationLock = Any()
+    private val logger = LoggerFactory.getLogger(SabrSessionRegistry::class.java)
 
     fun get(key: SabrSessionKey): SabrSessionHolder? {
         val holder = sessions[key]
@@ -76,31 +78,47 @@ class SabrSessionRegistry {
         return holder
     }
 
-    fun ensureCapacity(maxSessions: Int) {
+    fun ensureCapacity(
+        maxSessions: Int,
+        activeCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.idleEviction()),
+    ) {
         while (sessions.size >= maxSessions) {
             val oldest = sessions.entries
+                .asSequence()
+                .filterNot { isActiveLive(it.value, activeCutoff) }
                 .minByOrNull { it.value.lastRequestAt }
-                ?: return
-            remove(oldest.key)
+            if (oldest == null) {
+                logCapacitySaturated(maxSessions)
+                return
+            }
+            evict(oldest.key, "capacity")
         }
     }
 
-    fun trimToCapacity(maxSessions: Int, protected: SabrSessionHolder) {
+    fun trimToCapacity(
+        maxSessions: Int,
+        protected: SabrSessionHolder,
+        activeCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.idleEviction()),
+    ) {
         while (sessions.size > maxSessions) {
             val oldest = sessions.entries
                 .asSequence()
                 .filterNot { it.value === protected }
+                .filterNot { isActiveLive(it.value, activeCutoff) }
                 .minByOrNull { it.value.lastRequestAt }
-                ?: return
-            remove(oldest.key)
+            if (oldest == null) {
+                logCapacitySaturated(maxSessions)
+                return
+            }
+            evict(oldest.key, "capacity")
         }
     }
 
     fun evictIdle(cutoff: Instant) {
         val stale = sessions.entries
-            .filter { it.value.lastRequestAt.isBefore(cutoff) }
+            .filter { it.value.lastRequestAt.isBefore(cutoff) && !isActiveLive(it.value, cutoff) }
             .map { it.key }
-        stale.forEach(::remove)
+        stale.forEach { evict(it, "idle") }
     }
 
     fun clear() {
@@ -121,5 +139,41 @@ class SabrSessionRegistry {
             }
         }
         holder?.releaseResources()
+    }
+
+    private fun isActiveLive(holder: SabrSessionHolder, cutoff: Instant): Boolean {
+        if (!holder.expectsLive() || holder.lastRequestAt.isBefore(cutoff)) return false
+        return holder.playbackState() !in setOf(
+            SabrPlaybackState.NETWORK_FAILED,
+            SabrPlaybackState.TERMINAL,
+            SabrPlaybackState.STOPPED,
+        )
+    }
+
+    private fun evict(key: SabrSessionKey, reason: String) {
+        val now = Instant.now()
+        val holder = synchronized(mutationLock) {
+            sessions.remove(key)?.also { sessionsByToken.remove(it.sessionToken, it) }
+        } ?: return
+        val ageMs = java.time.Duration.between(holder.lastRequestAt, now).toMillis().coerceAtLeast(0L)
+        holder.releaseResources()
+        logger.info(
+            "sabr_session event=evicted reason={} videoId={} ageMs={} registrySize={} liveSessions={} state={}",
+            reason,
+            holder.key.videoId,
+            ageMs,
+            sessions.size,
+            sessions.values.count { it.expectsLive() },
+            holder.playbackState(),
+        )
+    }
+
+    private fun logCapacitySaturated(maxSessions: Int) {
+        logger.warn(
+            "sabr_session event=capacity_saturated maxSessions={} registrySize={} liveSessions={}",
+            maxSessions,
+            sessions.size,
+            sessions.values.count { it.expectsLive() },
+        )
     }
 }
