@@ -21,6 +21,7 @@ class SabrDemandWatchdog(
                         inFlightDemand,
                         recoverable = true,
                         nowMs = nowMs,
+                        reason = "outside_recoverable_window",
                     )
                 ) {
                     return true
@@ -39,18 +40,27 @@ class SabrDemandWatchdog(
                     backoffRemainingMs,
                 )
                 if (nowMs >= deadlineAtMs) {
-                    if (inFlightDemand.futureLiveRequest) {
+                    val recoverableLiveDemand =
+                        holder.livePlaybackSnapshot()?.active == true &&
+                            !holder.isLiveDemandOutsideRecoverableWindow(inFlightDemand.request)
+                    if (recoverableLiveDemand) {
                         SabrDemandAttemptFinisher.interruptStalledInFlightDemand(
                             holder,
                             inFlightDemand,
                             nowMs = nowMs,
                             expectedDelayMs = (deadlineAtMs - inFlightDemand.registeredAtMs).coerceAtLeast(0L),
+                            reason = if (inFlightDemand.futureLiveRequest) {
+                                "future_live_not_published"
+                            } else {
+                                "network_slow"
+                            },
                         )
                     } else if (SabrDemandAttemptFinisher.expireStalledInFlightDemand(
                             holder,
                             inFlightDemand,
                             nowMs = nowMs,
                             expectedDelayMs = (deadlineAtMs - inFlightDemand.registeredAtMs).coerceAtLeast(0L),
+                            reason = "terminal_deadline",
                         )
                     ) {
                         return true
@@ -69,7 +79,13 @@ class SabrDemandWatchdog(
             if (outsideLiveWindow) {
                 val identity = holder.segmentDemandIdentity(request)
                 if (identity != null &&
-                    SabrDemandAttemptFinisher.expireStalledDemand(holder, request, identity, recoverable = true)
+                    SabrDemandAttemptFinisher.expireStalledDemand(
+                        holder,
+                        request,
+                        identity,
+                        recoverable = true,
+                        reason = "outside_recoverable_window",
+                    )
                 ) {
                     return true
                 }
@@ -78,6 +94,21 @@ class SabrDemandWatchdog(
                 holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
                 delay(nextCheckDelayMs(holder.session.demandBackoffRemainingMs, futureLiveRequest))
                 continue
+            }
+            val recoverableLiveRequest =
+                holder.livePlaybackSnapshot()?.active == true && !outsideLiveWindow
+            if (recoverableLiveRequest && holder.inFlightSegmentDemand() == null) {
+                val identity = holder.segmentDemandIdentity(request)
+                val requeued = synchronized(holder) {
+                    holder.inFlightSegmentDemand() == null &&
+                        identity != null &&
+                        holder.requeueSegmentDemand(request, identity, clock())
+                }
+                if (requeued) {
+                    holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
+                    delay(nextCheckDelayMs(holder.session.demandBackoffRemainingMs, true))
+                    continue
+                }
             }
             val identity = holder.segmentDemandIdentity(request)
             val registeredAtMs = identity?.let { holder.segmentDemandRegisteredAtMs(request, it) }
@@ -95,6 +126,7 @@ class SabrDemandWatchdog(
                     identity,
                     nowMs = nowMs,
                     expectedDelayMs = (deadlineAtMs - registeredAtMs).coerceAtLeast(0L),
+                    reason = "terminal_deadline",
                 )
             ) {
                 return true

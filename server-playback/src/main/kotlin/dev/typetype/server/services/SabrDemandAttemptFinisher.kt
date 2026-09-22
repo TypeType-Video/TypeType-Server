@@ -28,10 +28,11 @@ object SabrDemandAttemptFinisher {
         demand: SabrInFlightDemand,
         nowMs: Long,
         expectedDelayMs: Long,
+        reason: String,
     ): Boolean = synchronized(holder) {
         val state = holder.playbackState()
         if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
-        if (!demand.futureLiveRequest || holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
+        if (holder.inFlightSegmentDemand()?.identity != demand.identity) return@synchronized false
         if (holder.session.getCachedSegment(demand.request) != null) return@synchronized false
         if (!holder.requeueSegmentDemand(demand.request, demand.identity, nowMs)) return@synchronized false
         holder.setPlaybackState(SabrPlaybackState.WAITING_FOR_LIVE)
@@ -47,10 +48,10 @@ object SabrDemandAttemptFinisher {
             holder,
             demand.request,
             recoverable = true,
-            registeredAtMs = demand.registeredAtMs,
-            nowMs = nowMs,
-            expectedDelayMs = expectedDelayMs,
-            reason = "future_live_not_published",
+                registeredAtMs = demand.registeredAtMs,
+                nowMs = nowMs,
+                expectedDelayMs = expectedDelayMs,
+                reason = reason,
             attempts = demand.attempts(),
             lastAttemptDurationMs = demand.lastAttemptDurationMs(),
             event = "demand_requeued",
@@ -64,6 +65,7 @@ object SabrDemandAttemptFinisher {
         recoverable: Boolean = demand.futureLiveRequest,
         nowMs: Long = System.currentTimeMillis(),
         expectedDelayMs: Long = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
+        reason: String = "terminal_deadline",
     ): Boolean =
         synchronized(holder) {
             val state = holder.playbackState()
@@ -83,10 +85,10 @@ object SabrDemandAttemptFinisher {
                 holder,
                 demand.request,
                 recoverable,
-                registeredAtMs = demand.registeredAtMs,
-                nowMs = nowMs,
-                expectedDelayMs = expectedDelayMs,
-                reason = "terminal_deadline",
+            registeredAtMs = demand.registeredAtMs,
+            nowMs = nowMs,
+            expectedDelayMs = expectedDelayMs,
+            reason = reason,
                 attempts = demand.attempts(),
                 lastAttemptDurationMs = demand.lastAttemptDurationMs(),
             )
@@ -101,6 +103,7 @@ object SabrDemandAttemptFinisher {
         recoverable: Boolean = false,
         nowMs: Long = System.currentTimeMillis(),
         expectedDelayMs: Long = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
+        reason: String = "terminal_deadline",
     ): Boolean = synchronized(holder) {
         val state = holder.playbackState()
         if (state == SabrPlaybackState.TERMINAL || state == SabrPlaybackState.NETWORK_FAILED) return@synchronized false
@@ -113,7 +116,7 @@ object SabrDemandAttemptFinisher {
             registeredAtMs = holder.segmentDemandRegisteredAtMs(request, identity),
             nowMs = nowMs,
             expectedDelayMs = expectedDelayMs,
-            reason = "terminal_deadline",
+            reason = reason,
         )
         fail(holder, request, identity, recoverable)
     }

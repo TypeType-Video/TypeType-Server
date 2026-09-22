@@ -151,6 +151,7 @@ class SabrDemandWatchdogBackoffTest {
                     demand,
                     nowMs = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
                     expectedDelayMs = SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS,
+                    reason = "future_live_not_published",
                 ),
             )
 
@@ -159,6 +160,36 @@ class SabrDemandWatchdogBackoffTest {
             assertNotEquals(identity, holder.segmentDemandIdentity(request))
             assertEquals(0L, holder.activeGeneration())
             assertEquals(null, holder.terminalFailure())
+        }
+    }
+
+    @Test
+    fun `recoverable late live demand waits past deadline`() = runTest {
+        withTracker { holder ->
+            val request = SabrSegmentRequest.media(holder.videoFormat, 50)
+            every { holder.session.isLive } returns true
+            every { holder.session.liveHeadSequenceNumber } returns 52L
+            every { holder.session.streamState.isLive } returns true
+            every { holder.session.streamState.liveHeadSequenceNumber } returns 52L
+            every { holder.session.streamState.liveHeadTimeMs } returns 1_000L
+            every { holder.session.streamState.getMaxSegment(holder.videoFormat) } returns 52
+            holder.requestSegmentDemand(request, registeredAtMs = 0L)
+            val job = launch {
+                SabrDemandWatchdog(
+                    clock = { testScheduler.currentTime },
+                    intervalMs = 100L,
+                ).monitor({ true }, holder)
+            }
+            runCurrent()
+
+            advanceTimeBy(SabrPumpPolicy.DEMAND_TARGET_DEADLINE_MS + LIVE_EDGE_POLL_MS)
+            runCurrent()
+
+            assertFalse(job.isCompleted)
+            assertEquals(SabrPlaybackState.WAITING_FOR_LIVE, holder.playbackState())
+            assertEquals("299:50", holder.pendingSegmentDemandSummary())
+            assertEquals(null, holder.terminalFailure())
+            job.cancel()
         }
     }
 
