@@ -20,7 +20,7 @@ import java.time.Instant
 
 class SabrLivePlaybackOverlapTest {
     @Test
-    fun `audio overlap still covers the ready horizon after player time`() = runTest {
+    fun `audio overlap covers the minimal live ready horizon after player time`() = runTest {
         val audio = format(140, true)
         val video = format(137, false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -54,8 +54,10 @@ class SabrLivePlaybackOverlapTest {
         )
 
         assertTrue(result.isReady)
-        assertEquals(4, result.response.audio.segments.size)
-        assertTrue(result.response.audio.segments.last().let { it.startMs + it.durationMs } >= 176_925_494L)
+        assertTrue(result.response.audio.segments.size <= 3)
+        val endMs = result.response.audio.segments.last().let { it.startMs + it.durationMs }
+        assertTrue(endMs >= 176_919_494L)
+        assertTrue(endMs <= 176_923_494L)
     }
 
     private fun holder(

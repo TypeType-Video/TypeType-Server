@@ -25,7 +25,7 @@ import java.time.Instant
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrPumpLauncherTest {
     @Test
-    fun `active live playback keeps a bounded larger read ahead cushion`() {
+    fun `active live playback keeps read ahead to the startup target`() {
         val audio = format(140, isAudio = true)
         val video = format(136, isAudio = false)
         val state = mockk<YoutubeSabrStreamState>(relaxed = true)
@@ -48,7 +48,7 @@ class SabrPumpLauncherTest {
         val runtime = SabrPumpRuntime { now }
         now = 30_000L
 
-        assertEquals(90_000L, runtime.targetReadaheadCushionMs(holder))
+        assertEquals(2_000L, runtime.targetReadaheadCushionMs(holder))
     }
 
     @Test

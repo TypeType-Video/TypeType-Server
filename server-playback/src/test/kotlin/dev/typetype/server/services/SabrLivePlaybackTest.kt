@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class SabrLivePlaybackSessionServiceTest {
     @Test
-    fun `live start uses the warmed media pair when it is closer to the head`() {
+    fun `live start uses the target when available media is behind it`() {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
@@ -36,11 +36,11 @@ class SabrLivePlaybackSessionServiceTest {
         holder.observeMediaSegment(mediaSegment(audio.itag, 995_002L))
         holder.observeMediaSegment(mediaSegment(video.itag, 995_000L))
 
-        assertEquals(995_002L, holder.resolvePlaybackStartMs(0L))
+        assertEquals(1_003_000L, holder.resolvePlaybackStartMs(0L))
     }
 
     @Test
-    fun `live prepare warms metadata and starts behind the live head`() = runTest {
+    fun `live prepare starts near the live head without waiting for warmup`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(137, isAudio = false)
         val info = mockk<YoutubeSabrInfo>()
@@ -60,10 +60,10 @@ class SabrLivePlaybackSessionServiceTest {
         every { state.getBufferedEndMs(audio) } returns 1_000_000L
         every { state.getBufferedEndMs(video) } returns 1_002_000L
         every { state.getMinBufferedEndMs() } returns 1_000_000L
-        every { state.getSegmentNumberAtOrAfterTimeMs(video, 985_000L) } returns 198
-        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 985_000L) } returns 99
-        every { state.getSegmentStartMs(video, 198) } returns 990_000L
-        every { state.getSegmentStartMs(audio, 99) } returns 990_000L
+        every { state.getSegmentNumberAtOrAfterTimeMs(video, 1_003_000L) } returns 200
+        every { state.getSegmentNumberAtOrAfterTimeMs(audio, 1_003_000L) } returns 100
+        every { state.getSegmentStartMs(video, 200) } returns 1_002_000L
+        every { state.getSegmentStartMs(audio, 100) } returns 1_000_000L
         val store = mockk<SabrSessionStore>()
         every {
             store.getOrCreate(
@@ -80,17 +80,16 @@ class SabrLivePlaybackSessionServiceTest {
                 0L,
             )
         } returns holder
-        coEvery { store.ensureWarmed(holder, 8) } returns Unit
         every { store.startPump(holder) } returns Unit
 
         val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 0L)
 
-        assertEquals(985_000L, result.startTimeMs)
-        assertEquals(985_000L, holder.playerTimeMs())
+        assertEquals(1_003_000L, result.startTimeMs)
+        assertEquals(1_003_000L, holder.playerTimeMs())
         assertTrue(holder.expectsLive())
         verify(exactly = 1) { state.setPlayerTimeMs(9_007_199_254_740_991L) }
         verify(exactly = 1) { state.setWriteTopLevelPlayerTimeMs(false) }
-        coVerify(exactly = 1) { store.ensureWarmed(holder, 8) }
+        coVerify(exactly = 0) { store.ensureWarmed(any(), any()) }
         coVerify(exactly = 0) { store.fetchInitializationData(any(), any()) }
         verify(exactly = 1) { store.startPump(holder) }
     }
@@ -161,7 +160,7 @@ class SabrLivePlaybackSessionServiceTest {
     }
 
     @Test
-    fun `live format change starts the replacement session from warmed track boundaries`() = runTest {
+    fun `live format change starts the replacement session without synchronous warmup`() = runTest {
         val audio = format(140, isAudio = true)
         val source = holder(audio, format(137, isAudio = false), initialGeneration = 4L)
         val video = format(248, isAudio = false)
@@ -201,7 +200,6 @@ class SabrLivePlaybackSessionServiceTest {
                 5L,
             )
         } returns replacement
-        coEvery { store.ensureWarmed(replacement, 8) } returns Unit
         every { store.startPump(replacement) } returns Unit
 
         val result = SabrPlaybackSessionService(store).seek(source, prepared, audio, video, 995_000L)
@@ -217,7 +215,7 @@ class SabrLivePlaybackSessionServiceTest {
         assertFalse(replacement.mediaRequestsAt(995_000L).any { it.format.itag == video.itag })
         verify(exactly = 0) { replacementState.setPlayerTimeMs(9_007_199_254_740_991L) }
         verify(exactly = 0) { replacementState.setWriteTopLevelPlayerTimeMs(false) }
-        coVerify(exactly = 1) { store.ensureWarmed(replacement, 8) }
+        coVerify(exactly = 0) { store.ensureWarmed(any(), any()) }
         verify(exactly = 1) { store.startPump(replacement) }
     }
 

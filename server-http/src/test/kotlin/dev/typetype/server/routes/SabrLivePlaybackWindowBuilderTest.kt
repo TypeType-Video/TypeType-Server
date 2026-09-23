@@ -64,7 +64,7 @@ class SabrLivePlaybackWindowBuilderTest {
     }
 
     @Test
-    fun `live window requests every track missing from the target window`() = runTest {
+    fun `live window only requires the first segment pair even for a large requested buffer`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 248, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -93,8 +93,9 @@ class SabrLivePlaybackWindowBuilderTest {
             SabrPlaybackWindowRequest(0L, 100_000L, 248, 140, bufferGoalMs = 30_000L),
         )
 
-        assertEquals(listOf(140, 248), result.blockedRequests.map { it.format.itag }.sorted())
-        assertEquals(listOf(101, 106), result.blockedRequests.map { it.sequenceNumber })
+        assertTrue(result.isReady)
+        assertEquals(1, result.response.audio.segments.size)
+        assertEquals(1, requireNotNull(result.response.video).segments.size)
     }
 
     @Test
@@ -128,46 +129,6 @@ class SabrLivePlaybackWindowBuilderTest {
         assertTrue(result.isReady)
         assertEquals(102_010L, result.response.startTimeMs)
         assertEquals(102_010L, result.response.audio.segments.single().startMs)
-    }
-
-    @Test
-    fun `active live startup waits for the full media cushion`() = runTest {
-        val audio = format(itag = 140, isAudio = true)
-        val video = format(itag = 299, isAudio = false)
-        val session = mockk<YoutubeSabrSession>(relaxed = true)
-        val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
-        every { session.streamState } returns streamState
-        every { session.isLive } returns true
-        every { streamState.isLive } returns true
-        every { streamState.liveHeadTimeMs } returns 120_000L
-        every { streamState.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 50
-        val holder = holder(session, audio, video)
-        val store = mockk<SabrSessionStore>()
-        coEvery { store.cachedSegment(holder, any()) } answers {
-            val request = secondArg<SabrSegmentRequest>()
-            if (request.sequenceNumber in 50..52) {
-                cached(request.format.itag, request.sequenceNumber, 100_000L + (request.sequenceNumber - 50) * 2_000L, 2_000L)
-            } else {
-                null
-            }
-        }
-
-        val builder = SabrPlaybackWindowBuilder(store)
-        val request = SabrPlaybackWindowRequest(0L, 100_000L, 299, 140, bufferGoalMs = 8_000L)
-        val startup = builder.build(holder, request)
-        val continuation = builder.build(
-            holder,
-            request.copy(
-                bufferedRanges = listOf(
-                    SabrPlaybackBufferedRange(140, 0L, 100_000L),
-                    SabrPlaybackBufferedRange(299, 0L, 100_000L),
-                ),
-            ),
-        )
-
-        assertFalse(startup.isReady)
-        assertTrue(continuation.isReady)
-        assertEquals(listOf(53, 53), continuation.blockedRequests.map { it.sequenceNumber })
     }
 
     @Test
@@ -206,12 +167,12 @@ class SabrLivePlaybackWindowBuilderTest {
         )
         assertTrue(result.isReady)
         assertEquals(100_000L, result.response.startTimeMs)
-        assertEquals(4, result.response.audio.segments.size)
-        assertEquals(List(4) { 2_000L }, result.response.audio.segments.map { it.durationMs })
+        assertEquals(1, result.response.audio.segments.size)
+        assertEquals(List(1) { 2_000L }, result.response.audio.segments.map { it.durationMs })
     }
 
     @Test
-    fun `asymmetric live buffers keep requesting the shorter track`() = runTest {
+    fun `asymmetric live buffers request the shorter track at the shared playback start`() = runTest {
         val audio = format(itag = 140, isAudio = true)
         val video = format(itag = 299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)

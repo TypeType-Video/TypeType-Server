@@ -22,7 +22,7 @@ import java.time.Instant
 
 class SabrLiveGapWindowTest {
     @Test
-    fun `small live gap extends the current playback window`() = runTest {
+    fun `small live gap requests only the first segment covering the low latency runway`() = runTest {
         val audio = format(140, isAudio = true)
         val video = format(299, isAudio = false)
         val session = mockk<YoutubeSabrSession>(relaxed = true)
@@ -58,10 +58,7 @@ class SabrLiveGapWindowTest {
         assertTrue(result.isReady)
         assertEquals(480_000L, result.response.startTimeMs)
         assertEquals(
-            listOf(
-                "/api/sabr/playback/session/299/segment/93?generation=0",
-                "/api/sabr/playback/session/299/segment/94?generation=0",
-            ),
+            listOf("/api/sabr/playback/session/299/segment/93?generation=0"),
             requireNotNull(result.response.video).segments.map { it.url },
         )
         assertNull(holder.terminalFailure())

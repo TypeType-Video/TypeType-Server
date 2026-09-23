@@ -59,7 +59,6 @@ class SabrTransitioningLivePlaybackTest {
         } returns holder
         coEvery { store.fetchInitializationData(holder, video) } returns null
         coEvery { store.fetchInitializationData(holder, audio) } returns null
-        coEvery { store.ensureWarmed(holder, 8) } returns Unit
         every { store.startPump(holder) } returns Unit
 
         val result = SabrPlaybackSessionService(store).prepare("video", "user", prepared, audio, video, 0L)
@@ -67,8 +66,8 @@ class SabrTransitioningLivePlaybackTest {
         assertTrue(holder.expectsLive())
         assertTrue(result.startTimeMs > 0L)
         assertNull(holder.terminalFailure())
-        assertEquals(11_050_200L, result.startTimeMs)
-        coVerify(exactly = 1) { store.ensureWarmed(holder, 8) }
+        assertEquals(11_068_200L, result.startTimeMs)
+        coVerify(exactly = 0) { store.ensureWarmed(any(), any()) }
         verify(exactly = 1) { state.setPlayerTimeMs(9_007_199_254_740_991L) }
         verify(exactly = 1) { store.startPump(holder) }
     }

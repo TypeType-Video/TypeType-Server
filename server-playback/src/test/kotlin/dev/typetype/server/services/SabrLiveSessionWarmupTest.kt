@@ -18,7 +18,7 @@ import java.time.Instant
 class SabrLivePumpStepTest {
     @Test
     fun `live pump fills below read ahead cushion`() = runTest {
-        val fixture = fixture(playerTimeMs = 100_000L, observedEndMs = 103_000L)
+        val fixture = fixture(playerTimeMs = 100_000L, observedEndMs = 101_000L)
         var pumps = 0
 
         val immediate = pumpLiveReadAhead(fixture.holder, SabrPumpRuntime(), { pumps++; 0 }) { _, _ -> }
@@ -42,7 +42,7 @@ class SabrLivePumpStepTest {
     fun `live pump waits when the next demand is not published yet`() = runTest {
         SabrSegmentDemandTracker.clearAll()
         try {
-            val fixture = fixture(playerTimeMs = 100_000L, observedEndMs = 103_000L)
+            val fixture = fixture(playerTimeMs = 100_000L, observedEndMs = 101_000L)
             every { fixture.holder.session.isLive } returns true
             every { fixture.holder.session.streamState.isLive } returns true
             every { fixture.holder.session.streamState.getMaxSegment(fixture.holder.videoFormat) } returns 100

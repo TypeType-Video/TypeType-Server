@@ -18,7 +18,7 @@ import java.time.Instant
 
 class SabrLiveSessionWarmupTest {
     @Test
-    fun `warmup continues when the first media pair is too close to the live head`() = runTest {
+    fun `warmup accepts the first media pair at the low latency live edge`() = runTest {
         val audio = format(140, audio = true, "audio/mp4")
         val video = format(299, audio = false, "video/mp4")
         val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
@@ -49,10 +49,10 @@ class SabrLiveSessionWarmupTest {
 
         SabrSessionPump(SabrSegmentCache()).ensureWarmed(holder, maxPumps = 8)
 
-        assertEquals(2, pumps)
-        assertEquals(1_980_000L, holder.earliestObservedMediaStartMs(audio))
-        assertEquals(1_980_000L, holder.earliestObservedMediaStartMs(video))
-        assertEquals(1_980_000L, holder.resolvePlaybackStartMs(0L))
+        assertEquals(1, pumps)
+        assertEquals(2_000_000L, holder.earliestObservedMediaStartMs(audio))
+        assertEquals(2_000_000L, holder.earliestObservedMediaStartMs(video))
+        assertEquals(2_000_000L, holder.resolvePlaybackStartMs(0L))
     }
 
     @Test
@@ -120,11 +120,11 @@ class SabrLiveSessionWarmupTest {
         assertEquals(TARGET_SEQUENCE, holder.observedMediaSegment(video)?.header?.sequenceNumber)
         assertArrayEquals(audioInit, holder.liveInitialization(audio))
         assertArrayEquals(videoInit, holder.liveInitialization(video))
-        assertEquals(liveHeadTimeMs(pumps) - 20_000L, holder.resolvePlaybackStartMs(0L))
+        assertEquals(liveHeadTimeMs(pumps) - 2_000L, holder.resolvePlaybackStartMs(0L))
         val targetedRanges = rangeOverrides.filterNotNull().map { ranges -> ranges.map(SabrBufferedRange::summarize) }
         val expectedRanges = listOf(
-            "itag=140:seq=1-3319:time=0+6640000:timescale=1000",
-            "itag=299:seq=1-3319:time=0+6640000:timescale=1000",
+            "itag=140:seq=1-3328:time=0+6658000:timescale=1000",
+            "itag=299:seq=1-3328:time=0+6658000:timescale=1000",
         )
         assertEquals(2, targetedRanges.size)
         assertEquals(expectedRanges, targetedRanges.first())
