@@ -8,6 +8,8 @@ object DatabaseIndexMigrations {
         exec("CREATE INDEX IF NOT EXISTS idx_history_user_watched_id ON history (user_id, watched_at DESC, id DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_playlist_videos_user_playlist_position ON playlist_videos (user_id, playlist_id, position)")
         exec("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_subscribed_at ON subscriptions (user_id, subscribed_at DESC)")
+        exec("CREATE INDEX IF NOT EXISTS idx_subscriptions_name_trgm ON subscriptions USING gin (lower(name) gin_trgm_ops)")
+        exec("CREATE INDEX IF NOT EXISTS idx_subscriptions_channel_url_trgm ON subscriptions USING gin (lower(channel_url) gin_trgm_ops)")
         exec("CREATE INDEX IF NOT EXISTS idx_favorites_user_favorited_at ON favorites (user_id, favorited_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_watch_later_user_added_at ON watch_later (user_id, added_at DESC)")
         exec("CREATE INDEX IF NOT EXISTS idx_search_history_user_searched_at ON search_history (user_id, searched_at DESC)")

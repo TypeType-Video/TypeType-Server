@@ -61,6 +61,7 @@ class SubscriptionsService {
         val canonicalUrl = ChannelUrlCanonicalizer.canonicalize(item.channelUrl)
         val now = System.currentTimeMillis()
         DatabaseFactory.query {
+            SubscriptionMutationLock.acquire(userId)
             SubscriptionsTable.insert {
                 it[SubscriptionsTable.userId] = userId
                 it[channelUrl] = canonicalUrl

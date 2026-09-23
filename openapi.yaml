@@ -47,6 +47,8 @@ paths:
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
   /subscriptions: { $ref: ./openapi/paths/subscriptions.yaml#/Subscriptions }
   /subscriptions/group-memberships: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupMemberships }
+  /subscriptions/group-memberships/page: { $ref: ./openapi/paths/subscription-membership-pages.yaml#/Page }
+  /subscriptions/group-memberships/lookup: { $ref: ./openapi/paths/subscription-membership-pages.yaml#/Lookup }
   /subscriptions/groups: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroups }
   /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
   /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
