@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayInputStream
+import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -156,7 +157,7 @@ class OkHttpProxyService(
     }
 
     private fun isHls(contentType: String, url: String): Boolean =
-        contentType.contains("mpegurl", ignoreCase = true) || url.contains(".m3u8", ignoreCase = true)
+        contentType.contains("mpegurl", ignoreCase = true) || runCatching { URI(url).path?.endsWith(".m3u8", ignoreCase = true) == true }.getOrDefault(false)
 
     companion object {
         private const val BILIBILI_REFERER = "https://www.bilibili.com"

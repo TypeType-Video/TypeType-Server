@@ -17,7 +17,7 @@ class SignedHlsManifestTokenServiceTest {
         assertEquals("user-1", payload.userId)
         assertEquals("https://youtube.com/watch?v=test", payload.videoUrl)
         assertEquals("fingerprint", payload.fingerprint)
-        assertEquals(901_000L, payload.expiresAt)
+        assertEquals(1_000L + SignedHlsManifestTokenService.TTL_SECONDS * 1_000L, payload.expiresAt)
     }
 
     @Test
@@ -28,11 +28,13 @@ class SignedHlsManifestTokenServiceTest {
     }
 
     @Test
-    fun `token expires`() {
+    fun `token remains valid for a long live session and then expires`() {
         var now = 1_000L
         val service = SignedHlsManifestTokenService("secret", nowMillis = { now })
         val token = service.createToken("user-1", "https://youtube.com/watch?v=test", "fingerprint")
-        now = 901_000L
+        now = 1_801_000L
+        assertTrue(service.verify(token) is SignedHlsManifestTokenResult.Valid)
+        now = 1_000L + SignedHlsManifestTokenService.TTL_SECONDS * 1_000L
         assertEquals(SignedHlsManifestTokenResult.Expired, service.verify(token))
     }
 }

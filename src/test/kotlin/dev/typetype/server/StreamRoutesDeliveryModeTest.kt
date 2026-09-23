@@ -75,7 +75,7 @@ class StreamRoutesDeliveryModeTest {
     }
 
     @Test
-    fun `sabr endpoint removes direct live manifest`() = testApplication {
+    fun `sabr endpoint exposes only HLS for live streams`() = testApplication {
         val live = sabrResponse().copy(
             hlsUrl = "/streams/hls-manifest?url=live",
             isLive = true,
@@ -88,8 +88,12 @@ class StreamRoutesDeliveryModeTest {
         val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL")
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"hlsUrl\":\"\""))
-        assertFalse(response.bodyAsText().contains("hls-manifest"))
+        assertTrue(response.bodyAsText().contains("\"hlsUrl\":\"/streams/hls-manifest?url=live\""))
+        assertTrue(response.bodyAsText().contains("\"videoStreams\":[]"))
+        assertTrue(response.bodyAsText().contains("\"videoOnlyStreams\":[]"))
+        assertTrue(response.bodyAsText().contains("\"audioStreams\":[]"))
+        assertFalse(response.bodyAsText().contains("\"deliveryMethod\":\"sabr\""))
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
     }
 
     @Test

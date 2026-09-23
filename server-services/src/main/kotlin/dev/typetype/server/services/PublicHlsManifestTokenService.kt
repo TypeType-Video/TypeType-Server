@@ -50,7 +50,7 @@ class PublicHlsManifestTokenService(
     private fun decode(value: String): String? = runCatching { String(decoder.decode(value), Charsets.UTF_8) }.getOrNull()
 
     companion object {
-        const val TTL_SECONDS = 900L
+        const val TTL_SECONDS = 86_400L
         private const val VERSION = "ph1"
         private const val PART_COUNT = 4
         private const val MAX_TOKEN_LENGTH = 4096

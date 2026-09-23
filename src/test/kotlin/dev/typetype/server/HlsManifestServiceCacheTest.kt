@@ -14,6 +14,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.net.InetAddress
@@ -39,6 +40,32 @@ class HlsManifestServiceCacheTest {
         service.hlsManifest(url)
 
         assertEquals(1, calls)
+    }
+
+    @Test
+    fun `youtube live manifests are fetched again instead of using the cached playlist`() = runTest {
+        var calls = 0
+        val client = proxyTestClient(Interceptor { chain ->
+            calls += 1
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(
+                    "#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:$calls\nsegment.ts"
+                        .toResponseBody("application/vnd.apple.mpegurl".toMediaType()),
+                )
+                .build()
+        })
+        val service = HlsManifestService(NoopStreamService, client, InMemoryCache())
+        val url = "https://manifest.googlevideo.com/api/manifest/hls_variant/source/yt_live_broadcast/id/live-video/index.m3u8"
+
+        val first = service.hlsManifest(url)
+        val second = service.hlsManifest(url)
+
+        assertEquals(2, calls)
+        assertNotEquals(first, second)
     }
 
     @Test

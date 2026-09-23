@@ -63,7 +63,7 @@ class StreamRoutesSignedHlsTest {
     }
 
     @Test
-    fun `anonymous sabr removes live hls url`() = testApplication {
+    fun `anonymous sabr live response keeps only signed HLS`() = testApplication {
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
             publicHlsStream().copy(
                 videoOnlyStreams = listOf(
@@ -83,9 +83,13 @@ class StreamRoutesSignedHlsTest {
         val body = response.bodyAsText()
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(body.contains("\"hlsUrl\":\"\""))
-        assertFalse(body.contains("hls-manifest"))
+        assertTrue(body.contains("\"hlsUrl\":\"/streams/hls-manifest?token="))
+        assertTrue(body.contains("\"videoStreams\":[]"))
+        assertTrue(body.contains("\"videoOnlyStreams\":[]"))
+        assertTrue(body.contains("\"audioStreams\":[]"))
+        assertFalse(body.contains("\"deliveryMethod\":\"sabr\""))
         assertFalse(body.contains(MANIFEST_URL))
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
     }
 
     @Test

@@ -29,7 +29,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ManifestHlsPublicTokenRoutesTest {
-    private val tokenService = PublicHlsManifestTokenService("test-secret")
+    private var now = 1_000L
+    private val tokenService = PublicHlsManifestTokenService("test-secret", nowMillis = { now })
     private val cache = InMemoryPublicHlsCache()
 
     @Test
@@ -49,6 +50,15 @@ class ManifestHlsPublicTokenRoutesTest {
         assertEquals(2, Regex("hls-manifest\\?token=").findAll(body).count())
         assertTrue(body.contains("../proxy?url="))
         assertFalse(body.contains("hls-manifest?url="))
+
+        val childToken = Regex("hls-manifest\\?token=([A-Za-z0-9._-]+)")
+            .find(body)?.groupValues?.get(1)
+        assertTrue(childToken != null)
+        now += 30 * 60 * 1_000L
+
+        val childResponse = client.get("/streams/hls-manifest?token=$childToken")
+
+        assertEquals(HttpStatusCode.OK, childResponse.status)
     }
 
     @Test
