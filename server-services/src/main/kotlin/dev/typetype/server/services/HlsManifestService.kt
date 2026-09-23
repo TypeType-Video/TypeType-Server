@@ -49,7 +49,9 @@ class HlsManifestService(
     }
 
     private suspend fun cachedOrFetch(manifestUrl: String, signManifestLinks: Boolean): ExtractionResult<String> {
-        val cache = manifestCache.takeUnless { isProviderManifestUrl(manifestUrl) }
+        val cache = manifestCache.takeUnless {
+            isProviderManifestUrl(manifestUrl) || isYoutubeLiveManifest(manifestUrl)
+        }
         val cacheKey = if (signManifestLinks) "signed:$manifestUrl" else manifestUrl
         cache?.get(cacheKey)?.let { return ExtractionResult.Success(it) }
         val pending = CompletableDeferred<ExtractionResult<String>>()
@@ -158,4 +160,11 @@ class HlsManifestService(
 
     private fun isProviderManifestUrl(url: String): Boolean =
         isNicoNicoManifest(url) || isBilibiliManifest(url)
+
+    private fun isYoutubeLiveManifest(url: String): Boolean = runCatching {
+        val uri = URI(url)
+        val host = uri.host?.lowercase().orEmpty()
+        val isYoutubeHost = host == "googlevideo.com" || host.endsWith(".googlevideo.com")
+        isYoutubeHost && uri.path.orEmpty().split('/').any { it == "yt_live_broadcast" }
+    }.getOrDefault(false)
 }
