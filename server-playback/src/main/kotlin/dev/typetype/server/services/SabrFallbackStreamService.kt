@@ -16,14 +16,18 @@ class SabrFallbackStreamService(
         val prepared = videoId?.let { async { sessionStore.fetchInfo(it, cachedFirst = true) } }
         val result = delegate.getStreamInfo(url)
         val response = (result as? ExtractionResult.Success)?.data
+        if (response?.isLive == true) {
+            prepared?.cancel()
+            return@coroutineScope result
+        }
         if (response == null) {
             if (result !is ExtractionResult.Failure || videoId == null) return@coroutineScope result
             prepared?.await()
             val session = tokenSessionClient.fetchPlaybackSession(videoId) ?: return@coroutineScope result
             return@coroutineScope ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
         }
-        val playable = prepared?.await()
-        if (response.hasSabrStreams() || videoId == null || playable == null) return@coroutineScope result
+        if (response.hasSabrStreams() || videoId == null) return@coroutineScope result
+        val playable = prepared?.await() ?: return@coroutineScope result
         ExtractionResult.Success(response.withSabrFallback(videoId, playable.info))
     }
 }

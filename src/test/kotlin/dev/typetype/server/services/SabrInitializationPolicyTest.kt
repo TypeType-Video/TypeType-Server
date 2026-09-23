@@ -57,7 +57,7 @@ class SabrFallbackStreamServiceTest {
     }
 
     @Test
-    fun `enriches a live hls extraction with prepared sabr formats`() = runTest {
+    fun `keeps live hls extraction on hls without sabr fallback`() = runTest {
         val delegate = mockk<StreamService>()
         val sessionStore = mockk<SabrSessionStore>()
         val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
@@ -74,8 +74,8 @@ class SabrFallbackStreamServiceTest {
 
         val enriched = (result as ExtractionResult.Success).data
         assertEquals(LIVE_HLS_URL, enriched.hlsUrl)
-        assertEquals(listOf(137), enriched.videoOnlyStreams.map { it.itag })
-        assertEquals(listOf(140), enriched.audioStreams.map { it.itag })
+        assertTrue(enriched.videoOnlyStreams.isEmpty())
+        assertTrue(enriched.audioStreams.isEmpty())
     }
 
     @Test

@@ -44,6 +44,7 @@ import dev.typetype.server.services.StreamYouTubeSubtitleResolver
 import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientStreamService
+import dev.typetype.server.services.YoutubeLiveHlsStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
 import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
@@ -104,9 +105,13 @@ internal class ExtractionServiceRegistry(
         directPipePipeStreamService,
         YoutubePlayerClient.VISIONOS,
     )
-    private val authenticatedStreamService = YoutubePlayerClientStreamService(
+    private val liveHlsStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
-        YoutubePlayerClient.MWEB,
+        YoutubePlayerClient.TV_DOWNGRADED,
+    )
+    private val authenticatedStreamService = YoutubeLiveHlsStreamService(
+        YoutubePlayerClientStreamService(directPipePipeStreamService, YoutubePlayerClient.MWEB),
+        liveHlsStreamService,
     )
     private val sabrPublicStreamService = YoutubePlayerClientStreamService(
         sabrPipePipeStreamService,
@@ -127,7 +132,10 @@ internal class ExtractionServiceRegistry(
     }
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
-            SabrFallbackStreamService(sabrPublicStreamService, sabrSessionStore, tokenYoutubeSessionClient),
+            YoutubeLiveHlsStreamService(
+                SabrFallbackStreamService(sabrPublicStreamService, sabrSessionStore, tokenYoutubeSessionClient),
+                liveHlsStreamService,
+            ),
         ),
         cache,
         "stream-youtube-sabr:v1",
@@ -142,7 +150,7 @@ internal class ExtractionServiceRegistry(
         YouTubeSubtitleCache(cache),
     )
     val youtubeSabrBootstrapStreamService = YoutubeScopedStreamService(
-        SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient),
+        SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient, liveHlsStreamService),
     )
     val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
     val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v1")

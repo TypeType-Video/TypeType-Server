@@ -18,6 +18,7 @@ class YoutubeSessionSabrStreamService(
             withTimeout(timeoutMs) {
                 val metadata = metadataService.getStreamInfo(userId, url) ?: return@withTimeout null
                 if (metadata !is ExtractionResult.Success) return@withTimeout metadata
+                if (metadata.data.isLive) return@withTimeout metadata
                 val videoId = youtubeVideoId(url) ?: return@withTimeout ExtractionResult.BadRequest("Invalid YouTube URL")
                 when (val info = infoService.fetch(userId, videoId)) {
                     is AuthenticatedSabrInfoResult.Ready ->

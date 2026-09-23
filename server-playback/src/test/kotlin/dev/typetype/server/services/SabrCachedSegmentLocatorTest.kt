@@ -20,7 +20,7 @@ class SabrBootstrapStreamServiceTest {
         val session = tokenSession(prepared.info, tokenBundle())
         coEvery { sessionStore.rememberPreparedInfo(VIDEO_ID, any()) } returns Unit
         coEvery { tokenClient.fetchPlaybackSession(VIDEO_ID) } returns session
-        val service = SabrBootstrapStreamService(sessionStore, tokenClient)
+        val service = SabrBootstrapStreamService(sessionStore, tokenClient, mockk<StreamService>())
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
@@ -40,7 +40,7 @@ class SabrBootstrapStreamServiceTest {
         val prepared = preparedInfo()
         coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns null
         coEvery { tokenClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession(prepared.info)
-        val service = SabrBootstrapStreamService(sessionStore, tokenClient)
+        val service = SabrBootstrapStreamService(sessionStore, tokenClient, mockk<StreamService>())
 
         val result = service.getStreamInfo(YOUTUBE_URL)
 
