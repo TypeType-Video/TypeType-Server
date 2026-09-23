@@ -15,6 +15,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -43,6 +44,44 @@ class StreamRoutesTest {
         val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("public, max-age=21600, stale-while-revalidate=3600", response.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
+    fun `GET live YouTube streams exposes HLS only`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(
+            sabrResponse().copy(isLive = true, hlsUrl = "/streams/hls-manifest?token=live"),
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            routing { streamRoutes(streamService) }
+        }
+
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=live")
+        val body = response.bodyAsText()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+        assertTrue(body.contains("\"hlsUrl\":\"/streams/hls-manifest?token=live\""))
+        assertTrue(body.contains("\"dashMpdUrl\":\"\""))
+        assertTrue(body.contains("\"videoStreams\":[]"))
+        assertTrue(body.contains("\"videoOnlyStreams\":[]"))
+        assertTrue(body.contains("\"audioStreams\":[]"))
+        assertFalse(body.contains("\"deliveryMethod\":\"sabr\""))
+    }
+
+    @Test
+    fun `GET live YouTube streams fails when HLS is unavailable instead of using SABR`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns
+            ExtractionResult.Success(sabrResponse().copy(isLive = true, hlsUrl = ""))
+        application {
+            install(ContentNegotiation) { json() }
+            routing { streamRoutes(streamService) }
+        }
+
+        val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=live")
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
     }
 
     @Test

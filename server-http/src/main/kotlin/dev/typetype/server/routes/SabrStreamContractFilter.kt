@@ -4,6 +4,7 @@ import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import dev.typetype.server.services.SabrSessionStore
+import dev.typetype.server.services.withSabrManifestUrls
 import dev.typetype.server.sabr.YoutubeSabrFormat
 import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.net.URLEncoder
@@ -58,6 +59,14 @@ internal fun StreamResponse.withoutSabrStreams(): StreamResponse = copy(
     videoStreams = videoStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
     videoOnlyStreams = videoOnlyStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
     audioStreams = audioStreams.filterNot { it.deliveryMethod == SABR_DELIVERY_METHOD },
+)
+
+internal fun StreamResponse.onlyLiveHls(): StreamResponse = copy(
+    dashMpdUrl = "",
+    videoStreams = emptyList(),
+    videoOnlyStreams = emptyList(),
+    audioStreams = emptyList(),
+    hasLiveManifest = hlsUrl.isNotBlank(),
 )
 
 internal fun StreamResponse.onlySabrStreams(): StreamResponse = copy(
@@ -151,3 +160,6 @@ private fun String.codec(): String? {
 }
 
 private const val SABR_DELIVERY_METHOD = "sabr"
+
+internal fun StreamResponse.forSabrPlayback(): StreamResponse =
+    if (isLive) onlyLiveHls() else withSabrManifestUrls().onlySabrStreams()

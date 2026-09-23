@@ -10,14 +10,9 @@ import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaHandleService
-import dev.typetype.server.services.ProviderMediaType
 import dev.typetype.server.services.StreamService
-import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_CODE
-import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_ERROR
 import dev.typetype.server.services.filterAllowed
 import dev.typetype.server.services.filterBlocked
-import dev.typetype.server.services.requiresYoutubeSession
-import dev.typetype.server.services.withSabrManifestUrls
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -25,9 +20,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.coroutines.CancellationException
 
-private const val STREAMS_CACHE_CONTROL = "public, max-age=21600, stale-while-revalidate=3600"
-private const val AUTHENTICATED_STREAMS_CACHE_CONTROL = "no-store"
-private const val PROVIDER_STREAMS_CACHE_CONTROL = "no-store"
 
 fun Route.streamRoutes(
     streamService: StreamService,
@@ -110,7 +102,7 @@ private fun Route.streamRoute(
                     )
                 }
                 val selected = if (deliveryMode.isSabr()) {
-                    result.data.withSabrManifestUrls().onlySabrStreams()
+                    result.data.forSabrPlayback()
                 } else {
                     result.data.withoutSabrStreams()
                 }
@@ -156,12 +148,7 @@ private fun Route.streamRoute(
                 }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
-                    when {
-                        access.userId != null -> AUTHENTICATED_STREAMS_CACHE_CONTROL
-                        deliveryMode == StreamDeliveryMode.NicoNico ||
-                            deliveryMode == StreamDeliveryMode.BiliBili -> PROVIDER_STREAMS_CACHE_CONTROL
-                        else -> STREAMS_CACHE_CONTROL
-                    },
+                    streamCacheControl(deliveryMode, selected.isLive, access.userId),
                 )
                 call.respond(publicData)
             }
@@ -171,61 +158,4 @@ private fun Route.streamRoute(
                 call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
         }
     }
-}
-
-private fun providerMediaType(deliveryMode: StreamDeliveryMode): ProviderMediaType? = when (deliveryMode) {
-    StreamDeliveryMode.NicoNico -> ProviderMediaType.NICONICO
-    StreamDeliveryMode.BiliBili -> ProviderMediaType.BILIBILI
-    StreamDeliveryMode.YoutubeSabr -> null
-}
-
-private data class StreamResolution(
-    val result: ExtractionResult<StreamResponse>,
-    val authenticated: Boolean = false,
-)
-
-private suspend fun resolveStreamInfo(
-    url: String,
-    deliveryMode: StreamDeliveryMode,
-    userId: String?,
-    publicResult: ExtractionResult<StreamResponse>,
-    dependencies: StreamRouteDependencies,
-): StreamResolution {
-    if (deliveryMode == StreamDeliveryMode.BiliBili) {
-        val bilibiliInfo = dependencies.bilibiliSessionStreamInfo
-        if (bilibiliInfo != null && userId != null) {
-            val bilibiliResult = bilibiliInfo(userId, url)
-            if (bilibiliResult != null) return StreamResolution(bilibiliResult, authenticated = true)
-        }
-        return StreamResolution(publicResult)
-    }
-    val authenticatedInfo = dependencies.youtubeSessionSabrStreamInfo
-    if (!deliveryMode.isSabr() || authenticatedInfo == null) {
-        return StreamResolution(publicResult)
-    }
-    val authenticatedResult = userId?.let { authenticatedInfo(it, url) }
-    if (authenticatedResult != null) return StreamResolution(authenticatedResult, authenticated = true)
-    return if (publicResult.requiresYoutubeSession()) {
-        StreamResolution(
-            ExtractionResult.BadRequest(YOUTUBE_SESSION_REQUIRED_ERROR, YOUTUBE_SESSION_REQUIRED_CODE),
-        )
-    } else {
-        StreamResolution(publicResult)
-    }
-}
-
-private fun StreamResponse.hasPlayableSource(): Boolean =
-    videoStreams.isNotEmpty() ||
-        videoOnlyStreams.isNotEmpty() ||
-        audioStreams.isNotEmpty() ||
-        hlsUrl.isNotBlank() ||
-        dashMpdUrl.isNotBlank()
-
-private fun StreamResponse.withSignedPublicHlsUrl(
-    shouldSign: Boolean,
-    tokenService: PublicHlsManifestTokenService?,
-): StreamResponse {
-    if (!shouldSign || tokenService == null || hlsUrl.isBlank()) return this
-    if (hlsUrl.startsWith("/streams/hls-manifest?token=")) return this
-    return copy(hlsUrl = tokenService.createPath(hlsUrl))
 }

@@ -1,7 +1,7 @@
 YoutubeSabrStreams:
   get:
     tags: [extraction]
-    summary: Extract YouTube SABR stream metadata
+    summary: Resolve YouTube playback metadata with HLS for live streams and SABR for VOD
     parameters:
       - name: url
         in: query
@@ -9,7 +9,7 @@ YoutubeSabrStreams:
         schema: { type: string }
     responses:
       '200':
-        description: Stream metadata containing only SABR sources.
+        description: Live streams contain only an HLS manifest; VOD responses contain only SABR sources.
         headers:
           X-Request-ID:
             $ref: ../components/common.yaml#/RequestIdHeader
@@ -32,7 +32,7 @@ YoutubeSabrStreams:
 YoutubeSabrBootstrap:
   get:
     tags: [extraction]
-    summary: Resolve playable SABR audio and video formats before full metadata
+    summary: Resolve early playback metadata with HLS for live streams and SABR formats for VOD
     parameters:
       - name: url
         in: query
@@ -40,7 +40,7 @@ YoutubeSabrBootstrap:
         schema: { type: string }
     responses:
       '200':
-        description: Minimal stream metadata containing only SABR sources.
+        description: Live streams contain only an HLS manifest; VOD responses contain only SABR sources.
         headers:
           X-Request-ID:
             $ref: ../components/common.yaml#/RequestIdHeader
