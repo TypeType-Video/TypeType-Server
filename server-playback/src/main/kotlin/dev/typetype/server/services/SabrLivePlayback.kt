@@ -129,8 +129,8 @@ private fun dev.typetype.server.sabr.YoutubeSabrStreamState.observedEndMs(
 
 internal const val LIVE_EDGE_POLL_MS = 2_000L
 internal const val DEFAULT_PLAYBACK_RETRY_MS = 500L
-private const val LIVE_TARGET_LATENCY_MS = 20_000L
+private const val LIVE_TARGET_LATENCY_MS = 2_000L
 private const val LIVE_EDGE_TOLERANCE_MS = 15_000L
-private const val LIVE_HISTORICAL_REQUEST_TOLERANCE_MS = LIVE_TARGET_LATENCY_MS + LIVE_EDGE_TOLERANCE_MS
+private const val LIVE_HISTORICAL_REQUEST_TOLERANCE_MS = 35_000L
 private const val LIVE_DVR_WINDOW_MS = 12L * 60L * 60L * 1_000L
 internal const val LIVE_FUTURE_SEGMENT_TOLERANCE = 2

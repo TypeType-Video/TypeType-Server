@@ -35,7 +35,12 @@ internal fun readyAheadMs(request: SabrPlaybackWindowRequest, activeLive: Boolea
     } else {
         MIN_READY_AHEAD_MS
     }
-    return minOf(request.bufferGoalMs.coerceAtLeast(1L), minimum)
+    return minOf(liveWindowBufferGoalMs(request.bufferGoalMs, activeLive), minimum)
+}
+
+internal fun liveWindowBufferGoalMs(requestedMs: Long, activeLive: Boolean): Long {
+    val requested = requestedMs.coerceAtLeast(1L)
+    return if (activeLive) minOf(requested, LIVE_STARTUP_READY_AHEAD_MS) else requested
 }
 
 internal fun YoutubeSabrFormat.trackName(): String = if (isAudio) "audio" else "video"
@@ -78,4 +83,4 @@ internal fun SabrSessionHolder.previousPlaybackSequence(
 }
 
 private const val MIN_READY_AHEAD_MS = 1_000L
-private const val LIVE_STARTUP_READY_AHEAD_MS = 8_000L
+private const val LIVE_STARTUP_READY_AHEAD_MS = 2_000L
