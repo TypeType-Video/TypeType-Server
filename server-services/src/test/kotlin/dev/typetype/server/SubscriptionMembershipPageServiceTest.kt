@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.models.SubscriptionItem
 import dev.typetype.server.services.SubscriptionGroupsService
@@ -9,7 +10,10 @@ import dev.typetype.server.services.SubscriptionMembershipFilter
 import dev.typetype.server.services.SubscriptionMembershipPageService
 import dev.typetype.server.services.SubscriptionsService
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.batchInsert
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -93,6 +97,36 @@ class SubscriptionMembershipPageServiceTest {
         assertEquals(url(2), selected.single().channelUrl)
         assertEquals(listOf(group.id), selected.single().groupIds)
         assertEquals(1, groups.getAll(TEST_USER_ID).single().channelCount)
+    }
+
+    @Test
+    fun `page and lookup resolve avatars without persisting repairs`() = runTest {
+        val item = subscriptions.add(TEST_USER_ID, SubscriptionItem(url(1), "One", ""))
+        val avatarUrl = "https://example.com/avatar.jpg"
+        DatabaseFactory.query {
+            HistoryTable.insert {
+                it[HistoryTable.id] = "membership-avatar"
+                it[HistoryTable.userId] = TEST_USER_ID
+                it[HistoryTable.url] = "https://www.youtube.com/watch?v=avatar-source"
+                it[HistoryTable.title] = "Video"
+                it[HistoryTable.thumbnail] = "thumbnail"
+                it[HistoryTable.channelName] = "One"
+                it[HistoryTable.channelUrl] = item.channelUrl
+                it[HistoryTable.channelAvatar] = avatarUrl
+                it[HistoryTable.duration] = 1L
+                it[HistoryTable.progress] = 0L
+                it[HistoryTable.watchedAt] = 1L
+            }
+        }
+
+        assertEquals(avatarUrl, pages.lookup(TEST_USER_ID, listOf(item.channelUrl)).single().avatarUrl)
+        assertEquals(avatarUrl, pages.getPage(TEST_USER_ID, SubscriptionMembershipFilter()).items.single().avatarUrl)
+        val storedAvatar = DatabaseFactory.query {
+            SubscriptionsTable.selectAll()
+                .where { SubscriptionsTable.userId eq TEST_USER_ID }
+                .single()[SubscriptionsTable.avatarUrl]
+        }
+        assertEquals("", storedAvatar)
     }
 
     @Test

@@ -32,6 +32,7 @@ class SubscriptionMembershipScaleTest {
             SubscriptionMembershipFilter(limit = 7, ungrouped = true) to 2_500L,
             SubscriptionMembershipFilter(limit = 7, groupId = "scale-1", excluded = true) to 2_500L,
             SubscriptionMembershipFilter(limit = 7, groupId = "scale-1") to 22_500L,
+            SubscriptionMembershipFilter(limit = 7, search = "Channel 1") to 10_000L,
         )
         for ((filter, total) in filters) {
             val (page, elapsed) = measureTimedValue { pages.getPage(TEST_USER_ID, filter) }

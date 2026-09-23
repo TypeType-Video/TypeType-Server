@@ -25,7 +25,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 class SubscriptionMembershipPageService {
     suspend fun getPage(userId: String, filter: SubscriptionMembershipFilter): SubscriptionMembershipPage =
         DatabaseFactory.query {
-            SubscriptionMutationLock.acquire(userId)
+            SubscriptionMutationLock.acquireRead(userId)
             val owned = SubscriptionsTable.userId eq userId
             val ungrouped = notExists(matchingMemberships(userId))
             val matching = owned and filterCondition(userId, filter)
@@ -46,7 +46,7 @@ class SubscriptionMembershipPageService {
 
     suspend fun lookup(userId: String, channelUrls: List<String>): List<SubscriptionGroupMembershipItem> =
         DatabaseFactory.query {
-            SubscriptionMutationLock.acquire(userId)
+            SubscriptionMutationLock.acquireRead(userId)
             val urls = channelUrls.mapTo(linkedSetOf(), ChannelUrlCanonicalizer::canonicalize)
             val items = SubscriptionsTable.selectAll().where {
                 (SubscriptionsTable.userId eq userId) and (SubscriptionsTable.channelUrl inList urls)
@@ -83,7 +83,7 @@ class SubscriptionMembershipPageService {
             (SubscriptionGroupMembershipsTable.userId eq userId) and
                 (SubscriptionGroupMembershipsTable.channelUrl inList urls)
         }.groupBy({ it[SubscriptionGroupMembershipsTable.channelUrl] }, { it[SubscriptionGroupMembershipsTable.groupId] })
-        return SubscriptionAvatarRepairer.repair(userId = userId, items = items).map { item ->
+        return SubscriptionAvatarRepairer.resolve(userId = userId, items = items).map { item ->
             SubscriptionGroupMembershipItem(
                 channelUrl = item.channelUrl,
                 name = item.name,

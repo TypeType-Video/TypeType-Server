@@ -81,6 +81,45 @@ class SubscriptionMembershipConcurrencyTest {
     }
 
     @Test
+    fun `same-account page reads share the lock while additions still wait`() = runTest {
+        val lockHeld = CompletableDeferred<Int>()
+        val releaseLock = CountDownLatch(1)
+        val holder = async(Dispatchers.IO) {
+            DatabaseFactory.query {
+                SubscriptionMutationLock.acquireRead(TEST_USER_ID)
+                val pid = TransactionManager.current().exec("SELECT pg_backend_pid()") { result ->
+                    result.next()
+                    result.getInt(1)
+                }
+                lockHeld.complete(requireNotNull(pid))
+                check(releaseLock.await(10, TimeUnit.SECONDS))
+            }
+        }
+        try {
+            val holderPid = lockHeld.await()
+            val pageRead = async(Dispatchers.IO) { pages.getPage(TEST_USER_ID, SubscriptionMembershipFilter()) }
+            val page = withContext(Dispatchers.IO) {
+                withTimeoutOrNull(5_000L) { pageRead.await() }
+            }
+            assertEquals(0L, page?.total, "a concurrent page read must not wait for another reader")
+
+            val addition = async(Dispatchers.IO) { subscriptions.add(TEST_USER_ID, subscription(0)) }
+            val additionWaited = withContext(Dispatchers.IO) {
+                withTimeoutOrNull(5_000L) {
+                    while (!addition.isCompleted && waitingTransactions(holderPid) < 1) delay(10)
+                    waitingTransactions(holderPid) >= 1
+                } ?: false
+            }
+            assertTrue(additionWaited, "an addition must wait for active page readers")
+            releaseLock.countDown()
+            holder.await()
+            addition.await()
+        } finally {
+            releaseLock.countDown()
+        }
+    }
+
+    @Test
     fun `page rows and counts remain consistent during concurrent additions`() = runTest {
         val start = CompletableDeferred<Unit>()
         val reader = async(Dispatchers.IO) {
