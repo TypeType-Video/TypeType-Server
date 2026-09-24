@@ -36,6 +36,24 @@ class YoutubeDirectLiveHlsStreamServiceTest {
         assertEquals("live_stream_unavailable", (result as ExtractionResult.Failure).code)
     }
 
+    @Test
+    fun usesFallbackWhenDirectLiveExtractionFails() = runTest {
+        val liveHlsService = mockk<StreamService>()
+        val fallbackService = mockk<StreamService>()
+        val response = mockk<StreamResponse>()
+        val directFailure = ExtractionResult.Failure("provider blocked", "provider_access_blocked")
+        val expected = ExtractionResult.Success(response)
+        every { response.isLive } returns true
+        every { response.hlsUrl } returns HLS_URL
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns directFailure
+        coEvery { fallbackService.getStreamInfo(YOUTUBE_URL) } returns expected
+
+        val result = YoutubeDirectLiveHlsStreamService(liveHlsService, fallbackService)
+            .getStreamInfo(YOUTUBE_URL)
+
+        assertSame(expected, result)
+    }
+
     private companion object {
         const val VIDEO_ID = "GlzleRbo5E0"
         const val YOUTUBE_URL = "https://www.youtube.com/watch?v=$VIDEO_ID"

@@ -125,6 +125,11 @@ internal class ExtractionServiceRegistry(
     )
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
+    private val youtubeSabrFallbackStreamService = SabrFallbackStreamService(
+        sabrPublicStreamService,
+        sabrSessionStore,
+        tokenYoutubeSessionClient,
+    )
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
     }
@@ -134,7 +139,7 @@ internal class ExtractionServiceRegistry(
     val youtubeSabrStreamService = CachedStreamService(
         YoutubeScopedStreamService(
             YoutubeLiveHlsStreamService(
-                SabrFallbackStreamService(sabrPublicStreamService, sabrSessionStore, tokenYoutubeSessionClient),
+                youtubeSabrFallbackStreamService,
                 liveHlsStreamService,
             ),
         ),
@@ -142,7 +147,10 @@ internal class ExtractionServiceRegistry(
         "stream-youtube-sabr:v1",
     )
     val youtubeLiveHlsStreamService = YoutubeScopedStreamService(
-        YoutubeDirectLiveHlsStreamService(liveHlsStreamService),
+        YoutubeDirectLiveHlsStreamService(
+            liveHlsStreamService,
+            youtubeSabrFallbackStreamService,
+        ),
     )
     val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
         StreamYouTubeSubtitleResolver(youtubeSabrStreamService, youtubeSubtitleService::fetchSubtitleInventory),
