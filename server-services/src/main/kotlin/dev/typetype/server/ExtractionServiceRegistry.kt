@@ -27,6 +27,7 @@ import dev.typetype.server.services.PipePipePodcastService
 import dev.typetype.server.services.PipePipePublicPlaylistService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
+import dev.typetype.server.services.PipePipeLiveHlsStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.ProviderMediaHandleService
@@ -107,7 +108,7 @@ internal class ExtractionServiceRegistry(
         YoutubePlayerClient.VISIONOS,
     )
     private val liveHlsStreamService = YoutubePlayerClientStreamService(
-        directPipePipeStreamService,
+        PipePipeLiveHlsStreamService(),
         YoutubePlayerClient.TV_DOWNGRADED,
     )
     private val authenticatedStreamService = YoutubeLiveHlsStreamService(
