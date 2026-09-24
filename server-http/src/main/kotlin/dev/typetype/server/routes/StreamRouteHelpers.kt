@@ -55,7 +55,13 @@ internal suspend fun resolveStreamInfo(
         return StreamResolution(publicResult)
     }
     val authenticatedResult = userId?.let { authenticatedInfo(it, url) }
-    if (authenticatedResult != null) return StreamResolution(authenticatedResult, authenticated = true)
+    if (authenticatedResult != null) {
+        val authenticatedLive = (authenticatedResult as? ExtractionResult.Success)?.data?.isLive == true
+        val publicLive = (publicResult as? ExtractionResult.Success)?.data?.isLive == true
+        if (!authenticatedLive || !publicLive) {
+            return StreamResolution(authenticatedResult, authenticated = true)
+        }
+    }
     return if (publicResult.requiresYoutubeSession()) {
         StreamResolution(
             ExtractionResult.BadRequest(YOUTUBE_SESSION_REQUIRED_ERROR, YOUTUBE_SESSION_REQUIRED_CODE),
