@@ -57,7 +57,7 @@ internal class SabrPlaybackHandler(
             audioOnly = request.audioOnly,
             isLive = request.isLive,
         )
-        PlaybackTraceLog.record("sabr_session_prepare", "durationMs=${(System.nanoTime() - prepareStartedAt) / 1_000_000} ready=${preparation.ready} startTimeMs=${preparation.startTimeMs}")
+        PlaybackTraceLog.record("sabr_session_prepare", "durationMs=${(System.nanoTime() - prepareStartedAt) / 1_000_000} ready=${preparation.ready} videoItag=${video.itag} audioItag=${audio.itag} audioTrackId=${audio.audioTrackId} audioOnly=${request.audioOnly} isLive=${request.isLive} startTimeMs=${preparation.startTimeMs}")
         preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         respondPrepared(call, preparation.holder, videoId, preparation.startTimeMs, preparation.ready)
     }
