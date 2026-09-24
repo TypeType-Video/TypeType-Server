@@ -12,6 +12,7 @@ private const val SIGNED_STREAM_DEADLINE_SAFETY_SECONDS = 300L
 private const val MIN_CACHEABLE_STREAM_TTL_SECONDS = 60L
 
 fun StreamResponse.streamCacheTtlSeconds(nowEpochSeconds: Long = System.currentTimeMillis() / 1000): Long {
+    if (isLive || isLiveContent) return 0L
     val deadline = signedMediaUrls().mapNotNull { it.bilibiliDeadline() }.minOrNull()
         ?: return stableMetadataTtlSeconds()
     val ttl = deadline - nowEpochSeconds - SIGNED_STREAM_DEADLINE_SAFETY_SECONDS

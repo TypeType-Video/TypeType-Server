@@ -19,6 +19,16 @@ class StreamCacheTtlResolverTest {
     }
 
     @Test
+    fun `live content urls are not cached across clients`() {
+        val response = response(
+            "https://example.com/video.mp4",
+            isLive = true,
+            hlsUrl = "/streams/hls-manifest?token=live",
+        )
+        assertEquals(0L, response.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
     fun `bilibili stream ttl follows signed deadline`() {
         val url = "https://upos-hz-mirrorakam.akamaized.net/video.m4s?deadline=10000&upsig=x"
         assertEquals(1_700L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
@@ -42,7 +52,12 @@ class StreamCacheTtlResolverTest {
         assertEquals(1_700L, response(url).streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
     }
 
-    private fun response(url: String, dislikeCount: Long = 0L): StreamResponse = StreamResponse(
+    private fun response(
+        url: String,
+        dislikeCount: Long = 0L,
+        isLive: Boolean = false,
+        hlsUrl: String = "",
+    ): StreamResponse = StreamResponse(
         id = "id",
         title = "title",
         uploaderName = "uploader",
@@ -67,12 +82,14 @@ class StreamCacheTtlResolverTest {
         requiresMembership = false,
         startPosition = 0L,
         streamSegments = emptyList(),
-        hlsUrl = "",
+        hlsUrl = hlsUrl,
         dashMpdUrl = "",
         videoStreams = emptyList(),
         audioStreams = emptyList(),
         originalAudioTrackId = null,
         preferredDefaultAudioTrackId = null,
+        isLive = isLive,
+        isLiveContent = isLive,
         videoOnlyStreams = listOf(video(url)),
         subtitles = emptyList(),
         previewFrames = emptyList(),
