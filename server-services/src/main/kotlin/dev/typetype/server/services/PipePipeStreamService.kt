@@ -36,7 +36,7 @@ class PipePipeStreamService(
     private val cache: CacheService,
     private val subtitleService: YouTubeSubtitleService,
     private val bilibiliRelatedService: BilibiliRelatedService,
-    private val sabrInfoSink: (suspend (String, YoutubeSabrInfo) -> Unit)? = null,
+    private val sabrInfoSink: ((String, YoutubeSabrInfo) -> Unit)? = null,
     private val fetchSupplementalSubtitles: Boolean = true,
 ) : StreamService {
 
@@ -83,7 +83,7 @@ class PipePipeStreamService(
             )
         }
 
-    private suspend fun rememberSabrInfo(streamInfo: StreamInfo): Unit {
+    private fun rememberSabrInfo(streamInfo: StreamInfo): Unit {
         val sink = sabrInfoSink ?: return
         val info = sequence {
             streamInfo.videoStreams.forEach { yield(it.deliveryMethodInfo) }

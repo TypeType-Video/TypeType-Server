@@ -110,9 +110,7 @@ class SabrSessionStore(
         registry.lookupByItag(videoId, userId, itag)
 
     fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? = registry.lookupByToken(videoId, token, itag)
-
     fun lookupByToken(videoId: String, token: String): SabrSessionHolder? = registry.lookupByToken(videoId, token)
-
     fun lookupByToken(token: String): SabrSessionHolder? = registry.lookupByToken(token)
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8): Unit = pump.ensureWarmed(holder, maxPumps)
@@ -149,7 +147,9 @@ class SabrSessionStore(
         cachedFirst: Boolean = false,
         isolatedPlayback: Boolean = false,
     ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst, isolatedPlayback)
-
+    fun rememberExtractedInfoAsync(videoId: String, info: YoutubeSabrInfo): Unit {
+        scope.launch { infoFetcher.rememberExtractedInfo(videoId, info) }
+    }
     suspend fun rememberExtractedInfo(videoId: String, info: YoutubeSabrInfo): Unit =
         infoFetcher.rememberExtractedInfo(videoId, info)
     suspend fun rememberPreparedInfo(videoId: String, prepared: SabrPreparedInfo): Unit = infoFetcher.rememberPreparedInfo(videoId, prepared)

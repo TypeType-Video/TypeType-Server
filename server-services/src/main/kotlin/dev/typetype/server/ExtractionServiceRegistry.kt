@@ -101,7 +101,7 @@ internal class ExtractionServiceRegistry(
         cache,
         youtubeSubtitleService,
         bilibiliRelatedService,
-        sabrSessionStore::rememberExtractedInfo,
+        sabrSessionStore::rememberExtractedInfoAsync,
         fetchSupplementalSubtitles = false,
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
