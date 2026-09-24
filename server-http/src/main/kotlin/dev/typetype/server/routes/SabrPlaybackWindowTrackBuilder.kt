@@ -61,13 +61,15 @@ internal class SabrPlaybackWindowTrackBuilder(private val sabrSessionStore: Sabr
                     holder, format, seq, expectedStartMs,
                 )
                 if (progressive != null) {
+                    if (!progressive.hasReadableMedia) {
+                        blockedRequest = mediaRequest
+                        blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
+                        break
+                    }
                     seq = progressive.nextSequence
                     coveredEndMs = progressive.coveredEndMs
                     if (coveredEndMs >= goalEndMs) break
-                    if (progressive.hasReadableMedia) continue
-                    blockedRequest = SabrSegmentRequest.media(format, seq)
-                    blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
-                    break
+                    continue
                 }
                 blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
                 blockedRequest = mediaRequest
@@ -140,5 +142,6 @@ internal data class TrackBuildResult(
     val coveredEndMs: Long,
     val atEnd: Boolean,
 ) {
-    fun covers(requiredEndMs: Long): Boolean = (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
+    fun covers(requiredEndMs: Long): Boolean =
+        blockedBy == null && (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
 }
