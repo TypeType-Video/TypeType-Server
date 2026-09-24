@@ -22,6 +22,7 @@ paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
   /streams/youtube/sabr: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrStreams }
+  /streams/youtube/live: { $ref: ./openapi/paths/streams.yaml#/YoutubeLiveHls }
   /streams/youtube/sabr/bootstrap: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrBootstrap }
   /streams/niconico: { $ref: ./openapi/paths/streams.yaml#/NicoNicoStreams }
   /streams/bilibili: { $ref: ./openapi/paths/streams.yaml#/BiliBiliStreams }

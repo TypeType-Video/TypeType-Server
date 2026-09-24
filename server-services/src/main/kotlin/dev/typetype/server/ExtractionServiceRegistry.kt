@@ -45,6 +45,7 @@ import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeLiveHlsStreamService
+import dev.typetype.server.services.YoutubeDirectLiveHlsStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
 import dev.typetype.server.services.YoutubeScopedCommentService
 import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
@@ -139,6 +140,9 @@ internal class ExtractionServiceRegistry(
         ),
         cache,
         "stream-youtube-sabr:v1",
+    )
+    val youtubeLiveHlsStreamService = YoutubeScopedStreamService(
+        YoutubeDirectLiveHlsStreamService(liveHlsStreamService),
     )
     val youtubeSubtitleDeliveryService = YouTubeSubtitleDeliveryService(
         StreamYouTubeSubtitleResolver(youtubeSabrStreamService, youtubeSubtitleService::fetchSubtitleInventory),

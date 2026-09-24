@@ -18,6 +18,7 @@ internal fun streamCacheControl(
     userId: String?,
 ): String = when {
     deliveryMode.isSabr() && isLive -> PROVIDER_STREAMS_CACHE_CONTROL
+    deliveryMode == StreamDeliveryMode.YoutubeLiveHls -> PROVIDER_STREAMS_CACHE_CONTROL
     userId != null -> AUTHENTICATED_STREAMS_CACHE_CONTROL
     deliveryMode == StreamDeliveryMode.NicoNico ||
         deliveryMode == StreamDeliveryMode.BiliBili -> PROVIDER_STREAMS_CACHE_CONTROL
@@ -28,6 +29,7 @@ internal fun providerMediaType(deliveryMode: StreamDeliveryMode): ProviderMediaT
     StreamDeliveryMode.NicoNico -> ProviderMediaType.NICONICO
     StreamDeliveryMode.BiliBili -> ProviderMediaType.BILIBILI
     StreamDeliveryMode.YoutubeSabr -> null
+    StreamDeliveryMode.YoutubeLiveHls -> null
 }
 
 internal data class StreamResolution(

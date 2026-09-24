@@ -32,6 +32,7 @@ fun Route.streamRoutes(
     nicoNicoStreamService: StreamService = streamService,
     bilibiliStreamService: StreamService = streamService,
     sabrBootstrapStreamService: StreamService = streamService,
+    youtubeLiveHlsStreamService: StreamService = streamService,
     youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
@@ -48,6 +49,7 @@ fun Route.streamRoutes(
         bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
     )
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies)
+    streamRoute("/streams/youtube/live", StreamDeliveryMode.YoutubeLiveHls, youtubeLiveHlsStreamService, dependencies)
     streamRoute(
         "/streams/youtube/sabr/bootstrap",
         StreamDeliveryMode.YoutubeSabr,
@@ -103,6 +105,8 @@ private fun Route.streamRoute(
                 }
                 val selected = if (deliveryMode.isSabr()) {
                     result.data.forSabrPlayback()
+                } else if (deliveryMode == StreamDeliveryMode.YoutubeLiveHls) {
+                    result.data.onlyLiveHls()
                 } else {
                     result.data.withoutSabrStreams()
                 }
@@ -110,7 +114,9 @@ private fun Route.streamRoute(
                     .filterAllowed(accessProfile)
                     .filterBlocked(blockedProfile)
                     .withSignedPublicHlsUrl(
-                        deliveryMode.isSabr() && selected.isLive || access.userId != null && !access.allowGuest,
+                        deliveryMode.isSabr() && selected.isLive ||
+                            deliveryMode == StreamDeliveryMode.YoutubeLiveHls && selected.isLive ||
+                            access.userId != null && !access.allowGuest,
                         dependencies.publicHlsManifestTokenService,
                     )
                 val data = if (

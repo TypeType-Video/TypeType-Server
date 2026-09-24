@@ -1,0 +1,44 @@
+package dev.typetype.server.services
+
+import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+
+class YoutubeDirectLiveHlsStreamServiceTest {
+    @Test
+    fun returnsLiveWithHlsWithoutMetadataRequest() = runTest {
+        val liveHlsService = mockk<StreamService>()
+        val response = mockk<StreamResponse>()
+        every { response.isLive } returns true
+        every { response.hlsUrl } returns HLS_URL
+        val expected = ExtractionResult.Success(response)
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns expected
+
+        assertSame(expected, YoutubeDirectLiveHlsStreamService(liveHlsService).getStreamInfo(YOUTUBE_URL))
+    }
+
+    @Test
+    fun rejectsNonLiveResult() = runTest {
+        val liveHlsService = mockk<StreamService>()
+        val response = mockk<StreamResponse>()
+        every { response.isLive } returns false
+        every { response.hlsUrl } returns HLS_URL
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Success(response)
+
+        val result = YoutubeDirectLiveHlsStreamService(liveHlsService).getStreamInfo(YOUTUBE_URL)
+
+        assertEquals("live_stream_unavailable", (result as ExtractionResult.Failure).code)
+    }
+
+    private companion object {
+        const val VIDEO_ID = "GlzleRbo5E0"
+        const val YOUTUBE_URL = "https://www.youtube.com/watch?v=$VIDEO_ID"
+        const val HLS_URL = "https://manifest.googlevideo.com/live.m3u8"
+    }
+}

@@ -76,6 +76,7 @@ class ServiceRegistry(
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
     val youtubeSabrStreamService = extraction.youtubeSabrStreamService
+    val youtubeLiveHlsStreamService = extraction.youtubeLiveHlsStreamService
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
     val nicoNicoStreamService = extraction.nicoNicoStreamService
     val bilibiliStreamService = extraction.bilibiliStreamService

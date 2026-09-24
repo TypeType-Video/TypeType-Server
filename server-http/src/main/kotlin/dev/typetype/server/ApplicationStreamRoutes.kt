@@ -25,6 +25,7 @@ internal fun Route.installStreamRoutes(
             streamService = svc.youtubeSabrStreamService,
             nicoNicoStreamService = svc.nicoNicoStreamService,
             bilibiliStreamService = svc.bilibiliStreamService,
+            youtubeLiveHlsStreamService = svc.youtubeLiveHlsStreamService,
             sabrBootstrapStreamService = svc.youtubeSabrBootstrapStreamService,
             authService = authService,
             accessControlService = svc.accessControlService,

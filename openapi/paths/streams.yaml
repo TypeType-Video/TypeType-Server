@@ -29,6 +29,33 @@ YoutubeSabrStreams:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+YoutubeLiveHls:
+  get:
+    tags: [extraction]
+    summary: Resolve a known YouTube live stream directly to HLS
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: Active live streams contain only an HLS manifest and no SABR or DASH sources.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/streams.yaml#/StreamResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
 YoutubeSabrBootstrap:
   get:
     tags: [extraction]
