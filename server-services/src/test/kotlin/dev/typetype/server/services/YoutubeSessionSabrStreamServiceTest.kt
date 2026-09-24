@@ -7,12 +7,12 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class YoutubeSessionSabrStreamServiceTest {
     @Test
-    fun returnsLiveMetadataWithoutPreparingSabr() = runTest {
+    fun `returns null for live metadata so the public HLS path is used`() = runTest {
         val metadataService = mockk<YoutubeSessionStreamService>()
         val infoService = mockk<AuthenticatedSabrInfoService>()
         val live = mockk<StreamResponse>()
@@ -21,7 +21,7 @@ class YoutubeSessionSabrStreamServiceTest {
         coEvery { metadataService.getStreamInfo(USER_ID, YOUTUBE_URL) } returns expected
         val service = YoutubeSessionSabrStreamService(metadataService, infoService)
 
-        assertSame(expected, service.getStreamInfo(USER_ID, YOUTUBE_URL))
+        assertEquals(null, service.getStreamInfo(USER_ID, YOUTUBE_URL))
         coVerify(exactly = 0) { infoService.fetch(USER_ID, VIDEO_ID) }
     }
 
