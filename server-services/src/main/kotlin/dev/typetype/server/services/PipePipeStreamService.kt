@@ -37,6 +37,7 @@ class PipePipeStreamService(
     private val subtitleService: YouTubeSubtitleService,
     private val bilibiliRelatedService: BilibiliRelatedService,
     private val sabrInfoSink: (suspend (String, YoutubeSabrInfo) -> Unit)? = null,
+    private val fetchSupplementalSubtitles: Boolean = true,
 ) : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
@@ -56,7 +57,11 @@ class PipePipeStreamService(
                         rememberSabrInfo(streamInfo)
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
-                        val withSubtitles = if (response.subtitles.isEmpty() && service.serviceId == 0) {
+                        val withSubtitles = if (
+                            fetchSupplementalSubtitles &&
+                            response.subtitles.isEmpty() &&
+                            service.serviceId == 0
+                        ) {
                             val subtitles = try {
                                 subtitleService.fetchSubtitles(streamInfo.id)
                             } catch (error: CancellationException) {
