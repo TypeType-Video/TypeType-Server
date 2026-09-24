@@ -12,7 +12,7 @@ class YoutubeLiveHlsStreamService(
 
         val metadataResult = metadataService.getStreamInfo(url)
         val metadata = (metadataResult as? ExtractionResult.Success)?.data ?: return metadataResult
-        if (!metadata.isLive || metadata.hlsUrl.isNotBlank()) return metadataResult
+        if (!metadata.isLive) return metadataResult
 
         val liveResult = liveHlsService.getStreamInfo(url)
         val liveResponse = (liveResult as? ExtractionResult.Success)?.data

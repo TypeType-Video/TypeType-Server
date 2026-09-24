@@ -27,6 +27,36 @@ class YoutubeLiveHlsStreamServiceTest {
     }
 
     @Test
+    fun prefersLiveHlsClientWhenMwebAlreadyHasManifest() = runTest {
+        val metadataService = mockk<StreamService>()
+        val liveHlsService = mockk<StreamService>()
+        val metadata = streamResponse(isLive = true, manifestUrl = "https://mweb.example/live.m3u8")
+        val liveHls = streamResponse(isLive = true, manifestUrl = HLS_URL)
+        val expected = ExtractionResult.Success(liveHls)
+        coEvery { metadataService.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Success(metadata)
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns expected
+        val service = YoutubeLiveHlsStreamService(metadataService, liveHlsService)
+
+        assertSame(expected, service.getStreamInfo(YOUTUBE_URL))
+        coVerify(exactly = 1) { liveHlsService.getStreamInfo(YOUTUBE_URL) }
+    }
+
+    @Test
+    fun fallsBackToMwebManifestWhenLiveHlsClientHasNoManifest() = runTest {
+        val metadataService = mockk<StreamService>()
+        val liveHlsService = mockk<StreamService>()
+        val metadata = streamResponse(isLive = true, manifestUrl = "https://mweb.example/live.m3u8")
+        val liveHls = streamResponse(isLive = true, manifestUrl = "")
+        val expected = ExtractionResult.Success(metadata)
+        coEvery { metadataService.getStreamInfo(YOUTUBE_URL) } returns expected
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Success(liveHls)
+        val service = YoutubeLiveHlsStreamService(metadataService, liveHlsService)
+
+        assertSame(expected, service.getStreamInfo(YOUTUBE_URL))
+        coVerify(exactly = 1) { liveHlsService.getStreamInfo(YOUTUBE_URL) }
+    }
+
+    @Test
     fun doesNotRetryVod() = runTest {
         val metadataService = mockk<StreamService>()
         val liveHlsService = mockk<StreamService>()
