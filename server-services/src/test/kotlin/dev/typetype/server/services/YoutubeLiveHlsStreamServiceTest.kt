@@ -57,16 +57,17 @@ class YoutubeLiveHlsStreamServiceTest {
     }
 
     @Test
-    fun doesNotRetryVod() = runTest {
+    fun fallsBackToMwebAfterFastProbeFindsVod() = runTest {
         val metadataService = mockk<StreamService>()
         val liveHlsService = mockk<StreamService>()
         val vod = streamResponse(isLive = false, manifestUrl = "")
+        coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Failure(YOUTUBE_URL)
         val expected = ExtractionResult.Success(vod)
         coEvery { metadataService.getStreamInfo(YOUTUBE_URL) } returns expected
         val service = YoutubeLiveHlsStreamService(metadataService, liveHlsService)
 
         assertSame(expected, service.getStreamInfo(YOUTUBE_URL))
-        coVerify(exactly = 0) { liveHlsService.getStreamInfo(YOUTUBE_URL) }
+        coVerify(exactly = 1) { liveHlsService.getStreamInfo(YOUTUBE_URL) }
     }
 
     private fun streamResponse(isLive: Boolean, manifestUrl: String): StreamResponse {
