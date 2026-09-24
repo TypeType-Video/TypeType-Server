@@ -25,13 +25,18 @@ fun Application.installRequestObservability() {
     intercept(ApplicationCallPipeline.Setup) {
         val applicationCall = context
         val requestId = resolveRequestId(applicationCall.request.headers[REQUEST_ID_HEADER])
+        val traceId = resolvePlaybackTraceId(applicationCall.request.headers[PLAYBACK_TRACE_ID_HEADER])
         applicationCall.attributes.put(requestIdAttribute, requestId)
         applicationCall.attributes.put(requestStartNanosAttribute, System.nanoTime())
         applicationCall.response.headers.append(REQUEST_ID_HEADER, requestId, safeOnly = false)
-        withContext(requestContextElement(requestId)) {
+        traceId?.let { applicationCall.response.headers.append(PLAYBACK_TRACE_ID_HEADER, it, safeOnly = false) }
+        withContext(requestContextElement(requestId, traceId)) {
             try {
                 proceed()
             } finally {
+                traceId?.let {
+                    PlaybackTraceLog.record(it, requestId, "http_complete", "method=${applicationCall.request.httpMethod.value} route=${metricPath(applicationCall.request.path())} status=${applicationCall.response.status()?.value ?: 0} durationMs=${applicationCall.requestDurationMs()}")
+                }
                 AppMetrics.record(applicationCall)
             }
         }
@@ -48,6 +53,9 @@ fun requestLogLine(call: ApplicationCall): String = listOf(
 
 private fun resolveRequestId(raw: String?): String =
     raw?.takeIf { requestIdRegex.matches(it) } ?: UUID.randomUUID().toString()
+
+private fun resolvePlaybackTraceId(raw: String?): String? =
+    raw?.takeIf { requestIdRegex.matches(it) }
 
 private fun <T : Any> ApplicationCall.attributeOrNull(key: AttributeKey<T>): T? =
     if (attributes.contains(key)) attributes[key] else null

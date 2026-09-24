@@ -51,6 +51,8 @@ object AppMetrics {
 }
 
 fun metricPath(path: String): String = when {
+    path.startsWith("/api/sabr/playback/") -> "/api/sabr/playback/{sessionId}"
+    path.startsWith("/sabr/playback/") -> "/sabr/playback/{sessionId}"
     path.startsWith("/downloader/jobs/") && path.endsWith("/events") -> "/downloader/jobs/{id}/events"
     path.startsWith("/downloader/jobs/") && path.endsWith("/artifact") -> "/downloader/jobs/{id}/artifact"
     path.startsWith("/downloader/jobs/") && path.endsWith("/cancel") -> "/downloader/jobs/{id}/cancel"

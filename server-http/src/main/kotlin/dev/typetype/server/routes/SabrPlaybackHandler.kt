@@ -12,6 +12,7 @@ import dev.typetype.server.services.SabrPlaybackSegmentResult
 import dev.typetype.server.services.SabrPlaybackSessionService
 import dev.typetype.server.services.SabrPlaybackInfoResolver
 import dev.typetype.server.services.SabrSessionHolder
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.markServed
@@ -39,10 +40,13 @@ internal class SabrPlaybackHandler(
         if (!validateAccess(call, videoId, access)) return
         val request = call.playbackRequest()
         val startTimeMs = request.effectiveStartTimeMs()
+        val infoStartedAt = System.nanoTime()
         val prepared = infoResolver.initial(access.userId, videoId, startTimeMs)
-            ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
+        PlaybackTraceLog.record("sabr_info", "durationMs=${(System.nanoTime() - infoStartedAt) / 1_000_000} result=${if (prepared == null) "miss" else "ready"} startTimeMs=$startTimeMs")
+        prepared ?: return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("SABR probe failed"))
         val audio = selectAudio(call, prepared, request) ?: return
         val video = selectVideo(call, prepared, request) ?: return
+        val prepareStartedAt = System.nanoTime()
         val preparation = playbackService.prepare(
             videoId = videoId,
             userId = access.userId ?: videoId,
@@ -53,6 +57,7 @@ internal class SabrPlaybackHandler(
             audioOnly = request.audioOnly,
             isLive = request.isLive,
         )
+        PlaybackTraceLog.record("sabr_session_prepare", "durationMs=${(System.nanoTime() - prepareStartedAt) / 1_000_000} ready=${preparation.ready} startTimeMs=${preparation.startTimeMs}")
         preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
         respondPrepared(call, preparation.holder, videoId, preparation.startTimeMs, preparation.ready)
     }

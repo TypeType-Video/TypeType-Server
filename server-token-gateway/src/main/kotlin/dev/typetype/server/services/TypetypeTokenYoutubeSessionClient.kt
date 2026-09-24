@@ -11,6 +11,11 @@ import okhttp3.Response
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import dev.typetype.server.sabr.SabrAdapter
+import dev.typetype.server.PLAYBACK_TRACE_ID_HEADER
+import dev.typetype.server.REQUEST_ID_HEADER
+import dev.typetype.server.PlaybackTraceLog
+import dev.typetype.server.currentPlaybackTraceId
+import dev.typetype.server.currentRequestId
 import dev.typetype.server.sabr.YoutubeSabrClientProfile
 import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.io.IOException
@@ -67,17 +72,27 @@ class TypetypeTokenYoutubeSessionClient(
         val url = "${tokenServiceUrl.trimEnd('/')}/youtube/sabr/session?videoId=$encodedVideoId&client=MWEB" +
             if (isolated) "&isolated=true" else ""
         return suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(Request.Builder().url(url).get().build())
+            val requestBuilder = Request.Builder().url(url).get()
+            currentRequestId()?.let { requestBuilder.header(REQUEST_ID_HEADER, it) }
+            currentPlaybackTraceId()?.let { requestBuilder.header(PLAYBACK_TRACE_ID_HEADER, it) }
+            val traceId = currentPlaybackTraceId()
+            val requestId = currentRequestId()
+            val startedAt = System.nanoTime()
+            PlaybackTraceLog.record("token_session_start", "operation=youtube_sabr_session isolated=$isolated")
+            val call = client.newCall(requestBuilder.build())
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
+                    PlaybackTraceLog.record(traceId, requestId, "token_session_complete", "status=network_error durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
                     if (continuation.isActive) continuation.resume(null)
                 }
 
                 override fun onResponse(call: Call, response: Response) {
+                    val status = response.code
                     val session = response.use {
                         if (!it.isSuccessful) null else runCatching { JSONObject(it.body.string()) }.getOrNull()
                     }
+                    PlaybackTraceLog.record(traceId, requestId, "token_session_complete", "status=$status result=${if (session == null) "empty" else "ok"} durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
                     if (continuation.isActive) continuation.resume(session)
                 }
             })

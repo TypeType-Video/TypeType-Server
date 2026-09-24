@@ -5,6 +5,11 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import dev.typetype.server.PLAYBACK_TRACE_ID_HEADER
+import dev.typetype.server.REQUEST_ID_HEADER
+import dev.typetype.server.PlaybackTraceLog
+import dev.typetype.server.currentPlaybackTraceId
+import dev.typetype.server.currentRequestId
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -34,9 +39,15 @@ class TypetypeTokenSabrTokenClient(
         val request = Request.Builder()
             .url("${tokenServiceUrl.trimEnd('/')}/potoken/session")
             .post(body)
+            .apply {
+                currentRequestId()?.let { header(REQUEST_ID_HEADER, it) }
+                currentPlaybackTraceId()?.let { header(PLAYBACK_TRACE_ID_HEADER, it) }
+            }
             .build()
+        val startedAt = System.nanoTime()
         return try {
             client.newCall(request).execute().use { response ->
+                PlaybackTraceLog.record("token_http", "endpoint=potoken_session status=${response.code} durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
                 if (!response.isSuccessful) return null
                 SabrTokenBundle.fromSessionResponse(videoId, sessionBinding, JSONObject(response.body.string()))
             }
@@ -56,8 +67,14 @@ class TypetypeTokenSabrTokenClient(
     ): SabrTokenBundle? {
         val url = buildUrl(binding, forceRefresh, refreshVideo)
         val target = if (logIdentifier) " for $binding" else " for session binding"
+        val startedAt = System.nanoTime()
+        val request = Request.Builder().url(url).get().apply {
+            currentRequestId()?.let { header(REQUEST_ID_HEADER, it) }
+            currentPlaybackTraceId()?.let { header(PLAYBACK_TRACE_ID_HEADER, it) }
+        }.build()
         return try {
-            client.newCall(Request.Builder().url(url).get().build()).execute().use { resp ->
+            client.newCall(request).execute().use { resp ->
+                PlaybackTraceLog.record("token_http", "endpoint=potoken status=${resp.code} durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
                 if (!resp.isSuccessful) {
                     System.err.println("[TypetypeTokenSabrTokenClient] /potoken HTTP ${resp.code}$target")
                     return null
