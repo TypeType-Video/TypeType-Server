@@ -74,6 +74,7 @@ class YoutubeLiveHlsStreamServiceTest {
         val response = mockk<StreamResponse>()
         every { response.isLive } returns isLive
         every { response.hlsUrl } returns manifestUrl
+        every { response.requiresMembership } returns false
         return response
     }
 
