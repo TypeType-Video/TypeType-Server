@@ -130,8 +130,8 @@ class SabrPlaybackGranularRoutesTest {
             setBody(windowBody())
         }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("segment/1"))
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertTrue(response.bodyAsText().contains("video:136:1 pending"))
         verify(atLeast = 1) { store.requestSegmentDemand(holder, any(), holder.activeGeneration()) }
     }
 

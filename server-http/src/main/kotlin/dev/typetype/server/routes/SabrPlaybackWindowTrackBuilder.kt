@@ -143,5 +143,5 @@ internal data class TrackBuildResult(
     val atEnd: Boolean,
 ) {
     fun covers(requiredEndMs: Long): Boolean =
-        blockedBy == null && (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
+        (track.segments.isNotEmpty() || atEnd) && coveredEndMs >= requiredEndMs
 }
