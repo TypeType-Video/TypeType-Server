@@ -10,6 +10,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
+internal data class VideoMetadataResolution(
+    val metadata: Map<String, VideoMetadataItem>,
+    val retryableUrls: Set<String>,
+)
+
 class VideoMetadataResolver(private val streamService: StreamService) {
     suspend fun enrichPlaylistVideos(videos: List<PlaylistVideoItem>): List<PlaylistVideoItem> {
         val metadata = resolve(videos.filter(::shouldEnrich).map { it.url })
@@ -27,23 +32,37 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         return distinct.map { item -> metadata[item.videoUrl]?.toFavorite(item) ?: item.withYoutubeFallbackTitle() }
     }
 
-    suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> = coroutineScope {
+    suspend fun resolve(urls: Collection<String>): Map<String, VideoMetadataItem> =
+        resolveDetailed(urls).metadata
+
+    internal suspend fun resolveDetailed(urls: Collection<String>): VideoMetadataResolution = coroutineScope {
         val semaphore = Semaphore(MAX_CONCURRENT_RESOLUTIONS)
-        urls.map { it.trim() }.filter { it.isNotBlank() }.distinct().map { url ->
+        val results = urls.map { it.trim() }.filter { it.isNotBlank() }.distinct().map { url ->
             async { semaphore.withPermit { resolve(url) } }
-        }.awaitAll().filterNotNull().toMap()
+        }.awaitAll().filterNotNull()
+        val metadata = mutableMapOf<String, VideoMetadataItem>()
+        val retryableUrls = mutableSetOf<String>()
+        results.forEach { result ->
+            when (result) {
+                is ResolutionResult.Resolved -> metadata[result.url] = result.metadata
+                is ResolutionResult.Failed -> if (result.retryable) {
+                    retryableUrls += result.url
+                }
+            }
+        }
+        VideoMetadataResolution(metadata, retryableUrls)
     }
 
-    private suspend fun resolve(url: String): Pair<String, VideoMetadataItem>? = try {
+    private suspend fun resolve(url: String): ResolutionResult? = try {
         when (val result = streamService.getStreamInfo(url)) {
-            is ExtractionResult.Success -> url to result.data.toMetadata(url)
-            is ExtractionResult.BadRequest -> null
-            is ExtractionResult.Failure -> null
+            is ExtractionResult.Success -> ResolutionResult.Resolved(url, result.data.toMetadata(url))
+            is ExtractionResult.BadRequest -> ResolutionResult.Failed(url, retryable = false)
+            is ExtractionResult.Failure -> ResolutionResult.Failed(url, retryable = true)
         }
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
-        null
+        ResolutionResult.Failed(url, retryable = true)
     }
 
     private fun shouldEnrich(video: PlaylistVideoItem): Boolean =
@@ -91,4 +110,16 @@ class VideoMetadataResolver(private val streamService: StreamService) {
         const val MAX_CONCURRENT_RESOLUTIONS = 8
         const val YOUTUBE_THUMB_PREFIX = "https://i.ytimg.com/vi/"
     }
+}
+
+private sealed interface ResolutionResult {
+    data class Resolved(
+        val url: String,
+        val metadata: VideoMetadataItem,
+    ) : ResolutionResult
+
+    data class Failed(
+        val url: String,
+        val retryable: Boolean,
+    ) : ResolutionResult
 }

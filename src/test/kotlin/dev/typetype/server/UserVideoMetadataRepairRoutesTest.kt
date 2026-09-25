@@ -138,7 +138,61 @@ class UserVideoMetadataRepairRoutesTest {
             repair.schedulePlaylists(scope, TEST_USER_ID)
             delay(100)
 
-            assertEquals(1, attempts.get())
+            assertEquals(2, attempts.get())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `repair continues across more than one metadata batch`() = runBlocking {
+        val attempts = AtomicInteger()
+        val repair = UserVideoMetadataRepairService(VideoMetadataResolver(alwaysSuccessfulStreamService(attempts)))
+        val playlist = playlists.create(TEST_USER_ID, PlaylistItem(name = "Imported", description = ""))
+        repeat(26) { index ->
+            val url = "https://www.youtube.com/watch?v=video$index"
+            playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(url))
+        }
+        val scope = CoroutineScope(SupervisorJob())
+
+        try {
+            repair.schedulePlaylists(scope, TEST_USER_ID)
+            withTimeout(10_000) {
+                while (playlists.getById(TEST_USER_ID, playlist.id)?.videos?.count { it.title.startsWith("Resolved") } != 26) {
+                    delay(20)
+                }
+            }
+            assertEquals(26, attempts.get())
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `transient metadata failure is retried once`() = runBlocking {
+        val attempts = AtomicInteger()
+        val streamService = object : StreamService {
+            override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+                return if (attempts.incrementAndGet() == 1) {
+                    ExtractionResult.Failure("Provider blocked", "provider_access_blocked")
+                } else {
+                    ExtractionResult.Success(stream(url))
+                }
+            }
+        }
+        val repair = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
+        val playlist = playlists.create(TEST_USER_ID, PlaylistItem(name = "Imported", description = ""))
+        playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(VIDEO_URL))
+        val scope = CoroutineScope(SupervisorJob())
+
+        try {
+            repair.schedulePlaylists(scope, TEST_USER_ID)
+            withTimeout(10_000) {
+                while (playlists.getById(TEST_USER_ID, playlist.id)?.videos?.single()?.title != "Resolved abc123") {
+                    delay(20)
+                }
+            }
+            assertEquals(2, attempts.get())
         } finally {
             scope.cancel()
         }
@@ -146,10 +200,17 @@ class UserVideoMetadataRepairRoutesTest {
 
     private fun fallbackVideo(url: String): PlaylistVideoItem = PlaylistVideoItem(
         url = url,
-        title = "YouTube video abc123",
-        thumbnail = "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+        title = "YouTube video ${url.substringAfterLast('=')}",
+        thumbnail = "https://i.ytimg.com/vi/${url.substringAfterLast('=')}/hqdefault.jpg",
         duration = 0L,
     )
+
+    private fun alwaysSuccessfulStreamService(attempts: AtomicInteger): StreamService = object : StreamService {
+        override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
+            attempts.incrementAndGet()
+            return ExtractionResult.Success(stream(url))
+        }
+    }
 
     private fun fakeStreamService(started: CompletableDeferred<Unit>, release: CompletableDeferred<Unit>): StreamService = object : StreamService {
         override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {

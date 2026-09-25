@@ -7,6 +7,7 @@ import dev.typetype.server.db.tables.WatchLaterTable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -24,22 +25,35 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private val lastScheduledAt = ConcurrentHashMap<String, Long>()
 
     fun schedulePlaylists(scope: CoroutineScope, userId: String): Unit = schedule(scope, "playlists:$userId") {
-        repairPlaylists(userId)
+        drain { excluded -> repairPlaylists(userId, excluded) }
     }
 
     fun scheduleWatchLater(scope: CoroutineScope, userId: String): Unit = schedule(scope, "watch-later:$userId") {
-        repairWatchLater(userId)
+        drain { excluded -> repairWatchLater(userId, excluded) }
     }
 
     fun scheduleFavorites(scope: CoroutineScope, userId: String): Unit = schedule(scope, "favorites:$userId") {
-        repairFavorites(userId)
+        drain { excluded -> repairFavorites(userId, excluded) }
     }
 
-    suspend fun repairPlaylists(userId: String): Int = repair(userId, ::playlistCandidateUrls)
+    private suspend fun repairPlaylists(userId: String, excluded: Set<String>): RepairOutcome =
+        repair(userId, excluded, ::playlistCandidateUrls)
 
-    suspend fun repairWatchLater(userId: String): Int = repair(userId, ::watchLaterCandidateUrls)
+    private suspend fun repairWatchLater(userId: String, excluded: Set<String>): RepairOutcome =
+        repair(userId, excluded, ::watchLaterCandidateUrls)
 
-    suspend fun repairFavorites(userId: String): Int = repair(userId, ::favoriteCandidateUrls)
+    private suspend fun repairFavorites(userId: String, excluded: Set<String>): RepairOutcome =
+        repair(userId, excluded, ::favoriteCandidateUrls)
+
+    private suspend fun drain(repair: suspend (Set<String>) -> RepairOutcome) {
+        val excluded = mutableSetOf<String>()
+        repeat(MAX_BATCHES_PER_RUN) {
+            val outcome = repair(excluded)
+            if (outcome.attempted == 0 || outcome.updated == 0) return
+            excluded += outcome.attemptedUrls
+            delay(BATCH_DELAY_MS)
+        }
+    }
 
     private fun schedule(scope: CoroutineScope, key: String, repair: suspend () -> Unit) {
         val now = System.currentTimeMillis()
@@ -60,22 +74,33 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         }
     }
 
-    private suspend fun repair(userId: String, candidates: suspend (String) -> List<String>): Int {
-        val urls = candidates(userId).take(MAX_REPAIR_PER_REQUEST)
-        if (urls.isEmpty()) return 0
-        val metadata = resolver.resolve(urls)
-        if (metadata.isEmpty()) return 0
-        return DatabaseFactory.query {
-            metadata.values.sumOf { item ->
+    private suspend fun repair(
+        userId: String,
+        excluded: Set<String>,
+        candidates: suspend (String) -> List<String>,
+    ): RepairOutcome {
+        val urls = candidates(userId).filterNot { it in excluded }.take(MAX_REPAIR_PER_REQUEST)
+        if (urls.isEmpty()) return RepairOutcome(attemptedUrls = emptySet(), updated = 0)
+        val first = resolver.resolveDetailed(urls)
+        var updated = applyMetadata(userId, first)
+        if (first.retryableUrls.isNotEmpty()) {
+            delay(RETRY_DELAY_MS)
+            val retried = resolver.resolveDetailed(first.retryableUrls)
+            updated += applyMetadata(userId, retried)
+        }
+        return RepairOutcome(attemptedUrls = urls.toSet(), updated = updated)
+    }
+
+    private suspend fun applyMetadata(userId: String, resolution: VideoMetadataResolution): Int =
+        DatabaseFactory.query {
+            resolution.metadata.values.sumOf { item ->
                 updatePlaylistVideos(userId, item) + updateWatchLater(userId, item) + updateFavorites(userId, item)
             }
         }
-    }
 
     private suspend fun playlistCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         PlaylistVideosTable.selectAll()
             .where { (PlaylistVideosTable.userId eq userId) and playlistNeedsRepair() }
-            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[PlaylistVideosTable.url] }
             .distinct()
     }
@@ -83,7 +108,6 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private suspend fun watchLaterCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         WatchLaterTable.selectAll()
             .where { (WatchLaterTable.userId eq userId) and watchLaterNeedsRepair() }
-            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[WatchLaterTable.url] }
             .distinct()
     }
@@ -91,7 +115,6 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private suspend fun favoriteCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
         FavoritesTable.selectAll()
             .where { (FavoritesTable.userId eq userId) and favoriteNeedsRepair() }
-            .limit(MAX_REPAIR_PER_REQUEST)
             .map { it[FavoritesTable.videoUrl] }
             .distinct()
     }
@@ -145,6 +168,16 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         const val FALLBACK_TITLE_PATTERN = "YouTube video %"
         const val YOUTUBE_THUMB_PATTERN = "https://i.ytimg.com/vi/%"
         const val MAX_REPAIR_PER_REQUEST = 25
+        const val MAX_BATCHES_PER_RUN = 8
+        const val BATCH_DELAY_MS = 750L
+        const val RETRY_DELAY_MS = 2_000L
         const val REPAIR_COOLDOWN_MS = 5 * 60 * 1000L
     }
+}
+
+private data class RepairOutcome(
+    val attemptedUrls: Set<String>,
+    val updated: Int,
+) {
+    val attempted: Int get() = attemptedUrls.size
 }
