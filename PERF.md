@@ -27,7 +27,7 @@ Start a video from its card. In the console, collect all `[typetype] playback.*`
 
 The same trace ID is sent on selected stream, comments, subtitle, SABR prewarm, and SABR MSE requests. Server echoes it and forwards it, with the request ID, to Token. Filter Server and Token runtime logs for `[playback_trace]` and the same `traceId`.
 
-Browser events include API start/end/status/duration, video readiness and playback events, the first rendered frame, same-origin SABR resource timing and transfer sizes, and supported long-task observations. Server events include normalized HTTP route/status/duration, SABR info resolution and session preparation. Token events include session cache/singleflight state and durations for visitor data, BotGuard, GenerateIT, PO-token minting, YouTube session creation, and SABR phases.
+Browser events include API start/end/status/duration; video readiness/playback and first-frame callbacks; same-origin SABR resource timing/transfer sizes; and supported long-task observations. MSE events include `mse_state`, `mse_manifest` (generation and segment count), `mse_quality`, `mse_segment_appended` (track, init/media phase, start and duration), `mse_buffer`, `mse_seek`, and `mse_error`. Segment URLs are omitted. Server events include normalized HTTP route/status/duration, SABR info resolution and session preparation. Token events include session cache/singleflight state and durations for visitor data, BotGuard, GenerateIT, PO-token minting, YouTube session creation, and SABR phases.
 
 Compare the browser's full API duration with the Server request duration and the nested Token phases. This separates browser/MSE waiting, Server work, and Token work without treating a fast response header as a rendered frame.
 
