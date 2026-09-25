@@ -84,7 +84,6 @@ class SabrFallbackStreamServiceTest {
         val sessionStore = mockk<SabrSessionStore>()
         val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
         coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Failure("MWEB player response is not valid")
-        coEvery { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) } returns preparedInfo()
         coEvery { tokenSessionClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession()
         val service = SabrFallbackStreamService(delegate, sessionStore, tokenSessionClient)
 
@@ -98,7 +97,7 @@ class SabrFallbackStreamServiceTest {
         assertEquals(3554L, response.duration)
         assertEquals(listOf(137), response.videoOnlyStreams.map { it.itag })
         assertEquals(listOf(140), response.audioStreams.map { it.itag })
-        coVerify(exactly = 1) { sessionStore.fetchInfo(VIDEO_ID, cachedFirst = true) }
+        coVerify(exactly = 1) { tokenSessionClient.fetchPlaybackSession(VIDEO_ID) }
     }
 
     @Test
