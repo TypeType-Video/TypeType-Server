@@ -4,7 +4,7 @@
 
 The target is less than 3 seconds from selecting a video on `beta.typetype.video` to its first rendered video frame. The browser trace's `playback.first_frame` event measures this interval from the click trace; a direct watch-page load starts at route entry instead.
 
-This target is not yet demonstrated. A successful build or fast API response is not a playback result. Validate against the deployed Beta build in Chromium and Firefox, using the same video and recording cold and warm starts separately. Do not infer a pass from a cached thumbnail or `loadedmetadata`; require `first_frame`.
+Two prewarmed Beta browser samples below are under 3 seconds. This does not establish cold-start behavior or a percentile target. Do not infer a pass from a cached thumbnail or `loadedmetadata`; require `first_frame`.
 
 ## PipePipe Reference
 
@@ -33,6 +33,23 @@ Compare the browser's full API duration with the Server request duration and the
 
 Detailed records are emitted only for requests carrying a valid trace ID. They do not include bearer tokens, cookies, PO-token values, session bindings, request bodies, or signed query strings. Subtitle timing is observational; this harness does not make subtitle loading a prerequisite for video playback.
 
+## Measurements (2026-09-25)
+
+The public Beta instance reported Server revision `d596c984`. With the same video and fresh browser contexts, both runs used the SABR prewarm path:
+
+| Browser | Click to first frame | Click to playing | Playback advanced | Result |
+| --- | ---: | ---: | ---: | --- |
+| Chromium | 1,731 ms | 1,759 ms | 3.94 s | Pass |
+| Firefox | 2,114 ms | 2,159 ms | 4.03 s | Pass |
+
+Both rendered a 1920x1080 frame, continued playing without a media error, and had about 5.34 seconds buffered at `loadeddata`, growing to about 10.68 seconds. Two text tracks were attached and zero were visible at first frame in both runs. This demonstrates that subtitles did not block these starts; it does not establish behavior for every subtitle format or cold start.
+
+These are two prewarmed samples, not cold-start measurements or a percentile. Browser SABR stream-info calls took 369 ms in Chromium and 50 ms in Firefox; the measured SABR create requests took 94/10 ms and 36/26 ms respectively (prewarm/consumer). Segment requests completed in 25-38 ms in Chromium and 26-66 ms in Firefox.
+
+A separate cold direct Stack Beta stream-info request returned 200 in 3,585 ms. Its correlated Server log measured the PO-token request at 1,079 ms and the SABR Token session at 196 ms. Token logs broke the cold token refresh into visitor-data fetch 35 ms, BotGuard challenge 178 ms, BotGuard execution 806 ms, GenerateIT fetch 40 ms, and token minting under 10 ms. The later SABR session phases totaled 184 ms (Innertube 105 ms, player 59 ms, session build 19 ms). This endpoint measures extraction, not click-to-first-frame; the timings identify BotGuard as a significant measured phase but do not attribute the entire extraction delay to Token.
+
+The direct Stack request correlated the same trace and request IDs through Server and Token. Browser trace IDs from the public Beta runs did not appear in the Stack-local Server or Token container logs, so public-runtime log correlation is not yet verified. Keep this distinction when comparing browser timings with backend phases.
+
 ## Acceptance
 
-A measured run passes only when click-to-`playback.first_frame.elapsedMs` is below 3000 ms on Beta. Keep the matching browser events and Server/Token records by trace ID with the video and whether the run was cold or warm. Until those deployed measurements exist, the startup target remains unverified.
+A measured run passes only when click-to-`playback.first_frame.elapsedMs` is below 3000 ms on Beta. The two prewarmed samples above pass. Keep matching browser events and Server/Token records by trace ID, with the video and whether the run was cold or prewarmed. The overall target remains unverified until cold starts and representative network conditions are measured.
