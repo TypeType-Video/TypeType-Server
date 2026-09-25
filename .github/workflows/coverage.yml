@@ -1,10 +1,8 @@
 name: Coverage
 
 on:
-  # Temporarily pause automatic test and coverage runs.
-  # pull_request:
-  #   branches: ["dev", "main"]
-  workflow_dispatch:
+  pull_request:
+    branches: ["dev", "main"]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
