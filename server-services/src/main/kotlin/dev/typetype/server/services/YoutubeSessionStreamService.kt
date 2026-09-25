@@ -45,6 +45,10 @@ class YoutubeSessionStreamService(
         return result
     }
 
+    suspend fun markYoutubeSessionNeedsReconnect(userId: String) {
+        youtubeSessionService.markNeedsReconnect(userId)
+    }
+
     private fun StreamResponse.withSignedHlsUrl(
         credentials: YoutubeSessionCredentials,
         url: String,

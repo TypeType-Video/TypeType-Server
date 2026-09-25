@@ -1,7 +1,9 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.delay
@@ -70,11 +72,30 @@ class AuthenticatedSabrTimeoutTest {
             mockk(relaxed = true),
             timeoutMs = 20L,
         )
+        coEvery { metadata.markYoutubeSessionNeedsReconnect(USER_ID) } returns Unit
 
         val result = withTimeout(1_000L) { service.getStreamInfo(USER_ID, URL) }
 
-        assertTrue(result is ExtractionResult.Failure)
-        assertEquals(AuthenticatedSabrPolicy.TIMEOUT_CODE, (result as ExtractionResult.Failure).code)
+        assertTrue(result is ExtractionResult.BadRequest)
+        assertEquals(YOUTUBE_SESSION_RECONNECT_CODE, (result as ExtractionResult.BadRequest).code)
+        coVerify { metadata.markYoutubeSessionNeedsReconnect(USER_ID) }
+    }
+
+    @Test
+    fun `authenticated SABR probe timeout marks session needs reconnect`() = runTest {
+        val metadata = mockk<YoutubeSessionStreamService>()
+        val info = mockk<AuthenticatedSabrInfoService>()
+        val stream = mockk<StreamResponse>(relaxed = true)
+        coEvery { metadata.getStreamInfo(USER_ID, URL) } returns ExtractionResult.Success(stream)
+        coEvery { metadata.markYoutubeSessionNeedsReconnect(USER_ID) } returns Unit
+        coEvery { info.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.TimedOut
+        val service = YoutubeSessionSabrStreamService(metadata, info)
+
+        val result = service.getStreamInfo(USER_ID, URL)
+
+        assertTrue(result is ExtractionResult.BadRequest)
+        assertEquals(YOUTUBE_SESSION_RECONNECT_CODE, (result as ExtractionResult.BadRequest).code)
+        coVerify { metadata.markYoutubeSessionNeedsReconnect(USER_ID) }
     }
 
     private fun service(

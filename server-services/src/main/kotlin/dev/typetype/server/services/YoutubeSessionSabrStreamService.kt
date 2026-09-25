@@ -26,16 +26,18 @@ class YoutubeSessionSabrStreamService(
                     AuthenticatedSabrInfoResult.Failed ->
                         ExtractionResult.Failure("Authenticated SABR playback unavailable")
                     AuthenticatedSabrInfoResult.TimedOut ->
-                        ExtractionResult.Failure(
-                            "Authenticated SABR preparation timed out",
-                            AuthenticatedSabrPolicy.TIMEOUT_CODE,
-                        )
+                        reconnectResult(userId)
                     AuthenticatedSabrInfoResult.NotConnected -> null
                 }
             }
         } catch (error: TimeoutCancellationException) {
-            ExtractionResult.Failure("Authenticated SABR preparation timed out", AuthenticatedSabrPolicy.TIMEOUT_CODE)
+            reconnectResult(userId)
         }
+    }
+
+    private suspend fun reconnectResult(userId: String): ExtractionResult<StreamResponse> {
+        metadataService.markYoutubeSessionNeedsReconnect(userId)
+        return ExtractionResult.BadRequest(YOUTUBE_SESSION_RECONNECT_ERROR, YOUTUBE_SESSION_RECONNECT_CODE)
     }
 }
 
