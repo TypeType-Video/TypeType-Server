@@ -48,6 +48,15 @@ These are two prewarmed samples, not cold-start measurements or a percentile. Br
 
 A later card-click sample on video `ynKvUYpu1Qw` measured 1,892 ms to first frame in Chromium and 1,913 ms in Firefox. Playback started at 1,908/1,941 ms, continued for 3.94/4.01 seconds, and rendered 1920x1080 without a media error. Chromium's stream-info call took 1,291 ms and bootstrap took 172 ms; session creation took 318 ms for the consumer and 139 ms for prewarm. Firefox ran after Chromium had used the same video: stream-info took 43 ms, session calls 29-30 ms, and init calls 26-27 ms. No text tracks were attached at first frame. Firefox was cache-warm, and Chromium's origin-side cache state was not measured, so these results do not prove a cold-start pass.
 
+The browser MSE trace was also captured for `GlosP5N7DkA` in fresh Chromium and Firefox contexts. A separate `stream_resolve` request was active around navigation from search results, and the click path used SABR prewarm plus session handoff; these are not cold-start measurements.
+
+| Browser | Click to first frame | Click to playing | Playback advanced | Result |
+| --- | ---: | ---: | ---: | --- |
+| Chromium | 1,678 ms | 1,713 ms | 3.96 s | Pass |
+| Firefox | 1,539 ms | 1,549 ms | 4.04 s | Pass |
+
+Both rendered a 1920x1080 frame with no media error or intercepted pause call. Firefox's click trace recorded the MSE manifest ready at 1,436 ms, `loadeddata` at 1,512 ms, and `first_frame` at 1,541 ms; its bootstrap trace duration was 284 ms and the prewarm/consumer session requests took 26/25 ms. Both traces showed two text tracks and zero visible tracks at first frame. This confirms a sub-3-second start for these prewarmed samples, not every subtitle format or a cold start.
+
 The TypeType SABR extractor configuration disables supplemental subtitle lookup. This shows subtitles did not gate this start, not that every subtitle path is non-blocking.
 
 A separate cold direct Stack Beta stream-info request returned 200 in 3,585 ms. Its correlated Server log measured the PO-token request at 1,079 ms and the SABR Token session at 196 ms. Token logs broke the cold token refresh into visitor-data fetch 35 ms, BotGuard challenge 178 ms, BotGuard execution 806 ms, GenerateIT fetch 40 ms, and token minting under 10 ms. The later SABR session phases totaled 184 ms (Innertube 105 ms, player 59 ms, session build 19 ms). This endpoint measures extraction, not click-to-first-frame; the timings identify BotGuard as a significant measured phase but do not attribute the entire extraction delay to Token.
