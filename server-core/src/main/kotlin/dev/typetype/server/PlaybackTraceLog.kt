@@ -1,7 +1,9 @@
 package dev.typetype.server
 
+import org.slf4j.LoggerFactory
+
 object PlaybackTraceLog {
-    private val logger = System.getLogger(PlaybackTraceLog::class.java.name)
+    private val logger = LoggerFactory.getLogger(PlaybackTraceLog::class.java)
 
     fun record(event: String, fields: String = "") {
         record(currentPlaybackTraceId(), currentRequestId(), event, fields)
@@ -9,10 +11,6 @@ object PlaybackTraceLog {
 
     fun record(traceId: String?, requestId: String?, event: String, fields: String = "") {
         if (traceId == null) return
-        logger.log(
-            System.Logger.Level.INFO,
-            "playback_trace traceId={0} requestId={1} event={2} {3}",
-            traceId, requestId ?: "unknown", event, fields,
-        )
+        logger.info("playback_trace traceId={} requestId={} event={} {}", traceId, requestId ?: "unknown", event, fields)
     }
 }
