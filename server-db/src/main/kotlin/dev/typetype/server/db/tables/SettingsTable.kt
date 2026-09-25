@@ -8,6 +8,8 @@ object SettingsTable : Table("settings") {
     val defaultQuality = text("default_quality").default("1080p")
     val defaultPlaybackSpeed = double("default_playback_speed").default(1.0)
     val defaultLandingPage = text("default_landing_page").default("home")
+    val videoGridColumns = integer("video_grid_columns").default(0)
+    val relatedVideoSize = text("related_video_size").default("default")
     val autoplay = bool("autoplay").default(true)
     val autoplayOnOpen = bool("autoplay_on_open").default(true)
     val autoplayCountdownSeconds = integer("autoplay_countdown_seconds").default(10)

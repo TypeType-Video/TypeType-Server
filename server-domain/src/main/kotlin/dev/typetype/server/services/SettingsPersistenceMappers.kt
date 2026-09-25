@@ -21,6 +21,8 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     defaultQuality = this[SettingsTable.defaultQuality],
     defaultPlaybackSpeed = this[SettingsTable.defaultPlaybackSpeed],
     defaultLandingPage = this[SettingsTable.defaultLandingPage],
+    videoGridColumns = this[SettingsTable.videoGridColumns],
+    relatedVideoSize = this[SettingsTable.relatedVideoSize],
     autoplay = this[SettingsTable.autoplay],
     autoplayOnOpen = this[SettingsTable.autoplayOnOpen],
     autoplayCountdownSeconds = this[SettingsTable.autoplayCountdownSeconds],
@@ -63,6 +65,8 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.defaultQuality] = settings.defaultQuality
     this[SettingsTable.defaultPlaybackSpeed] = settings.defaultPlaybackSpeed
     this[SettingsTable.defaultLandingPage] = settings.defaultLandingPage
+    this[SettingsTable.videoGridColumns] = settings.videoGridColumns
+    this[SettingsTable.relatedVideoSize] = settings.relatedVideoSize
     this[SettingsTable.autoplay] = settings.autoplay
     this[SettingsTable.autoplayOnOpen] = settings.autoplayOnOpen
     this[SettingsTable.autoplayCountdownSeconds] = settings.autoplayCountdownSeconds
@@ -104,6 +108,8 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
 
 fun SettingsItem.normalized(): SettingsItem = copy(
     defaultLandingPage = defaultLandingPage.ifBlank { "home" },
+    videoGridColumns = videoGridColumns.takeIf { it in VIDEO_GRID_COLUMNS } ?: 0,
+    relatedVideoSize = relatedVideoSize.takeIf { it in RELATED_VIDEO_SIZES } ?: "default",
     defaultPlaybackSpeed = defaultPlaybackSpeed.takeIf { it.isFinite() }
         ?.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED) ?: 1.0,
     accessMode = accessMode.toAccessMode(),
@@ -116,6 +122,8 @@ fun SettingsItem.normalized(): SettingsItem = copy(
 )
 
 private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
+private val VIDEO_GRID_COLUMNS = setOf(0, 4, 5, 6)
+private val RELATED_VIDEO_SIZES = setOf("default", "large")
 private const val MIN_PLAYBACK_SPEED = 0.25
 private const val MAX_PLAYBACK_SPEED = 4.0
 private val DEARROW_THUMBNAIL_MODES = setOf("original", "dearrow", "random", "dearrow_or_random")

@@ -34,6 +34,8 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS autoplay_countdown_seconds INTEGER NOT NULL DEFAULT 10")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subscription_sync_interval INTEGER NOT NULL DEFAULT 0")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_landing_page TEXT NOT NULL DEFAULT 'home'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS video_grid_columns INTEGER NOT NULL DEFAULT 0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS related_video_size TEXT NOT NULL DEFAULT 'default'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'unrestricted'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS access_mode_admin_managed_at BIGINT NOT NULL DEFAULT 0")

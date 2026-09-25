@@ -8,6 +8,8 @@ data class SettingsItem(
     val defaultQuality: String = "1080p",
     val defaultPlaybackSpeed: Double = 1.0,
     val defaultLandingPage: String = "home",
+    val videoGridColumns: Int = 0,
+    val relatedVideoSize: String = "default",
     val autoplay: Boolean = true,
     val autoplayOnOpen: Boolean = true,
     val autoplayCountdownSeconds: Int = 10,

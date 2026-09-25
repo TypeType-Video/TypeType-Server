@@ -62,6 +62,8 @@ class SettingsRoutesTest {
         assertTrue(body.contains("\"notificationPopupsEnabled\":true"))
         assertTrue(body.contains("\"defaultLandingPage\":\"home\""))
         assertTrue(body.contains("\"defaultPlaybackSpeed\":1.0"))
+        assertTrue(body.contains("\"videoGridColumns\":0"))
+        assertTrue(body.contains("\"relatedVideoSize\":\"default\""))
     }
 
     @Test
@@ -96,7 +98,27 @@ class SettingsRoutesTest {
     fun `GET settings returns defaults for new fields when no row exists`() = withApp {
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
         assertContainsAll(body, listOf("\"subtitlesEnabled\":false", "\"defaultSubtitleLanguage\":\"\"", "\"defaultAudioLanguage\":\"\"", "\"preferOriginalLanguage\":false", "\"enableHighQualityPlayback\":false"))
+        assertContainsAll(body, listOf("\"videoGridColumns\":0", "\"relatedVideoSize\":\"default\""))
         assertContainsNone(body, listOf("recommendationPersonalizationEnabled", "subscriptionSyncInterval"))
+    }
+
+    @Test
+    fun `PUT settings persists and bounds layout preferences`() = withApp {
+        client.put("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"videoGridColumns":5,"relatedVideoSize":"large"}""")
+        }
+        var body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        assertContainsAll(body, listOf("\"videoGridColumns\":5", "\"relatedVideoSize\":\"large\""))
+
+        client.put("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"videoGridColumns":9,"relatedVideoSize":"huge"}""")
+        }
+        body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        assertContainsAll(body, listOf("\"videoGridColumns\":0", "\"relatedVideoSize\":\"default\""))
     }
 
     @Test

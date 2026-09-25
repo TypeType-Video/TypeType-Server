@@ -10,6 +10,11 @@ SettingsItem:
       maximum: 4
       default: 1
     defaultLandingPage: { type: string, default: home }
+    videoGridColumns:
+      type: integer
+      enum: [0, 4, 5, 6]
+      default: 0
+    relatedVideoSize: { type: string, enum: [default, large], default: default }
     autoplay: { type: boolean, default: true }
     autoplayOnOpen: { type: boolean, default: true }
     autoplayCountdownSeconds:
