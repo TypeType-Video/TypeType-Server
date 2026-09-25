@@ -166,6 +166,45 @@ class SabrProgressivePlaybackWindowTest {
         assertEquals(2, requireNotNull(result.response.video).segments.size)
     }
 
+    @Test
+    fun `window at the indexed end closes without requesting past the timeline`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { state.getEndSegment(audio) } returns 2L
+        every { state.getEndSegment(video) } returns 2L
+        every { state.getSegmentEndMs(audio, 2) } returns 20_000L
+        every { state.getSegmentEndMs(video, 2) } returns 10_000L
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+        val ranges = listOf(
+            SabrPlaybackBufferedRange(audio.itag, 0L, 20_000L),
+            SabrPlaybackBufferedRange(video.itag, 0L, 10_000L),
+        )
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(
+                generation = 0L,
+                playerTimeMs = 9_000L,
+                videoItag = video.itag,
+                audioItag = audio.itag,
+                bufferGoalMs = 10_000L,
+                bufferedRanges = ranges,
+            ),
+        )
+
+        assertTrue(result.isReady)
+        assertTrue(result.response.endOfStream)
+        assertTrue(result.blockedRequests.isEmpty())
+        assertTrue(result.response.audio.segments.isEmpty())
+        assertTrue(requireNotNull(result.response.video).segments.isEmpty())
+    }
+
     private fun readableSegment(
         format: YoutubeSabrFormat,
         sequence: Int = 1,

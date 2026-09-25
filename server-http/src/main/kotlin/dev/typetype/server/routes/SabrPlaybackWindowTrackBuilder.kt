@@ -32,11 +32,16 @@ internal class SabrPlaybackWindowTrackBuilder(private val sabrSessionStore: Sabr
         val segments = mutableListOf<SabrPlaybackWindowSegment>()
         var blockedBy: String? = null
         var blockedRequest: SabrSegmentRequest? = null
-        var seq = holder.playbackContinuationSequence(format, targetMs, activeLive)
-        var coveredEndMs = targetMs
         val endSequence = if (activeLive) 0 else holder.session.streamState.getEndSegment(format).toInt()
-        var atEnd = false
-        while (segments.size < MAX_SEGMENTS_PER_TRACK) {
+        val endTimeMs = if (endSequence > 0) {
+            holder.session.streamState.getSegmentEndMs(format, endSequence).takeIf { it > 0L } ?: 0L
+        } else {
+            0L
+        }
+        var seq = holder.playbackContinuationSequence(format, targetMs, activeLive)
+        var coveredEndMs = if (endTimeMs > 0L && targetMs >= endTimeMs) endTimeMs else targetMs
+        var atEnd = endTimeMs > 0L && targetMs >= endTimeMs
+        while (!atEnd && segments.size < MAX_SEGMENTS_PER_TRACK) {
             if (endSequence > 0 && seq > endSequence) {
                 atEnd = true
                 break
