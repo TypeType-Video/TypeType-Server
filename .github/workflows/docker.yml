@@ -33,6 +33,7 @@ jobs:
       image: ${{ steps.build-info.outputs.image }}
       labels: ${{ steps.meta.outputs.labels }}
       metadata-json: ${{ steps.meta.outputs.json }}
+      platform-matrix: ${{ steps.build-info.outputs.platform-matrix }}
       version: ${{ steps.build-info.outputs.version }}
 
     steps:
@@ -54,10 +55,16 @@ jobs:
           else
             image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
           fi
+          if [[ "$GITHUB_REF_NAME" == "dev" ]]; then
+            platform_matrix='{"include":[{"platform":"linux/amd64","arch":"amd64"}]}'
+          else
+            platform_matrix='{"include":[{"platform":"linux/amd64","arch":"amd64"},{"platform":"linux/arm64","arch":"arm64"}]}'
+          fi
           {
             echo "image=$image"
             echo "version=$version"
             echo "build-time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "platform-matrix=$platform_matrix"
           } >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata
@@ -87,12 +94,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            arch: amd64
-          - platform: linux/arm64
-            arch: arm64
+      matrix: ${{ fromJSON(needs.prepare-image.outputs.platform-matrix) }}
 
     steps:
       - name: Checkout
@@ -195,8 +197,12 @@ jobs:
         run: |
           cd "$DIGEST_DIR"
           mapfile -t digests < <(find . -maxdepth 1 -type f -printf '%f\n' | sort)
-          if [[ "${#digests[@]}" -ne 2 ]]; then
-            echo "Expected two platform digests, found ${#digests[@]}"
+          expected_digest_count=2
+          if [[ "$GITHUB_REF_NAME" == "dev" ]]; then
+            expected_digest_count=1
+          fi
+          if [[ "${#digests[@]}" -ne "$expected_digest_count" ]]; then
+            echo "Expected $expected_digest_count platform digest(s), found ${#digests[@]}"
             exit 1
           fi
 
@@ -231,8 +237,13 @@ jobs:
           VERSION: ${{ needs.prepare-image.outputs.version }}
         run: |
           platforms="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r '.manifests[].platform | "\(.os)/\(.architecture)"' | sort -u)"
-          if [[ "$platforms" != $'linux/amd64\nlinux/arm64' ]]; then
-            printf 'Unexpected manifest platforms:\n%s\n' "$platforms"
+          expected_platforms=$'linux/amd64\nlinux/arm64'
+          if [[ "$GITHUB_REF_NAME" == "dev" ]]; then
+            expected_platforms='linux/amd64'
+          fi
+          if [[ "$platforms" != "$expected_platforms" ]]; then
+            printf 'Unexpected manifest platforms:\n%s\nExpected:\n%s\n' \
+              "$platforms" "$expected_platforms"
             exit 1
           fi
 
