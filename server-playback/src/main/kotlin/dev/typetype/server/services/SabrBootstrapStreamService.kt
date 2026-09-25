@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 
@@ -11,11 +12,23 @@ class SabrBootstrapStreamService(
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
         val videoId = youtubeVideoId(url)
             ?: return ExtractionResult.BadRequest("Invalid YouTube URL")
-        val metadata = tokenSessionClient.fetchPlaybackSession(videoId)
+        val metadataStartedAt = System.nanoTime()
+        val metadataResult = tokenSessionClient.fetchPlaybackSession(videoId)
+        PlaybackTraceLog.record(
+            "sabr_bootstrap_metadata",
+            "durationMs=${(System.nanoTime() - metadataStartedAt) / 1_000_000} result=${if (metadataResult == null) "miss" else "ready"}",
+        )
+        val metadata = metadataResult
             ?: return ExtractionResult.Failure("SABR bootstrap metadata unavailable")
         if (metadata.isLive) return liveHlsStreamService.getStreamInfo(url)
-        val prepared = metadata.preparedSabrInfo()
-            ?: sessionStore.fetchInfo(videoId, cachedFirst = true)
+        val formatsStartedAt = System.nanoTime()
+        val fromSession = metadata.preparedSabrInfo()
+        val formatsResult = fromSession ?: sessionStore.fetchInfo(videoId, cachedFirst = true)
+        PlaybackTraceLog.record(
+            "sabr_bootstrap_formats",
+            "durationMs=${(System.nanoTime() - formatsStartedAt) / 1_000_000} source=${if (fromSession != null) "session" else "cache_or_probe"} result=${if (formatsResult == null) "miss" else "ready"}",
+        )
+        val prepared = formatsResult
             ?: return ExtractionResult.Failure("SABR playback formats unavailable")
         sessionStore.rememberPreparedInfo(videoId, prepared)
         return ExtractionResult.Success(metadata.toFallbackStreamResponse(videoId))

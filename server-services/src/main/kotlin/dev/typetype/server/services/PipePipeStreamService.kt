@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionResult
@@ -44,37 +45,62 @@ class PipePipeStreamService(
         withContext(Dispatchers.IO) {
             runCatching {
                 withExtractionRetry {
-                    val service = NewPipe.getServiceByUrl(url)
-                    val linkHandler = service.streamLHFactory.fromUrl(url)
-                    val extractor: StreamExtractor = service.getStreamExtractor(linkHandler)
-                    withTimeout(30_000L) { runPipePipeCall { extractor.fetchPage() } }
+                    val (service, linkHandler, extractor) = playbackTracePhase("extractor_setup") {
+                        val service = NewPipe.getServiceByUrl(url)
+                        val linkHandler = service.streamLHFactory.fromUrl(url)
+                        val extractor: StreamExtractor = service.getStreamExtractor(linkHandler)
+                        Triple(service, linkHandler, extractor)
+                    }
+                    playbackTracePhase("extractor_fetch_page") {
+                        withTimeout(30_000L) { runPipePipeCall { extractor.fetchPage() } }
+                    }
                     coroutineScope {
                         val streamInfoDeferred = async {
-                            withTimeout(30_000L) { runPipePipeCall { StreamInfo.getInfo(extractor) } }
+                            playbackTracePhase("stream_info") {
+                                withTimeout(30_000L) { runPipePipeCall { StreamInfo.getInfo(extractor) } }
+                            }
                         }
-                        val segmentsDeferred = async { resolveSegments(extractor) }
+                        val segmentsDeferred = async {
+                            playbackTracePhase("sponsorblock") { resolveSegments(extractor) }
+                        }
                         val streamInfo = streamInfoDeferred.await()
                         rememberSabrInfo(streamInfo)
                         streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
-                        val withSubtitles = if (
-                            fetchSupplementalSubtitles &&
-                            response.subtitles.isEmpty() &&
-                            service.serviceId == 0
-                        ) {
-                            val subtitles = try {
-                                subtitleService.fetchSubtitles(streamInfo.id)
-                            } catch (error: CancellationException) {
-                                throw error
-                            } catch (_: Exception) {
-                                emptyList()
+                        val withSubtitles = when {
+                            !fetchSupplementalSubtitles -> response.also {
+                                PlaybackTraceLog.record("supplemental_subtitles", "status=disabled")
                             }
-                            response.copy(subtitles = subtitles)
-                        } else {
-                            response
+                            response.subtitles.isNotEmpty() -> response.also {
+                                PlaybackTraceLog.record("supplemental_subtitles", "status=already_present")
+                            }
+                            service.serviceId != 0 -> response.also {
+                                PlaybackTraceLog.record("supplemental_subtitles", "status=not_applicable")
+                            }
+                            else -> {
+                                var subtitleStatus = "loaded"
+                                val subtitles = playbackTracePhase("supplemental_subtitle_fetch") {
+                                    try {
+                                        subtitleService.fetchSubtitles(streamInfo.id)
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        subtitleStatus = "failed:${error.javaClass.simpleName}"
+                                        emptyList()
+                                    }
+                                }
+                                PlaybackTraceLog.record(
+                                    "supplemental_subtitles",
+                                    "status=$subtitleStatus count=${subtitles.size}",
+                                )
+                                response.copy(subtitles = subtitles)
+                            }
                         }
-                        if (service.serviceId == BILIBILI_SERVICE_ID) bilibiliRelatedService.patchRelatedStreams(withSubtitles, linkHandler.url)
-                        else withSubtitles
+                        if (service.serviceId == BILIBILI_SERVICE_ID) {
+                            playbackTracePhase("bilibili_related_streams") {
+                                bilibiliRelatedService.patchRelatedStreams(withSubtitles, linkHandler.url)
+                            }
+                        } else withSubtitles
                     }
                 }
             }.fold(
@@ -129,6 +155,25 @@ class PipePipeStreamService(
 
     private companion object {
         const val SPONSORBLOCK_TTL_SECONDS = 21600L
+    }
+}
+
+private suspend fun <T> playbackTracePhase(phase: String, block: suspend () -> T): T {
+    val startedAt = System.nanoTime()
+    var outcome = "ok"
+    try {
+        return block()
+    } catch (error: CancellationException) {
+        outcome = "cancelled"
+        throw error
+    } catch (error: Exception) {
+        outcome = "error:${error.javaClass.simpleName}"
+        throw error
+    } finally {
+        PlaybackTraceLog.record(
+            "pipepipe_phase",
+            "phase=$phase outcome=$outcome durationMs=${(System.nanoTime() - startedAt) / 1_000_000}",
+        )
     }
 }
 

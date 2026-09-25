@@ -1,5 +1,6 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
@@ -75,6 +76,8 @@ private fun Route.streamRoute(
                 ErrorResponse("URL does not match stream endpoint", "provider_mismatch"),
             )
         }
+        PlaybackTraceLog.record("stream_route_start", "deliveryMode=$deliveryMode")
+        val accessStartedAt = System.nanoTime()
         val access = call.accessProfileOrRespond(
             dependencies.authService,
             dependencies.accessControlService,
@@ -84,14 +87,38 @@ private fun Route.streamRoute(
         val blockedProfile = access.userId
             ?.let { dependencies.blockedService?.profileFor(it) }
             ?: BlockedContentProfile.empty
+        PlaybackTraceLog.record(
+            "stream_route_access",
+            "durationMs=${(System.nanoTime() - accessStartedAt) / 1_000_000} guest=${access.userId == null}",
+        )
         if (blockedProfile.blocksVideo(url)) {
             return@get call.respond(
                 HttpStatusCode.Forbidden,
                 ErrorResponse("Video is blocked", "content_blocked"),
             )
         }
+        val providerStartedAt = System.nanoTime()
         val publicResult = streamService.getStreamInfo(url)
+        val providerResult = when (publicResult) {
+            is ExtractionResult.Success -> "success"
+            is ExtractionResult.Failure -> "failure"
+            is ExtractionResult.BadRequest -> "bad_request"
+        }
+        PlaybackTraceLog.record(
+            "stream_provider_info",
+            "durationMs=${(System.nanoTime() - providerStartedAt) / 1_000_000} result=$providerResult",
+        )
+        val resolutionStartedAt = System.nanoTime()
         val resolution = resolveStreamInfo(url, deliveryMode, access.userId, publicResult, dependencies)
+        val resolutionResult = when (resolution.result) {
+            is ExtractionResult.Success -> "success"
+            is ExtractionResult.Failure -> "failure"
+            is ExtractionResult.BadRequest -> "bad_request"
+        }
+        PlaybackTraceLog.record(
+            "stream_resolution",
+            "durationMs=${(System.nanoTime() - resolutionStartedAt) / 1_000_000} result=$resolutionResult authenticated=${resolution.authenticated}",
+        )
         when (val result = resolution.result) {
             is ExtractionResult.Success -> {
                 if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {

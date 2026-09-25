@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -48,12 +49,17 @@ class SabrInfoFetcher(
     }
 
     private fun logFetch(videoId: String, startTimeMs: Long, startedAt: Long, source: String): Unit {
+        val durationMs = System.currentTimeMillis() - startedAt
         logger.info(
             "sabr_info_fetch videoId={} startTimeMs={} source={} elapsedMs={}",
             videoId,
             startTimeMs,
             source,
-            System.currentTimeMillis() - startedAt,
+            durationMs,
+        )
+        PlaybackTraceLog.record(
+            "sabr_info_fetch",
+            "videoId=$videoId startTimeMs=$startTimeMs source=$source durationMs=$durationMs",
         )
     }
 
