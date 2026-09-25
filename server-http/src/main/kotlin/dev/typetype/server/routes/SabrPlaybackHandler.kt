@@ -18,7 +18,6 @@ import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.markServed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import dev.typetype.server.sabr.YoutubeSabrFormat
 
@@ -34,12 +33,23 @@ internal class SabrPlaybackHandler(
     private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
     private val infoResolver = SabrPlaybackInfoResolver(sabrSessionStore, authenticatedSabrInfoService)
     private val accessValidator = SabrPlaybackAccessValidator(streamService, youtubeSessionStreamInfo)
+    private val prewarmHandoffs = SabrPlaybackPrewarmHandoffs()
 
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         if (!validateAccess(call, videoId, access)) return
         val request = call.playbackRequest()
         val startTimeMs = request.effectiveStartTimeMs()
+        val isPrewarm = call.request.queryParameters["prewarm"]?.toBooleanStrictOrNull() == true
+        val handoffKey = prewarmHandoffs.key(access.userId, videoId, request, startTimeMs)
+        if (!isPrewarm) {
+            val handoff = handoffKey?.let(prewarmHandoffs::take)
+            val existing = handoff?.let { playbackService.lookup(it.sessionToken) }
+            if (existing != null && existing.terminalFailure() == null) {
+                PlaybackTraceLog.record("sabr_prewarm_handoff", "result=hit videoItag=${existing.videoFormat.itag} audioItag=${existing.audioFormat.itag} audioTrackId=${existing.audioFormat.audioTrackId} startTimeMs=${handoff.startTimeMs} ready=${handoff.ready}")
+                return respondPrepared(call, existing, videoId, handoff.startTimeMs, handoff.ready)
+            }
+        }
         val infoStartedAt = System.nanoTime()
         val prepared = infoResolver.initial(access.userId, videoId, startTimeMs)
         PlaybackTraceLog.record("sabr_info", "durationMs=${(System.nanoTime() - infoStartedAt) / 1_000_000} result=${if (prepared == null) "miss" else "ready"} startTimeMs=$startTimeMs")
@@ -59,6 +69,10 @@ internal class SabrPlaybackHandler(
         )
         PlaybackTraceLog.record("sabr_session_prepare", "durationMs=${(System.nanoTime() - prepareStartedAt) / 1_000_000} ready=${preparation.ready} videoItag=${video.itag} audioItag=${audio.itag} audioTrackId=${audio.audioTrackId} audioOnly=${request.audioOnly} isLive=${request.isLive} startTimeMs=${preparation.startTimeMs}")
         preparation.holder.setActiveTracks(videoActive = !request.audioOnly, audioActive = true)
+        if (isPrewarm && handoffKey != null && preparation.holder.terminalFailure() == null) {
+            prewarmHandoffs.remember(handoffKey, SabrPlaybackPrewarmSession(preparation.holder.sessionToken, preparation.startTimeMs, preparation.ready))
+            PlaybackTraceLog.record("sabr_prewarm_handoff", "result=stored videoItag=${video.itag} audioItag=${audio.itag} audioTrackId=${audio.audioTrackId} startTimeMs=$startTimeMs")
+        }
         respondPrepared(call, preparation.holder, videoId, preparation.startTimeMs, preparation.ready)
     }
 
@@ -160,26 +174,6 @@ internal class SabrPlaybackHandler(
         }
     }
 
-    private suspend fun ApplicationCall.playbackRequest(): SabrPlaybackRequest {
-        val body = runCatching { receive<SabrPlaybackRequest>() }.getOrNull()
-        return SabrPlaybackRequest(
-            videoItag = body?.videoItag ?: request.queryParameters["videoItag"]?.toIntOrNull(),
-            audioItag = body?.audioItag ?: request.queryParameters["audioItag"]?.toIntOrNull(),
-            audioTrackId = body?.audioTrackId ?: request.queryParameters["audioTrackId"],
-            startTimeMs = body?.startTimeMs ?: request.queryParameters["startTimeMs"]?.toLongOrNull(),
-            playerTimeMs = body?.playerTimeMs ?: request.queryParameters["playerTimeMs"]?.toLongOrNull(),
-            audioOnly = body?.audioOnly ?: request.queryParameters["audioOnly"]?.toBooleanStrictOrNull() ?: false,
-            isLive = body?.isLive ?: request.queryParameters["isLive"]?.toBooleanStrictOrNull() ?: false,
-        )
-    }
-
-    private fun SabrPlaybackRequest.effectiveStartTimeMs(): Long =
-        (playerTimeMs ?: startTimeMs ?: 0L).coerceAtLeast(0L)
-
-    private fun SabrPlaybackRequest.keepsCurrentFormats(holder: SabrSessionHolder): Boolean =
-        (videoItag == null || videoItag == holder.videoFormat.itag) &&
-            (audioItag == null || audioItag == holder.audioFormat.itag) &&
-            (audioTrackId.isNullOrBlank() || audioTrackId == holder.audioFormat.audioTrackId)
 
     private suspend fun selectAudio(
         call: ApplicationCall,

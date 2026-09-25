@@ -1,3 +1,20 @@
+SabrPlaybackCreateResponse:
+  type: object
+  required: [sessionId, videoId, videoItag, audioItag, startTimeMs, generation, ready, status]
+  additionalProperties: true
+  properties:
+    sessionId: { type: string }
+    videoId: { type: string }
+    manifestUrl: { type: string, nullable: true }
+    videoItag: { type: integer, minimum: 1 }
+    audioItag: { type: integer, minimum: 1 }
+    audioTrackId: { type: string, nullable: true }
+    startTimeMs: { type: integer, format: int64, minimum: 0 }
+    generation: { type: integer, format: int64, minimum: 0 }
+    ready: { type: boolean }
+    status: { type: string }
+    retryAfterMs: { type: integer, format: int64, nullable: true }
+    live: { type: object, nullable: true, additionalProperties: true }
 SabrPlaybackBufferedRange:
   type: object
   required: [itag, startMs, endMs]

@@ -1,3 +1,49 @@
+SabrPlaybackCreate:
+  post:
+    tags: [playback]
+    summary: Create a SABR session or transfer a matching prewarmed session
+    parameters:
+      - name: videoId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: videoItag
+        in: query
+        schema: { type: integer, minimum: 1 }
+      - name: audioItag
+        in: query
+        schema: { type: integer, minimum: 1 }
+      - name: audioTrackId
+        in: query
+        schema: { type: string }
+      - name: startTimeMs
+        in: query
+        schema: { type: integer, format: int64, minimum: 0, default: 0 }
+      - name: audioOnly
+        in: query
+        schema: { type: boolean, default: false }
+      - name: isLive
+        in: query
+        schema: { type: boolean, default: false }
+      - name: prewarm
+        in: query
+        description: Keep this session briefly for the next matching creation by the same account.
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: Playback session created or transferred.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/sabr-playback.yaml#/SabrPlaybackCreateResponse
+      '202':
+        description: Playback session is still preparing.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/sabr-playback.yaml#/SabrPlaybackCreateResponse
+      '422':
+        $ref: ../components/common.yaml#/JsonError
 SabrPlaybackPosition:
   post:
     tags: [playback]
