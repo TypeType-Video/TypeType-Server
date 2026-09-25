@@ -68,6 +68,10 @@ internal class SabrPlaybackWindowTrackBuilder(private val sabrSessionStore: Sabr
                     }
                     seq = progressive.nextSequence
                     coveredEndMs = progressive.coveredEndMs
+                    if (endSequence > 0 && seq > endSequence) {
+                        atEnd = true
+                        break
+                    }
                     if (coveredEndMs >= goalEndMs) break
                     continue
                 }

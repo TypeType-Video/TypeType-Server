@@ -121,6 +121,51 @@ class SabrProgressivePlaybackWindowTest {
         assertEquals(4, result.response.audio.segments.size)
     }
 
+    @Test
+    fun `progressive window marks the final segment as end of stream`() = runTest {
+        val audio = format(140, isAudio = true)
+        val video = format(299, isAudio = false)
+        val state = mockk<YoutubeSabrStreamState>(relaxed = true)
+        every { state.getSegmentNumberAtOrAfterTimeMs(any(), any()) } returns 1
+        every { state.getEndSegment(audio) } returns 2L
+        every { state.getEndSegment(video) } returns 2L
+        val session = mockk<YoutubeSabrSession>(relaxed = true)
+        every { session.streamState } returns state
+        every { session.getCachedSegment(any()) } returns null
+        every { session.getReadableSegment(any()) } answers {
+            val request = firstArg<SabrSegmentRequest>()
+            val durationMs = when {
+                request.sequenceNumber == 1 -> 4_000L
+                else -> 6_000L
+            }
+            readableSegment(
+                request.format,
+                sequence = request.sequenceNumber,
+                startMs = if (request.sequenceNumber == 1) 0L else 4_000L,
+                durationMs = durationMs,
+            )
+        }
+        val holder = holder(session, audio, video)
+        val store = mockk<SabrSessionStore>()
+        coEvery { store.cachedSegment(holder, any()) } returns null
+
+        val result = SabrPlaybackWindowBuilder(store).build(
+            holder,
+            SabrPlaybackWindowRequest(
+                generation = 0L,
+                playerTimeMs = 0L,
+                videoItag = video.itag,
+                audioItag = audio.itag,
+                bufferGoalMs = 9_000L,
+            ),
+        )
+
+        assertTrue(result.isReady)
+        assertTrue(result.response.endOfStream)
+        assertEquals(2, result.response.audio.segments.size)
+        assertEquals(2, requireNotNull(result.response.video).segments.size)
+    }
+
     private fun readableSegment(
         format: YoutubeSabrFormat,
         sequence: Int = 1,
