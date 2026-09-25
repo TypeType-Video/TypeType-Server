@@ -49,7 +49,7 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         val excluded = mutableSetOf<String>()
         repeat(MAX_BATCHES_PER_RUN) {
             val outcome = repair(excluded)
-            if (outcome.attempted == 0 || outcome.updated == 0) return
+            if (outcome.attempted == 0) return
             excluded += outcome.attemptedUrls
             delay(BATCH_DELAY_MS)
         }
