@@ -4,7 +4,9 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ExtractionFailureKind
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
 import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
+import org.schabi.newpipe.extractor.exceptions.LiveNotStartException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
@@ -13,6 +15,7 @@ import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 object StreamExtractionErrorMapper {
+    const val UPSTREAM_FAILURE_CODE = "upstream_failure"
     const val MEMBERS_ONLY_FALLBACK = "This video is only available for members"
     const val PAID_CONTENT_FALLBACK = "This video is a paid video"
     const val GEOGRAPHIC_RESTRICTION_CODE = "geographic_restriction"
@@ -37,9 +40,15 @@ object StreamExtractionErrorMapper {
             sanitize(error.message) ?: PAID_CONTENT_FALLBACK,
             "paid_content",
         )
+        is LiveNotStartException -> ExtractionResult.Failure(
+            sanitize(error.message) ?: "This live event has not started yet",
+            "live_not_started",
+            ExtractionFailureKind.LiveEventNotStarted,
+        )
         is VideoNotReleaseException -> ExtractionResult.Failure(
             sanitize(error.message) ?: "This premiere has not started yet",
             "scheduled_premiere",
+            ExtractionFailureKind.ScheduledPremiere,
         )
         is AgeRestrictedContentException -> ExtractionResult.BadRequest(
             sanitize(error.message) ?: "This video is age-restricted",
@@ -57,9 +66,16 @@ object StreamExtractionErrorMapper {
         is ReCaptchaException -> ExtractionResult.Failure(
             PROVIDER_ACCESS_BLOCKED_FALLBACK,
             PROVIDER_ACCESS_BLOCKED_CODE,
+            ExtractionFailureKind.ProviderAccessBlocked,
+        )
+        is ContentNotAvailableException -> ExtractionResult.Failure(
+            sanitize(error.message) ?: "This content is not available",
+            "content_unavailable",
+            ExtractionFailureKind.ContentUnavailable,
         )
         else -> ExtractionResult.Failure(
             sanitize(error.message) ?: fallback,
+            if (error.isYoutubeSessionRejected()) "youtube_session_rejected" else UPSTREAM_FAILURE_CODE,
             kind = if (error.isYoutubeSessionRejected()) {
                 ExtractionFailureKind.YoutubeSessionRejected
             } else {

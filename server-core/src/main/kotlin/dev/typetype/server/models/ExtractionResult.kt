@@ -13,4 +13,8 @@ sealed class ExtractionResult<out T> {
 enum class ExtractionFailureKind {
     Unknown,
     YoutubeSessionRejected,
+    LiveEventNotStarted,
+    ScheduledPremiere,
+    ContentUnavailable,
+    ProviderAccessBlocked,
 }

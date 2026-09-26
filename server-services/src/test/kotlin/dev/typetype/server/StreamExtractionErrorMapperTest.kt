@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
 import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
+import org.schabi.newpipe.extractor.exceptions.LiveNotStartException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
@@ -49,14 +51,49 @@ class StreamExtractionErrorMapperTest {
     @Test
     fun `maps upcoming premieres to a stable availability code`() {
         val result = StreamExtractionErrorMapper.map<Any>(VideoNotReleaseException("Premieres in 200 days"))
-        assertEquals(ExtractionResult.Failure("Premieres in 200 days", "scheduled_premiere"), result)
+        assertEquals(
+            ExtractionResult.Failure(
+                "Premieres in 200 days",
+                "scheduled_premiere",
+                ExtractionFailureKind.ScheduledPremiere,
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `maps upcoming live events to a stable availability code`() {
+        val message = "This live event will begin in 20 minutes."
+        val result = StreamExtractionErrorMapper.map<Any>(LiveNotStartException(message))
+
+        assertEquals(
+            ExtractionResult.Failure(message, "live_not_started", ExtractionFailureKind.LiveEventNotStarted),
+            result,
+        )
+    }
+
+    @Test
+    fun `maps generic content unavailability to a stable kind`() {
+        val message = "This content is not available"
+        val result = StreamExtractionErrorMapper.map<Any>(ContentNotAvailableException(message))
+
+        assertEquals(
+            ExtractionResult.Failure(message, "content_unavailable", ExtractionFailureKind.ContentUnavailable),
+            result,
+        )
     }
 
     @Test
     fun `does not rewrite youtube timeout message to members-only fallback`() {
         val timeout = IllegalStateException("Error occurs when fetching the page. Try increase the loading timeout in Settings.")
         val mapped = StreamExtractionErrorMapper.map<Any>(timeout, sourceUrl = "https://www.youtube.com/watch?v=test")
-        assertEquals(ExtractionResult.Failure("Error occurs when fetching the page. Try increase the loading timeout in Settings."), mapped)
+        assertEquals(
+            ExtractionResult.Failure(
+                "Error occurs when fetching the page. Try increase the loading timeout in Settings.",
+                StreamExtractionErrorMapper.UPSTREAM_FAILURE_CODE,
+            ),
+            mapped,
+        )
     }
 
     @Test
@@ -88,6 +125,7 @@ class StreamExtractionErrorMapperTest {
         val expected = ExtractionResult.Failure(
             StreamExtractionErrorMapper.PROVIDER_ACCESS_BLOCKED_FALLBACK,
             "provider_access_blocked",
+            ExtractionFailureKind.ProviderAccessBlocked,
         )
         assertEquals(expected, antiBot)
         assertEquals(expected, captcha)
@@ -106,8 +144,10 @@ class StreamExtractionErrorMapperTest {
     fun `maps unknown exceptions to failure`() {
         val result = StreamExtractionErrorMapper.map<Any>(IllegalStateException("boom"))
         assertTrue(result is ExtractionResult.Failure)
-        assertEquals("boom", (result as ExtractionResult.Failure).message)
-        assertEquals(ExtractionFailureKind.Unknown, result.kind)
+        val failure = result as ExtractionResult.Failure
+        assertEquals("boom", failure.message)
+        assertEquals(ExtractionFailureKind.Unknown, failure.kind)
+        assertEquals(StreamExtractionErrorMapper.UPSTREAM_FAILURE_CODE, failure.code)
     }
 
     @Test
@@ -122,6 +162,8 @@ class StreamExtractionErrorMapperTest {
         val result = StreamExtractionErrorMapper.map<Any>(error)
 
         assertTrue(result is ExtractionResult.Failure)
-        assertEquals(ExtractionFailureKind.YoutubeSessionRejected, (result as ExtractionResult.Failure).kind)
+        val failure = result as ExtractionResult.Failure
+        assertEquals(ExtractionFailureKind.YoutubeSessionRejected, failure.kind)
+        assertEquals("youtube_session_rejected", failure.code)
     }
 }

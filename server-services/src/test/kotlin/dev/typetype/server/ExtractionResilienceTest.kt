@@ -1,9 +1,13 @@
 package dev.typetype.server
 
 import dev.typetype.server.services.withExtractionRetry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.exceptions.AntiBotException
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
 
 class ExtractionResilienceTest {
     @Test
@@ -39,6 +43,49 @@ class ExtractionResilienceTest {
             }
         }.exceptionOrNull()
         assertEquals(IllegalArgumentException::class.java, error?.javaClass)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `does not retry content availability failures`() = runBlocking {
+        var calls = 0
+        val error = runCatching {
+            withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                calls++
+                throw ContentNotAvailableException("unavailable")
+            }
+        }.exceptionOrNull()
+
+        assertEquals(ContentNotAvailableException::class.java, error?.javaClass)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `does not retry provider bot challenges`() = runBlocking {
+        var calls = 0
+        val error = runCatching {
+            withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                calls++
+                throw AntiBotException("challenge")
+            }
+        }.exceptionOrNull()
+
+        assertEquals(AntiBotException::class.java, error?.javaClass)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `propagates cancellation without retry`() = runBlocking {
+        val cancelled = CancellationException("cancelled")
+        var calls = 0
+        val error = runCatching {
+            withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                calls++
+                throw cancelled
+            }
+        }.exceptionOrNull()
+
+        assertSame(cancelled, error)
         assertEquals(1, calls)
     }
 }
