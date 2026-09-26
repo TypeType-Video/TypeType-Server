@@ -15,7 +15,9 @@ ErrorResponse:
         Stable machine-readable error code when available. Playback extraction
         routes may return geographic_restriction, provider_access_blocked,
         private_content, no_playable_streams, age_restricted, scheduled_premiere,
-        paid_content, members_only, or youtube_session_required.
+        live_not_started, content_unavailable, upstream_failure,
+        youtube_session_rejected, youtube_session_needs_reconnect, paid_content,
+        members_only, or youtube_session_required.
     requestId: { type: string, nullable: true }
 RequestIdHeader:
   description: Request correlation id returned by TypeType-Server.

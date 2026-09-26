@@ -27,8 +27,42 @@ YoutubeSabrStreams:
         $ref: ../components/common.yaml#/JsonError
       '403':
         $ref: ../components/common.yaml#/JsonError
-      '422':
-        $ref: ../components/common.yaml#/JsonError
+      '404':
+        description: YouTube reports that this video is unavailable.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '409':
+        description: The live event or premiere has not started yet.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '502':
+        description: YouTube extraction failed or returned no playable stream.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '503':
+        description: YouTube is temporarily rejecting requests from this server.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
 YoutubeLiveHls:
   get:
     tags: [extraction]
@@ -54,8 +88,42 @@ YoutubeLiveHls:
         $ref: ../components/common.yaml#/JsonError
       '403':
         $ref: ../components/common.yaml#/JsonError
-      '422':
-        $ref: ../components/common.yaml#/JsonError
+      '404':
+        description: YouTube reports that this video is unavailable.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '409':
+        description: The live event or premiere has not started yet.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '502':
+        description: YouTube extraction failed or returned no playable stream.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '503':
+        description: YouTube is temporarily rejecting requests from this server.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
 YoutubeSabrBootstrap:
   get:
     tags: [extraction]
@@ -85,8 +153,42 @@ YoutubeSabrBootstrap:
         $ref: ../components/common.yaml#/JsonError
       '403':
         $ref: ../components/common.yaml#/JsonError
-      '422':
-        $ref: ../components/common.yaml#/JsonError
+      '404':
+        description: YouTube reports that this video is unavailable.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '409':
+        description: The live event or premiere has not started yet.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '502':
+        description: YouTube extraction failed or returned no playable stream.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '503':
+        description: YouTube is temporarily rejecting requests from this server.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
 NicoNicoStreams:
   get:
     tags: [extraction]

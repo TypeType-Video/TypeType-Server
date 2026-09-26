@@ -19,4 +19,6 @@ internal enum class StreamDeliveryMode {
     }
 
     fun isSabr(): Boolean = this == YoutubeSabr
+
+    fun isYoutube(): Boolean = this == YoutubeSabr || this == YoutubeLiveHls
 }

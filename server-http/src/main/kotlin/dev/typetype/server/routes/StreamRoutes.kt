@@ -157,7 +157,9 @@ private fun Route.streamRoute(
                 }
                 if (!data.hasPlayableSource()) {
                     return@get call.respond(
-                        HttpStatusCode.UnprocessableEntity,
+                        if (deliveryMode.isYoutube()) {
+                            HttpStatusCode.BadGateway
+                        } else HttpStatusCode.UnprocessableEntity,
                         ErrorResponse(
                             "No compatible stream is available for this video",
                             "no_playable_streams",
@@ -185,10 +187,16 @@ private fun Route.streamRoute(
                 )
                 call.respond(publicData)
             }
-            is ExtractionResult.BadRequest ->
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
-            is ExtractionResult.Failure ->
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
+            is ExtractionResult.BadRequest -> call.respond(
+                if (deliveryMode.isYoutube()) youtubeBadRequestStatus(result.code) else HttpStatusCode.BadRequest,
+                ErrorResponse(result.message, result.code),
+            )
+            is ExtractionResult.Failure -> call.respond(
+                if (deliveryMode.isYoutube()) {
+                    youtubeExtractionFailureStatus(result)
+                } else HttpStatusCode.UnprocessableEntity,
+                ErrorResponse(result.message, result.code),
+            )
         }
     }
 }
