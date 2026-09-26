@@ -88,4 +88,27 @@ class ExtractionResilienceTest {
         assertSame(cancelled, error)
         assertEquals(1, calls)
     }
+
+    @Test
+    fun `does not retry access restriction failures`() = runBlocking {
+        val failures = listOf<Throwable>(
+            org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException("age restricted"),
+            org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException("geographic restriction"),
+            org.schabi.newpipe.extractor.exceptions.PaidContentException("paid content"),
+            org.schabi.newpipe.extractor.exceptions.PrivateContentException("private content"),
+        )
+
+        failures.forEach { failure ->
+            var calls = 0
+            val error = runCatching {
+                withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                    calls++
+                    throw failure
+                }
+            }.exceptionOrNull()
+
+            assertSame(failure, error)
+            assertEquals(1, calls)
+        }
+    }
 }

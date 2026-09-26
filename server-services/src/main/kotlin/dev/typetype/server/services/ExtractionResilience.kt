@@ -2,9 +2,13 @@ package dev.typetype.server.services
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
 import org.schabi.newpipe.extractor.exceptions.NeedLoginException
+import org.schabi.newpipe.extractor.exceptions.PaidContentException
+import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 
 suspend fun <T> withExtractionRetry(
@@ -29,6 +33,10 @@ suspend fun <T> withExtractionRetry(
 private fun Throwable.isRetriableExtractionError(): Boolean = when (this) {
     is CancellationException,
     is ContentNotAvailableException,
+    is AgeRestrictedContentException,
+    is GeographicRestrictionException,
+    is PaidContentException,
+    is PrivateContentException,
     is NeedLoginException,
     is AntiBotException,
     is ReCaptchaException,
