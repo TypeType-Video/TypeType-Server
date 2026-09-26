@@ -4,8 +4,9 @@ import org.schabi.newpipe.extractor.downloader.Response
 
 object OkHttpExtractorResponseMapper {
     fun toExtractorResponse(httpResponse: okhttp3.Response): Response {
+        val contentType = httpResponse.body.contentType()
         val responseBodyBytes = httpResponse.body.bytes()
-        val responseBody = responseBodyBytes.toString(Charsets.UTF_8)
+        val responseBody = responseBodyBytes.toString(contentType?.charset() ?: Charsets.UTF_8)
         return Response(
             httpResponse.code,
             httpResponse.message,
