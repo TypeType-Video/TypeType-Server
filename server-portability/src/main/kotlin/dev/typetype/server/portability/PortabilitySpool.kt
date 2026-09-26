@@ -157,6 +157,28 @@ class PortabilitySpool private constructor(
         }
     }
 
+    override fun readBatch(category: PortabilityCategory, cursor: Long?, limit: Int): PortabilityRecordBatch {
+        require(limit > 0)
+        flush()
+        connection.prepareStatement(
+            "SELECT ordinal, payload FROM records WHERE category = ? AND ordinal > ? ORDER BY ordinal LIMIT ?",
+        ).use { statement ->
+            statement.setString(1, category.wireName)
+            statement.setLong(2, cursor ?: 0L)
+            statement.setInt(3, limit)
+            statement.executeQuery().use { rows ->
+                var nextCursor = cursor
+                val records = buildList {
+                    while (rows.next()) {
+                        nextCursor = rows.getLong(1)
+                        add(CacheJson.decodeFromString<PortabilityRecord>(rows.getString(2)))
+                    }
+                }
+                return PortabilityRecordBatch(records, nextCursor)
+            }
+        }
+    }
+
     override fun forEachChild(
         category: PortabilityCategory,
         parentKey: String,

@@ -87,6 +87,11 @@ PortabilityJobProgress:
     unit: { type: string, enum: [records, categories, bytes] }
     processed: { type: integer, format: int64, minimum: 0 }
     total: { type: integer, format: int64, minimum: 0, nullable: true }
+    category: { allOf: [{ $ref: '#/PortabilityCategory' }], nullable: true }
+    stage: { type: string, enum: [subscriptions, recentHistory, playlists, history, remaining], nullable: true }
+    stageProcessed: { type: integer, format: int64, minimum: 0 }
+    stageTotal: { type: integer, format: int64, minimum: 0, nullable: true }
+    checkpoint: { type: integer, format: int64, minimum: 0 }
 PortabilityJobReport:
   type: object
   required: [id, state]

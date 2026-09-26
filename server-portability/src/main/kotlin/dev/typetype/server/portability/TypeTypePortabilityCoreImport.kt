@@ -124,7 +124,6 @@ internal object TypeTypePortabilityCoreImport {
         var count = 0L
         source.forEach(PortabilityCategory.PLAYLISTS) { record ->
             if (record is PortabilityPlaylist) count += insertPlaylist(userId, record)
-            onRecord()
         }
         source.forEach(PortabilityCategory.PLAYLISTS) { record ->
             if (record is PortabilityPlaylistVideo) count += insertPlaylistVideo(userId, record)

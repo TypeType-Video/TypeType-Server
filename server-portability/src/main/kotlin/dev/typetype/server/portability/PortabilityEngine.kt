@@ -134,12 +134,14 @@ class PortabilityEngine constructor(
                 total,
                 interval = portabilityProgressInterval(total),
             )
-            val result = dataPort.import(
+            val result = PortabilityImportCoordinator(dataPort).apply(
                 job.ownerId,
                 source,
                 request,
-                onCategoryProgress = { _, count -> progress.add(count) },
-                onCategoryComplete = { _, _ -> },
+                job.snapshot().preview?.detection?.format,
+                counts,
+                progress,
+                job::updateResult,
             )
             progress.finish()
             job.transition(setOf(PortabilityJobState.APPLYING), PortabilityJobState.COMPLETED, result = result)

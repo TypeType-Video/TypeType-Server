@@ -32,12 +32,31 @@ interface PortabilityRecordSource {
     fun categories(): Set<PortabilityCategory>
     fun counts(): Map<PortabilityCategory, Long>
     fun forEach(category: PortabilityCategory, block: (PortabilityRecord) -> Unit)
+    fun readBatch(category: PortabilityCategory, cursor: Long?, limit: Int): PortabilityRecordBatch {
+        require(limit > 0)
+        var position = 0L
+        var nextCursor = cursor
+        val records = ArrayList<PortabilityRecord>(limit)
+        forEach(category) { record ->
+            if (position > (cursor ?: -1L) && records.size < limit) {
+                records += record
+                nextCursor = position
+            }
+            position++
+        }
+        return PortabilityRecordBatch(records, nextCursor)
+    }
     fun forEachChild(category: PortabilityCategory, parentKey: String, block: (PortabilityRecord) -> Unit) {
         forEach(category) { record ->
             if (record.parentKey() == parentKey.trim().lowercase()) block(record)
         }
     }
 }
+
+data class PortabilityRecordBatch(
+    val records: List<PortabilityRecord>,
+    val nextCursor: Long?,
+)
 
 interface PortabilityAdapter {
     val descriptor: PortabilityAdapterDescriptor

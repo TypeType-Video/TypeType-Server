@@ -54,11 +54,30 @@ enum class PortabilityProgressUnit {
 }
 
 @Serializable
+enum class PortabilityImportStage {
+    @SerialName("subscriptions")
+    SUBSCRIPTIONS,
+    @SerialName("recentHistory")
+    RECENT_HISTORY,
+    @SerialName("playlists")
+    PLAYLISTS,
+    @SerialName("history")
+    HISTORY,
+    @SerialName("remaining")
+    REMAINING,
+}
+
+@Serializable
 data class PortabilityJobProgress(
     val phase: PortabilityProgressPhase,
     val unit: PortabilityProgressUnit,
     val processed: Long,
     val total: Long? = null,
+    val category: PortabilityCategory? = null,
+    val stage: PortabilityImportStage? = null,
+    val stageProcessed: Long = 0L,
+    val stageTotal: Long? = null,
+    val checkpoint: Long = 0L,
 )
 
 @Serializable

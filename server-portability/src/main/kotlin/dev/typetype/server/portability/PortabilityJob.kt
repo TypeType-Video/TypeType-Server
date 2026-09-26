@@ -46,6 +46,15 @@ class PortabilityJob(
         }
     }
 
+    fun updateResult(result: Map<String, Long>) {
+        while (true) {
+            val current = value.get()
+            if (current.state in TERMINAL_STATES) return
+            val next = current.copy(updatedAt = clock(), result = result)
+            if (value.compareAndSet(current, next)) return
+        }
+    }
+
     fun transition(
         expected: Set<PortabilityJobState>,
         state: PortabilityJobState,

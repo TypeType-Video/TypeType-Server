@@ -13,8 +13,22 @@ class PortabilityProgressReporter(
 ) {
     private var processed = 0L
     private var published = -1L
+    private var category: PortabilityCategory? = null
+    private var stage: PortabilityImportStage? = null
+    private var stageProcessed = 0L
+    private var stageTotal: Long? = null
+    private var checkpoint = 0L
 
     init {
+        publish(force = true)
+    }
+
+    fun setStage(stage: PortabilityImportStage, category: PortabilityCategory, total: Long?) {
+        if (this.stage == stage && this.category == category && stageTotal == total) return
+        this.stage = stage
+        this.category = category
+        stageProcessed = 0L
+        stageTotal = total
         publish(force = true)
     }
 
@@ -22,7 +36,14 @@ class PortabilityProgressReporter(
         ensureActive()
         require(count >= 0L)
         processed = Math.addExact(processed, count)
+        stageProcessed = Math.addExact(stageProcessed, count)
         publish(force = false)
+    }
+
+    fun checkpoint() {
+        ensureActive()
+        checkpoint = Math.addExact(checkpoint, 1L)
+        publish(force = true)
     }
 
     fun finish() {
@@ -36,7 +57,19 @@ class PortabilityProgressReporter(
 
     private fun publish(force: Boolean) {
         if (!force && processed - published < interval) return
-        job.updateProgress(PortabilityJobProgress(phase, unit, processed, total))
+        job.updateProgress(
+            PortabilityJobProgress(
+                phase,
+                unit,
+                processed,
+                total,
+                category,
+                stage,
+                stageProcessed,
+                stageTotal,
+                checkpoint,
+            ),
+        )
         published = processed
     }
 }
