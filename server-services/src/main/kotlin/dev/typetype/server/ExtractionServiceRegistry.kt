@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.BilibiliAggregatedSearchService
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
@@ -169,7 +170,12 @@ internal class ExtractionServiceRegistry(
     val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
     val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v3")
     val streamService = CachedStreamService(publicStreamService, cache, "stream-direct:v1")
-    val searchService = CachedSearchService(YoutubeScopedSearchService(PipePipeSearchService()), cache)
+    val searchService = CachedSearchService(
+        YoutubeScopedSearchService(
+            BilibiliAggregatedSearchService(PipePipeSearchService()),
+        ),
+        cache,
+    )
     val trendingService = CachedTrendingService(
         YoutubeScopedTrendingService(PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient))),
         cache,
