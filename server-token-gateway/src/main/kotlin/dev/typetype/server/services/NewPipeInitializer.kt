@@ -22,7 +22,7 @@ object NewPipeInitializer {
                 TypetypeTokenYoutubeSessionPoTokenProvider(normalizedUrl),
             )
             decoderServiceUrl = normalizedUrl
-        } else if (normalizedUrl == null) {
+        } else if (normalizedUrl == null && decoderServiceUrl == null) {
             TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(null)
         }
         if (!initialized) {
