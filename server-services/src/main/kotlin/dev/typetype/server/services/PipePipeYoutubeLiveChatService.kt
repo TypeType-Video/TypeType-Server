@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeout
+import org.slf4j.LoggerFactory
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfo
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor
@@ -31,6 +32,7 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
         if (!capacity.tryAcquire()) return YoutubeLiveChatOpenResult.CapacityReached
         var session: LiveChatSession? = null
         var pendingExtractor: BulletCommentsExtractor? = null
+        var stage = "service"
         try {
             val registeredService = try {
                 NewPipe.getServiceByUrl(url)
@@ -43,7 +45,9 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
 
             val service = YoutubeService(YOUTUBE_SERVICE_ID)
             val streamExtractor = service.getStreamExtractor(url)
+            stage = "video_page"
             withTimeout(EXTRACTION_TIMEOUT_MS) { runPipePipeCall { streamExtractor.fetchPage() } }
+            stage = "video_metadata"
             val streamInfo = withTimeout(EXTRACTION_TIMEOUT_MS) {
                 runPipePipeCall { StreamInfo.getInfo(streamExtractor) }
             }
@@ -51,6 +55,7 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
                 return YoutubeLiveChatOpenResult.Unsupported("Live chat requires a live YouTube video")
             }
 
+            stage = "chat_page"
             val chatExtractor = service.getBulletCommentsExtractor(url)
             pendingExtractor = chatExtractor
             withTimeout(EXTRACTION_TIMEOUT_MS) {
@@ -72,7 +77,11 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
             return YoutubeLiveChatOpenResult.Unavailable("YouTube did not respond in time")
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            logger.warn(
+                "Live chat initialization failed stage={} failure={} cause={}",
+                stage, error.javaClass.simpleName, error.cause?.javaClass?.simpleName,
+            )
             return YoutubeLiveChatOpenResult.Unavailable("Could not start YouTube live chat")
         } finally {
             if (session == null) {
@@ -125,6 +134,7 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
     }
 
     private companion object {
+        val logger = LoggerFactory.getLogger(PipePipeYoutubeLiveChatService::class.java)
         const val MAX_SESSIONS = 12
         const val EXTRACTION_TIMEOUT_MS = 25_000L
         const val POLL_INTERVAL_MS = 1_000L
