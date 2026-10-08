@@ -10,6 +10,7 @@ import dev.typetype.server.routes.authRoutes
 import dev.typetype.server.routes.accountProfilesRoutes
 import dev.typetype.server.routes.avatarRoutes
 import dev.typetype.server.routes.bulletCommentRoutes
+import dev.typetype.server.routes.youtubeLiveChatRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
@@ -95,6 +96,7 @@ fun Application.installApplicationRoutes(
             )
             commentRoutes(svc.commentService, authService, adminSettingsService)
             bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
+            youtubeLiveChatRoutes(svc.youtubeLiveChatService, authService, adminSettingsService)
         }
         rateLimit(CHANNEL_ZONE) {
             channelRoutes(

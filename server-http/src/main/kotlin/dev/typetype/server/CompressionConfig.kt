@@ -18,6 +18,7 @@ fun Application.configureCompression(): Unit {
             excludeContentType(ContentType.Video.Any)
             excludeContentType(ContentType.Audio.Any)
             excludeContentType(ContentType.Application.OctetStream)
+            excludeContentType(ContentType.Text.EventStream)
         }
     }
 }

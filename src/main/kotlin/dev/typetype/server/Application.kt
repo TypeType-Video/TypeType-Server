@@ -85,6 +85,7 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopped) { svc.subscriptionFeedService.close() }
     monitor.subscribe(ApplicationStopped) { svc.youtubeTakeoutImportService.close() }
     monitor.subscribe(ApplicationStopped) { svc.homeRecommendationServices.close() }
+    monitor.subscribe(ApplicationStopped) { svc.youtubeLiveChatService.close() }
     val youtubeRemoteBrowserConfig = YoutubeRemoteBrowserConfig.fromEnvironment(subtitleServiceUrl)
     val youtubeRemoteLoginReadinessService = YoutubeRemoteLoginReadinessService(
         youtubeRemoteBrowserConfig,

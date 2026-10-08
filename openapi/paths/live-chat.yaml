@@ -1,0 +1,39 @@
+YoutubeLiveChat:
+  get:
+    tags: [extraction]
+    summary: Stream read-only YouTube live chat messages
+    description: |
+      Opens one bounded upstream chat session for a live YouTube video. The server sends
+      `message` events with JSON LiveChatMessage data and `error` events with JSON ErrorResponse
+      data. Closing the response stops retrieval. The client should close it when the panel or
+      watch page closes, or when media playback reports that the live stream ended.
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string, format: uri }
+    responses:
+      '200':
+        description: Server-sent events containing live chat messages.
+        headers:
+          Cache-Control:
+            schema: { type: string, example: no-cache }
+        content:
+          text/event-stream:
+            schema: { type: string }
+            examples:
+              message:
+                value: |
+                  event: message
+                  data: {"id":"chat-1","text":"Hello","receivedAtMs":1720000000000}
+
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '401':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/JsonError
+      '502':
+        $ref: ../components/common.yaml#/JsonError

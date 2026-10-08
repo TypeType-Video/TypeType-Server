@@ -39,6 +39,7 @@ paths:
   /sabr/playback/{sessionId}/segments: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackSegments }
   /search: { $ref: ./openapi/paths/search.yaml#/Search }
   /search/filters: { $ref: ./openapi/paths/search.yaml#/SearchFilters }
+  /live-chat: { $ref: ./openapi/paths/live-chat.yaml#/YoutubeLiveChat }
   /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
   /channel/page: { $ref: ./openapi/paths/channel.yaml#/ChannelPage }
   /channel/playlists: { $ref: ./openapi/paths/channel.yaml#/ChannelPlaylists }
