@@ -35,6 +35,8 @@ if (localPipePipeExtractor != null) {
         dependencySubstitution {
             substitute(module("com.github.InfinityLoop1308.PipePipeExtractor:extractor"))
                 .using(project(":extractor"))
+            substitute(module("com.github.TypeType-Video.PipePipeExtractor:extractor"))
+                .using(project(":extractor"))
             substitute(module("com.github.Priveetee.PipePipeExtractor:extractor"))
                 .using(project(":extractor"))
         }

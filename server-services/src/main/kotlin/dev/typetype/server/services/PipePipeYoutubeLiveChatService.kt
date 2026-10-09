@@ -85,7 +85,7 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
             return YoutubeLiveChatOpenResult.Unavailable("Could not start YouTube live chat")
         } finally {
             if (session == null) {
-                pendingExtractor?.disconnect()
+                pendingExtractor?.close()
                 capacity.release()
             }
         }
@@ -125,7 +125,7 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
         override fun close() {
             if (!isClosed.compareAndSet(false, true)) return
             try {
-                extractor.disconnect()
+                extractor.close()
             } finally {
                 sessions.remove(this)
                 capacity.release()

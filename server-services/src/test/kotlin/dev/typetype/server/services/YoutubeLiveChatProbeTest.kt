@@ -20,13 +20,13 @@ class YoutubeLiveChatProbeTest {
         require(url.isNotBlank()) { "TYPETYPE_LIVE_CHAT_URL must be set" }
         NewPipeInitializer.init(System.getenv("YOUTUBE_TOKEN_SERVICE_URL"))
         val service = PipePipeYoutubeLiveChatService()
+        val initialPoolThreads = poolThreadCount()
         val result = service.openSession(url)
         val session = (result as? YoutubeLiveChatOpenResult.Opened)?.session
             ?: error("Could not open live chat: ${result::class.simpleName}")
         val heap = ManagementFactory.getMemoryMXBean()
         val threads = ManagementFactory.getThreadMXBean()
         val startedAtMs = System.currentTimeMillis()
-        val initialPoolThreads = poolThreadCount()
         var messageCount = 0
         var heartbeatCount = 0
         var lastMessageAtMs = 0L
@@ -73,6 +73,7 @@ class YoutubeLiveChatProbeTest {
             "[live-chat-probe] closed poolThreadDelta=${poolThreadCount() - initialPoolThreads} " +
                 "heapMiB=${heap.heapMemoryUsage.used / MEBIBYTE}",
         )
+        assertTrue(poolThreadCount() <= initialPoolThreads, "Live chat leaves an extractor thread running after closure")
     }
 
     private fun extractorIdCacheSize(session: YoutubeLiveChatSession): Int? = runCatching {
