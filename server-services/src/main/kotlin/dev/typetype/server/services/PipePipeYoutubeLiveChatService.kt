@@ -125,7 +125,14 @@ class PipePipeYoutubeLiveChatService(
                 runPipePipeCall { extractor.liveMessages }.forEach { item ->
                     val text = item.commentText?.trim()?.takeIf(String::isNotEmpty) ?: return@forEach
                     sequence += 1
-                    emit(YoutubeLiveChatEvent.Message(LiveChatMessage("chat-$sequence", text, now)))
+                    emit(YoutubeLiveChatEvent.Message(LiveChatMessage(
+                        id = "chat-$sequence",
+                        text = text,
+                        receivedAtMs = now,
+                        authorName = item.authorName?.trim()?.takeIf(String::isNotEmpty),
+                        authorAvatarUrl = item.authorAvatarUrl,
+                        moderator = item.isModerator,
+                    )))
                 }
                 if (now - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
                     emit(YoutubeLiveChatEvent.Heartbeat)

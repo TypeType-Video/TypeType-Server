@@ -85,15 +85,26 @@ class YoutubeLiveChatRoutesTest {
         assertEquals("5", response.headers["Retry-After"])
     }
 
+    @Test
+    fun `GET live-chat preserves author metadata`() = testApplication {
+        val message = LiveChatMessage("chat-1", "hello", 1L, "Viewer", "https://example.com/avatar.jpg", true)
+        application {
+            routing { youtubeLiveChatRoutes(FakeService(YoutubeLiveChatOpenResult.Opened(FakeSession(message)))) }
+        }
+        val body = client.get("/live-chat?url=https://www.youtube.com/watch?v=video").bodyAsText()
+        val data = body.lineSequence().first { it.startsWith("data: ") }.removePrefix("data: ")
+        assertEquals(message, kotlinx.serialization.json.Json.decodeFromString<LiveChatMessage>(data))
+    }
+
     private class FakeService(private val result: YoutubeLiveChatOpenResult) : YoutubeLiveChatService {
         override suspend fun openSession(url: String) = result
         override fun close() = Unit
     }
 
-    private class FakeSession : YoutubeLiveChatSession {
+    private class FakeSession(private val message: LiveChatMessage = LiveChatMessage("chat-1", "hello", 1L)) : YoutubeLiveChatSession {
         var closed = false
         override val events = flowOf(
-            YoutubeLiveChatEvent.Message(LiveChatMessage("chat-1", "hello", 1L)),
+            YoutubeLiveChatEvent.Message(message),
             YoutubeLiveChatEvent.Heartbeat,
         )
 

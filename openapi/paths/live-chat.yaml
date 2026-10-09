@@ -5,7 +5,8 @@ YoutubeLiveChat:
     description: |
       Opens one bounded upstream chat session for a live YouTube video. The server sends
       `message` events with JSON LiveChatMessage data and `error` events with JSON ErrorResponse
-      data. Closing the response stops retrieval. The client should close it when the panel or
+      data. Messages include optional nullable authorName and authorAvatarUrl strings and an
+      optional moderator boolean (default false), when provided by YouTube. Closing the response stops retrieval. The client should close it when the panel or
       watch page closes, or when media playback reports that the live stream ended.
     parameters:
       - name: url
