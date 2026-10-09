@@ -22,7 +22,9 @@ import org.schabi.newpipe.extractor.stream.StreamType
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
-class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
+class PipePipeYoutubeLiveChatService(
+    private val tokenClient: TypetypeTokenSabrTokenClient,
+) : YoutubeLiveChatService {
     private val capacity = Semaphore(MAX_SESSIONS)
     private val sessions = ConcurrentHashMap.newKeySet<LiveChatSession>()
     private val closed = AtomicBoolean(false)
@@ -45,11 +47,22 @@ class PipePipeYoutubeLiveChatService : YoutubeLiveChatService {
 
             val service = YoutubeService(YOUTUBE_SERVICE_ID)
             val streamExtractor = service.getStreamExtractor(url)
+            stage = "player_context"
+            val token = withTimeout(EXTRACTION_TIMEOUT_MS) {
+                runPipePipeCall { tokenClient.fetch(streamExtractor.id) }
+            } ?: return YoutubeLiveChatOpenResult.Unavailable("YouTube session is unavailable")
+
             stage = "video_page"
-            withTimeout(EXTRACTION_TIMEOUT_MS) { runPipePipeCall { streamExtractor.fetchPage() } }
+            withTimeout(EXTRACTION_TIMEOUT_MS) {
+                runPipePipeCall {
+                    TypetypeYoutubeSessionPoTokenProvider.withToken(token) { streamExtractor.fetchPage() }
+                }
+            }
             stage = "video_metadata"
             val streamInfo = withTimeout(EXTRACTION_TIMEOUT_MS) {
-                runPipePipeCall { StreamInfo.getInfo(streamExtractor) }
+                runPipePipeCall {
+                    TypetypeYoutubeSessionPoTokenProvider.withToken(token) { StreamInfo.getInfo(streamExtractor) }
+                }
             }
             if (streamInfo.streamType !in LIVE_STREAM_TYPES) {
                 return YoutubeLiveChatOpenResult.Unsupported("Live chat requires a live YouTube video")

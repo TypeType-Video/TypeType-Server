@@ -23,6 +23,7 @@ import dev.typetype.server.services.ChannelNotificationPreferenceService
 import dev.typetype.server.services.PushNotificationService
 import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PipePipeYoutubeLiveChatService
+import dev.typetype.server.services.TypetypeTokenSabrTokenClient
 import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.ProgressService
 import dev.typetype.server.services.RssFeedManagementService
@@ -91,7 +92,7 @@ class ServiceRegistry(
     val trendingService = extraction.trendingService
     val commentService = extraction.commentService
     val bulletCommentService = extraction.bulletCommentService
-    val youtubeLiveChatService = PipePipeYoutubeLiveChatService()
+    val youtubeLiveChatService = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(subtitleServiceUrl))
     val channelService = extraction.channelService
     val podcastService = extraction.podcastService
     val publicPlaylistService = extraction.publicPlaylistService

@@ -18,8 +18,9 @@ class YoutubeLiveChatProbeTest {
     fun `receives messages from a real YouTube live for five minutes`() = runBlocking {
         val url = System.getenv("TYPETYPE_LIVE_CHAT_URL")?.trim().orEmpty()
         require(url.isNotBlank()) { "TYPETYPE_LIVE_CHAT_URL must be set" }
-        NewPipeInitializer.init(System.getenv("YOUTUBE_TOKEN_SERVICE_URL"))
-        val service = PipePipeYoutubeLiveChatService()
+        val tokenServiceUrl = requireNotNull(System.getenv("YOUTUBE_TOKEN_SERVICE_URL"))
+        NewPipeInitializer.init(tokenServiceUrl)
+        val service = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(tokenServiceUrl))
         val initialPoolThreads = poolThreadCount()
         val result = service.openSession(url)
         val session = (result as? YoutubeLiveChatOpenResult.Opened)?.session
