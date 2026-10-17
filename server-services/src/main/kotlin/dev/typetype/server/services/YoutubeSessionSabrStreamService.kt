@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import org.slf4j.LoggerFactory
 
 const val YOUTUBE_SESSION_REQUIRED_CODE = "youtube_session_required"
 const val YOUTUBE_SESSION_REQUIRED_ERROR = "Connect YouTube to access this video"
@@ -23,21 +24,25 @@ class YoutubeSessionSabrStreamService(
                 when (val info = infoService.fetch(userId, videoId)) {
                     is AuthenticatedSabrInfoResult.Ready ->
                         ExtractionResult.Success(metadata.data.withSabrFallback(videoId, info.prepared.info))
-                    AuthenticatedSabrInfoResult.Failed ->
-                        ExtractionResult.Failure("Authenticated SABR playback unavailable")
-                    AuthenticatedSabrInfoResult.TimedOut ->
-                        reconnectResult(userId)
+                    AuthenticatedSabrInfoResult.Failed -> {
+                        logger.warn("authenticated_sabr_stream event=sabr_failed_fallback_to_standard videoId={}", videoId)
+                        ExtractionResult.Success(metadata.data)
+                    }
+                    AuthenticatedSabrInfoResult.TimedOut -> {
+                        logger.warn("authenticated_sabr_stream event=sabr_timeout_fallback_to_standard videoId={}", videoId)
+                        ExtractionResult.Success(metadata.data)
+                    }
                     AuthenticatedSabrInfoResult.NotConnected -> null
                 }
             }
         } catch (error: TimeoutCancellationException) {
-            reconnectResult(userId)
+            logger.warn("authenticated_sabr_stream event=overall_timeout_transient_failure url={}", url)
+            ExtractionResult.Failure("Timed out loading authenticated YouTube stream")
         }
     }
 
-    private suspend fun reconnectResult(userId: String): ExtractionResult<StreamResponse> {
-        metadataService.markYoutubeSessionNeedsReconnect(userId)
-        return ExtractionResult.BadRequest(YOUTUBE_SESSION_RECONNECT_ERROR, YOUTUBE_SESSION_RECONNECT_CODE)
+    private companion object {
+        val logger = LoggerFactory.getLogger(YoutubeSessionSabrStreamService::class.java)
     }
 }
 
