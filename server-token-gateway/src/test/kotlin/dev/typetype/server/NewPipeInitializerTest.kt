@@ -13,9 +13,45 @@ import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.downloader.Downloader
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder
 
 class NewPipeInitializerTest {
+    @Test
+    fun `initialization pins the extractor locale so date texts stop varying`() {
+        val initialized = NewPipeInitializer.javaClass.getDeclaredField("initialized")
+        val decoderUrl = NewPipeInitializer.javaClass.getDeclaredField("decoderServiceUrl")
+        initialized.isAccessible = true
+        decoderUrl.isAccessible = true
+        val previousInitialized = initialized.get(null)
+        val previousUrl = decoderUrl.get(null)
+        mockkStatic(NewPipe::class)
+        mockkStatic(YoutubeApiDecoder::class)
+        mockkObject(TypetypeYoutubeSessionPoTokenProvider)
+        try {
+            initialized.set(null, false)
+            decoderUrl.set(null, null)
+            every { NewPipe.setYoutubePlayerClient(any()) } just Runs
+            every { NewPipe.setYoutubeSessionPoTokenProvider(any()) } just Runs
+            every { NewPipe.init(any(), any(), any()) } just Runs
+            every { YoutubeApiDecoder.setLocalDecoder(any()) } just Runs
+            every { TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(any()) } just Runs
+
+            NewPipeInitializer.init()
+
+            verify(exactly = 1) {
+                NewPipe.init(any<Downloader>(), Localization("en", "US"), ContentCountry("US"))
+            }
+        } finally {
+            initialized.set(null, previousInitialized)
+            decoderUrl.set(null, previousUrl)
+            unmockkObject(TypetypeYoutubeSessionPoTokenProvider)
+            unmockkStatic(YoutubeApiDecoder::class)
+            unmockkStatic(NewPipe::class)
+        }
+    }
+
     @Test
     fun `default initialization preserves the configured token provider`() {
         val initialized = NewPipeInitializer.javaClass.getDeclaredField("initialized")
@@ -32,7 +68,7 @@ class NewPipeInitializerTest {
             decoderUrl.set(null, null)
             every { NewPipe.setYoutubePlayerClient(any()) } just Runs
             every { NewPipe.setYoutubeSessionPoTokenProvider(any()) } just Runs
-            every { NewPipe.init(any<Downloader>()) } just Runs
+            every { NewPipe.init(any(), any(), any()) } just Runs
             every { YoutubeApiDecoder.setLocalDecoder(any()) } just Runs
             every { TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(any()) } just Runs
 

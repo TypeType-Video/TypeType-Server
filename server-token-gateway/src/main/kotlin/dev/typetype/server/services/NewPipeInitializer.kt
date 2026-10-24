@@ -2,6 +2,8 @@ package dev.typetype.server.services
 
 import dev.typetype.server.downloader.OkHttpDownloader
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder
 import java.net.ProxySelector
 
@@ -26,7 +28,14 @@ object NewPipeInitializer {
             TypetypeYoutubeSessionPoTokenProvider.configureAuthenticatedProvider(null)
         }
         if (!initialized) {
-            NewPipe.init(OkHttpDownloader.instance(youtubeProxySelector))
+            // Pinned like the playback side: without a localization the
+            // extractor sends no fixed Accept-Language and YouTube answers
+            // with a random one — date texts came back in e.g. isiZulu.
+            NewPipe.init(
+                OkHttpDownloader.instance(youtubeProxySelector),
+                Localization("en", "US"),
+                ContentCountry("US"),
+            )
             initialized = true
         }
         NewPipe.setYoutubeSessionPoTokenProvider(TypetypeYoutubeSessionPoTokenProvider)
