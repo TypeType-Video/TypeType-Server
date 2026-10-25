@@ -7,6 +7,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.StreamResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -16,6 +18,35 @@ import dev.typetype.server.sabr.YoutubeSabrFormat
 import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class AuthenticatedSabrInfoServiceTest {
+    @Test
+    fun oauthStreamAndPlaybackShareAuthenticatedCacheEntry() = runBlocking {
+        val sessions = mockk<YoutubeSessionService>()
+        val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
+        val cache = mockk<AuthenticatedSabrInfoCache>()
+        val tvClient = mockk<YoutubeTvOauthPlayerClient>()
+        val prepared = mockk<SabrPreparedInfo>()
+        val streamResponse = mockk<StreamResponse>()
+        val cached = AuthenticatedSabrInfoResult.Ready(prepared, streamResponse)
+        coEvery { sessions.isOauthSession(USER_ID) } returns true
+        coEvery { sessions.oauthAccessToken(USER_ID) } returns "oauth-access-token"
+        coEvery { sessions.markUsed(USER_ID) } returns Unit
+        coEvery { cache.getOrLoad(USER_ID, any(), VIDEO_ID, any(), any()) } returns cached
+        val service = AuthenticatedSabrInfoService(
+            sessions,
+            tokenClient,
+            cache = cache,
+            tvClient = tvClient,
+        )
+
+        val playback = service.fetch(USER_ID, VIDEO_ID)
+        val stream = service.oauthStream(USER_ID, VIDEO_ID) as ExtractionResult.Success
+
+        assertSame(cached, playback)
+        assertSame(streamResponse, stream.data)
+        coVerify(exactly = 2) { cache.getOrLoad(USER_ID, any(), VIDEO_ID, any(), any()) }
+        coVerify(exactly = 0) { tvClient.player(any(), any(), any(), any(), any()) }
+    }
+
     @Test
     fun `connected account uses one authenticated token pair`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
@@ -38,6 +69,7 @@ class AuthenticatedSabrInfoServiceTest {
             tokenClient,
             visitorDataFetcher = { SESSION_BINDING },
             probe = probe,
+            tvClient = mockk(relaxed = true),
         )
 
         val result = service.fetch(USER_ID, VIDEO_ID) as AuthenticatedSabrInfoResult.Ready
@@ -63,6 +95,7 @@ class AuthenticatedSabrInfoServiceTest {
             tokenClient,
             visitorDataFetcher = { SESSION_BINDING },
             probe = probe,
+            tvClient = mockk(relaxed = true),
         )
 
         val metadata = service.fetch(USER_ID, VIDEO_ID)
@@ -78,7 +111,7 @@ class AuthenticatedSabrInfoServiceTest {
     fun `guest playback does not inspect connected credentials`() = runBlocking {
         val sessions = mockk<YoutubeSessionService>()
         val tokenClient = mockk<TypetypeTokenSabrTokenClient>()
-        val service = AuthenticatedSabrInfoService(sessions, tokenClient)
+        val service = AuthenticatedSabrInfoService(sessions, tokenClient, tvClient = mockk(relaxed = true))
 
         val result = service.fetch("guest:anonymous", VIDEO_ID)
 
@@ -98,6 +131,7 @@ class AuthenticatedSabrInfoServiceTest {
             sessions,
             tokenClient,
             visitorDataFetcher = { SESSION_BINDING },
+            tvClient = mockk(relaxed = true),
         )
 
         val result = service.fetch(USER_ID, VIDEO_ID)
@@ -120,6 +154,7 @@ class AuthenticatedSabrInfoServiceTest {
             tokenClient,
             visitorDataFetcher = { SESSION_BINDING },
             probe = probe,
+            tvClient = mockk(relaxed = true),
         )
 
         assertThrows(CancellationException::class.java) {
@@ -128,6 +163,7 @@ class AuthenticatedSabrInfoServiceTest {
     }
 
     private fun playableInfo(): YoutubeSabrInfo = mockk {
+        every { serverAbrStreamingUrl } returns null
         every { formats } returns listOf(
             mockk<YoutubeSabrFormat> {
                 every { isAudio } returns true

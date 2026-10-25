@@ -11,7 +11,7 @@ class SabrSessionPump(
     private val segmentCache: SabrSegmentCache? = null,
     refreshPoToken: (SabrSessionHolder) -> SabrTokenBundle? = { null },
 ) {
-    private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery(refreshPoToken)
+    private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery(refreshPoToken = refreshPoToken)
     private val loop = SabrSessionPumpLoop(
         unauthorizedRecovery = unauthorizedRecovery,
         onResolved = { holder, segment -> segmentCache?.put(holder, segment) },
@@ -32,7 +32,7 @@ class SabrSessionPump(
                 if (holder.expectsLive()) {
                     val segments = runCatchingNonCancellation {
                         withLiveWarmupRequestShape(holder, currentLiveTarget) {
-                            holder.withPlayerContext { pumpOnce(localization) }
+                            holder.withPlayerContextOffThread { pumpOnce(localization) }
                         }
                     }
                         .getOrDefault(emptyList())
@@ -45,7 +45,7 @@ class SabrSessionPump(
                     }
                     if (liveWarmupTarget == null) liveWarmupTarget = holder.liveWarmupTarget()
                 } else {
-                    runCatchingNonCancellation { holder.withPlayerContext { pumpOnceStreaming(localization) } }
+                    runCatchingNonCancellation { holder.withPlayerContextOffThread { pumpOnceStreaming(localization) } }
                 }
             }
             pumps++
@@ -143,14 +143,14 @@ class SabrSessionPump(
                 if (startMs < edgeMs - REWIND_GAP_MS) {
                     holder.setReaderPosition(request.format, startMs.coerceAtLeast(0L))
                     if (!exactSeekPrepared) holder.session.prepareForRewind(request)
-                    runCatchingNonCancellation { holder.withPlayerContext { pumpOnceStreamingUntilCached(localization, request) } }
+                    runCatchingNonCancellation { holder.withPlayerContextOffThread { pumpOnceStreamingUntilCached(localization, request) } }
                     return@withLock holder.session.getCachedSegment(request)?.also {
                         if (markServed) holder.markServed(it)
                     }
                 } else {
                     holder.session.streamState.setPlayerTimeMs(maxOf(edgeMs, startMs + PLAYER_TIME_OFFSET_MS))
                 }
-                val fetched = runCatchingNonCancellation { holder.withPlayerContext { fetchSegment(request, localization) } }.getOrNull()
+                val fetched = runCatchingNonCancellation { holder.withPlayerContextOffThread { fetchSegment(request, localization) } }.getOrNull()
                 fetched?.also { if (markServed) holder.markServed(it) }
             }
             if (segment != null) {
@@ -180,7 +180,7 @@ class SabrSessionPump(
                 if (holder.session.isBeyondEnd(request) && !holder.isFutureLiveRequest(request)) return@withLock null
                 holder.consumeMatchingSeek(request)
                 withTargetedRequestShape(holder, request) {
-                    holder.withPlayerContext {
+                    holder.withPlayerContextOffThread {
                         fetchTargetedSegment(holder, request, localization, targetPlayerTime(holder, request))
                     }
                         ?: SabrWindowSegmentFetcher.fetch(holder, request, localization, segmentCache)

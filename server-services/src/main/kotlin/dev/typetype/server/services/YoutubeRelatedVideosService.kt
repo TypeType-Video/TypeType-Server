@@ -27,7 +27,7 @@ class YoutubeRelatedVideosService : RelatedVideosService {
     override suspend fun related(videoUrl: String): ExtractionResult<List<VideoItem>> {
         val videoId = youtubeVideoId(videoUrl)
             ?: return ExtractionResult.BadRequest("Not a YouTube video: $videoUrl")
-        return runCatching {
+        return runExtractionCatching {
             runInterruptible(Dispatchers.IO) {
                 val youtube = ServiceList.YouTube
                 val localization = youtube.localization

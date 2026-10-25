@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.schabi.newpipe.extractor.exceptions.AntiBotException
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.exceptions.ExtractionException
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliRiskControlException
 
 class ExtractionResilienceTest {
     @Test
@@ -110,5 +112,32 @@ class ExtractionResilienceTest {
             assertSame(failure, error)
             assertEquals(1, calls)
         }
+    }
+
+    @Test
+    fun `does not retry bilibili risk control`() = runBlocking {
+        var calls = 0
+        val error = runCatching {
+            withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                calls++
+                throw BilibiliRiskControlException("risk control", -412)
+            }
+        }.exceptionOrNull()
+
+        assertEquals(BilibiliRiskControlException::class.java, error?.javaClass)
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `does not retry wrapped bot challenges`() = runBlocking {
+        var calls = 0
+        runCatching {
+            withExtractionRetry(attempts = 3, initialDelayMs = 1) {
+                calls++
+                throw ExtractionException("Could not get stream info", AntiBotException("challenge"))
+            }
+        }
+
+        assertEquals(1, calls)
     }
 }

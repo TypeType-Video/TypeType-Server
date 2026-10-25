@@ -5,11 +5,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -26,10 +24,9 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class SabrDemandFailurePumpTest {
     @Test
-    fun `later target response resolves demand without replacing session`() = runTest {
+    fun `later target response resolves demand without replacing session`() = runBlocking {
         SabrSegmentDemandTracker.clearAll()
         try {
             val audio = format(140, true)
@@ -50,24 +47,30 @@ class SabrDemandFailurePumpTest {
             every { streamState.getSegmentStartMs(audio, 39) } returns 379_414L
             every { streamState.getMinBufferedEndMs() } returns 379_233L
             every { streamState.getBufferedEndMs(audio) } returns 379_233L
-            every { session.pumpOnceStreamingForDemand(any(), request) } answers {
-                responseCount.incrementAndGet()
-                result()
-            }
             val holder = holder(session, audio, video)
             holder.requestSegmentDemand(request)
 
-            var pumpRounds = 0
-            SabrSessionPump().pumpLoop(
-                isAlive = { holder.pendingSegmentDemandSummary() != null && pumpRounds++ < 12 },
-                holder = holder,
-                intervalMs = 100L,
-            )
+            val identity = requireNotNull(holder.segmentDemandIdentity(request))
+            val runtime = SabrPumpRuntime()
+            repeat(4) {
+                runSabrDemandAttempt(
+                    holder = holder,
+                    request = request,
+                    identity = identity,
+                    wasFutureLiveRequest = false,
+                    runtime = runtime,
+                    pump = {
+                        responseCount.incrementAndGet()
+                        result()
+                    },
+                    onResolved = {},
+                )
+            }
 
             assertFalse(holder.playbackState() == SabrPlaybackState.TERMINAL)
             assertNull(holder.terminalFailure())
             assertNull(holder.pendingSegmentDemandSummary())
-            verify(exactly = 4) { session.pumpOnceStreamingForDemand(any(), request) }
+            assertEquals(4, responseCount.get())
             verify(exactly = 1) { session.prepareForMissingSegment(request) }
         } finally {
             SabrSegmentDemandTracker.clearAll()
@@ -132,8 +135,6 @@ class SabrDemandFailurePumpTest {
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000
-        every { format.lastModified } returns 0L
-        every { format.xtags } returns ""
         return format
     }
 

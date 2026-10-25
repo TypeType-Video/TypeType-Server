@@ -5,7 +5,10 @@ import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
@@ -17,6 +20,7 @@ class CachedStreamService(
     private val watch: StreamRequestWatch? = null,
     private val pace: StreamOpenPace? = null,
     private val renewal: ProviderSessionRenewal? = null,
+    private val failures: StreamFailureMemory = StreamFailureMemory(),
 ) : StreamService {
 
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<StreamResponse>>>()
@@ -25,6 +29,7 @@ class CachedStreamService(
         private const val DEFAULT_CACHE_PREFIX = "stream:v6"
 
         const val PACED_CODE = "provider_paced"
+        const val PACED_RETRY_AFTER_SECONDS = 30L
 
         fun cacheKey(url: String): String = "$DEFAULT_CACHE_PREFIX:$url"
     }
@@ -32,9 +37,10 @@ class CachedStreamService(
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
         val key = "$cachePrefix:$url"
         cachedStream(key)?.let { return it }
+        failures.recall(key)?.let { return it }
         val pending = CompletableDeferred<ExtractionResult<StreamResponse>>()
         val existing = inFlight.putIfAbsent(key, pending)
-        if (existing != null) return existing.await()
+        if (existing != null) return awaitShared(url, existing)
         return try {
             val result = getCachedOrLoad(url, key)
             pending.complete(result)
@@ -47,15 +53,25 @@ class CachedStreamService(
         }
     }
 
+    private suspend fun awaitShared(
+        url: String,
+        shared: CompletableDeferred<ExtractionResult<StreamResponse>>,
+    ): ExtractionResult<StreamResponse> = try {
+        shared.await()
+    } catch (_: CancellationException) {
+        currentCoroutineContext().ensureActive()
+        getStreamInfo(url)
+    }
+
     private suspend fun getCachedOrLoad(url: String, key: String): ExtractionResult<StreamResponse> {
         cachedStream(key)?.let { return it }
         val nobodyWaits = coroutineContext[StreamRequestWatch.NobodyWaiting] != null
         val counted = coroutineContext[StreamRequestWatch.AlreadyCounted] != null
         if (nobodyWaits && !backgroundAdmitted(counted)) {
-            return ExtractionResult.Failure("The provider is not asked for this video now", PACED_CODE)
+            return paced("The provider is not asked for this video now")
         }
         if (pace != null && isYoutubeUrl(url) && !pace.turn(someoneWaits = !nobodyWaits)) {
-            return ExtractionResult.Failure("Too many videos are being opened at the provider right now", PACED_CODE)
+            return paced("Too many videos are being opened at the provider right now")
         }
         val result = delegate.getStreamInfo(url)
         if (nobodyWaits && !counted) {
@@ -64,6 +80,7 @@ class CachedStreamService(
             watch?.opened(result)
         }
         if ((result as? ExtractionResult.Failure)?.kind == ExtractionFailureKind.ProviderAccessBlocked) renewal?.refused(url)
+        failures.remember(key, result)
         if (result is ExtractionResult.Success) {
             val ttl = result.data.streamCacheTtlSeconds()
             if (ttl > 0) {
@@ -74,6 +91,9 @@ class CachedStreamService(
         }
         return result
     }
+
+    private fun paced(message: String): ExtractionResult.Failure =
+        ExtractionResult.Failure(message, PACED_CODE, ExtractionFailureKind.RateLimited, PACED_RETRY_AFTER_SECONDS)
 
     private suspend fun backgroundAdmitted(counted: Boolean): Boolean {
         val watch = watch ?: return true

@@ -11,77 +11,80 @@ import org.junit.jupiter.api.Test
 
 class SabrPlaybackInfoResolverTest {
     @Test
-    fun `connected account uses authenticated playback info`() = runTest {
+    fun publicVideoUsesCachedPublicInfoWithoutFetchingAuthenticatedInfo() = runTest {
+        val store = mockk<SabrSessionStore>()
+        val authenticated = mockk<AuthenticatedSabrInfoService>()
+        val prepared = mockk<SabrPreparedInfo>()
+        coEvery { store.fetchInfo(VIDEO_ID, START_TIME_MS, true, false) } returns prepared
+
+        val result = SabrPlaybackInfoResolver(store, authenticated) { false }
+            .initial(USER_ID, VIDEO_ID, START_TIME_MS)
+
+        assertSame(prepared, result)
+        coVerify(exactly = 0) { authenticated.fetch(any(), any()) }
+    }
+
+    @Test
+    fun restrictedVideoUsesAuthenticatedInfoInsteadOfPublicInfo() = runTest {
         val store = mockk<SabrSessionStore>()
         val authenticated = mockk<AuthenticatedSabrInfoService>()
         val prepared = mockk<SabrPreparedInfo>()
         coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Ready(prepared)
 
-        val result = SabrPlaybackInfoResolver(store, authenticated).initial(USER_ID, VIDEO_ID, 0L)
+        val result = SabrPlaybackInfoResolver(store, authenticated) { true }
+            .initial(USER_ID, VIDEO_ID, START_TIME_MS)
 
         assertSame(prepared, result)
         coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `authenticated failure never falls back to public playback info`() = runTest {
+    fun restrictedVideoWithoutConnectedSessionDoesNotFallBackToPublicInfo() = runTest {
         val store = mockk<SabrSessionStore>()
         val authenticated = mockk<AuthenticatedSabrInfoService>()
-        coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Failed
-
-        val result = SabrPlaybackInfoResolver(store, authenticated).initial(USER_ID, VIDEO_ID, 0L)
-
-        assertNull(result)
-        coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
-    }
-
-    @Test
-    fun `account without YouTube connection uses public playback info`() = runTest {
-        val store = mockk<SabrSessionStore>()
-        val authenticated = mockk<AuthenticatedSabrInfoService>()
-        val prepared = mockk<SabrPreparedInfo>()
         coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.NotConnected
-        coEvery { store.fetchInfo(VIDEO_ID, 5_000L, true, false) } returns prepared
 
-        val result = SabrPlaybackInfoResolver(store, authenticated).initial(USER_ID, VIDEO_ID, 5_000L)
-
-        assertSame(prepared, result)
-    }
-
-    @Test
-    fun `authenticated replacement remains authenticated`() = runTest {
-        val store = mockk<SabrSessionStore>()
-        val authenticated = mockk<AuthenticatedSabrInfoService>()
-        val prepared = mockk<SabrPreparedInfo>()
-        val holder = holder(SabrPreparedSource.AUTHENTICATED_YOUTUBE)
-        coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Ready(prepared)
-
-        val result = SabrPlaybackInfoResolver(store, authenticated).replacement(holder, 60_000L)
-
-        assertSame(prepared, result)
-        coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
-    }
-
-    @Test
-    fun `authenticated replacement failure never changes source`() = runTest {
-        val store = mockk<SabrSessionStore>()
-        val authenticated = mockk<AuthenticatedSabrInfoService>()
-        val holder = holder(SabrPreparedSource.AUTHENTICATED_YOUTUBE)
-        coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Failed
-
-        val result = SabrPlaybackInfoResolver(store, authenticated).replacement(holder, 60_000L)
+        val result = SabrPlaybackInfoResolver(store, authenticated) { true }
+            .initial(USER_ID, VIDEO_ID, START_TIME_MS)
 
         assertNull(result)
         coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
     }
 
-    private fun holder(source: SabrPreparedSource): SabrSessionHolder = mockk {
-        every { this@mockk.source } returns source
-        every { key } returns SabrSessionKey(VIDEO_ID, USER_ID, 140, null, 137, 0L)
+    @Test
+    fun restrictedVideoAuthenticationFailureDoesNotFallBackToPublicInfo() = runTest {
+        val store = mockk<SabrSessionStore>()
+        val authenticated = mockk<AuthenticatedSabrInfoService>()
+        coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Failed
+
+        val result = SabrPlaybackInfoResolver(store, authenticated) { true }
+            .initial(USER_ID, VIDEO_ID, START_TIME_MS)
+
+        assertNull(result)
+        coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun authenticatedReplacementRemainsAuthenticated() = runTest {
+        val store = mockk<SabrSessionStore>()
+        val authenticated = mockk<AuthenticatedSabrInfoService>()
+        val prepared = mockk<SabrPreparedInfo>()
+        val holder = mockk<SabrSessionHolder> {
+            every { this@mockk.source } returns SabrPreparedSource.AUTHENTICATED_YOUTUBE
+            every { key } returns SabrSessionKey(VIDEO_ID, USER_ID, 140, null, 137, 0L)
+        }
+        coEvery { authenticated.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Ready(prepared)
+
+        val result = SabrPlaybackInfoResolver(store, authenticated)
+            .replacement(holder, START_TIME_MS)
+
+        assertSame(prepared, result)
+        coVerify(exactly = 0) { store.fetchInfo(any(), any(), any(), any()) }
     }
 
     private companion object {
         const val USER_ID = "user-id"
         const val VIDEO_ID = "video-id"
+        const val START_TIME_MS = 5_000L
     }
 }

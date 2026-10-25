@@ -84,6 +84,30 @@ class FavoritesRoutesTest {
     }
 
     @Test
+    fun `GET favorite status returns false for missing item`() = withApp {
+        val response = client.get("/favorites/status?videoUrl=https%3A%2F%2Fyt.com%2Fv%3Dmissing") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"isFavorite\":false"))
+    }
+
+    @Test
+    fun `GET favorite status returns true for saved item`() = withApp {
+        service.add(TEST_USER_ID, "https://yt.com/v=test")
+        val response = client.get("/favorites/status?videoUrl=https%3A%2F%2Fyt.com%2Fv%3Dtest") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("\"isFavorite\":true"))
+    }
+
+    @Test
+    fun `GET favorite status requires authentication`() = withApp {
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/favorites/status?videoUrl=x").status)
+    }
+
+    @Test
     fun `GET favorite returns 404 when not found`() = withApp {
         val response = client.get("/favorites/https%3A%2F%2Fyt.com%2Fv%3Dmissing") {
             headers.append(HttpHeaders.Authorization, "Bearer test-jwt")

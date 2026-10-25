@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
@@ -20,5 +21,6 @@ fun StreamingService.channelTabExtractor(
 
 fun StreamingService.toChannelTab(url: String, sort: String?): String? {
     if (channelTabLHFactory == null) return null
-    return url.toChannelTab(sort)
+    val tab = url.toChannelTab(sort)
+    return if (tab == ChannelTabs.VIDEOS && serviceId != ServiceList.YouTube.serviceId) null else tab
 }

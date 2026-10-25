@@ -33,6 +33,29 @@ ChannelNotificationPreferences:
       '404': { $ref: ../components/common.yaml#/JsonError }
       '409': { $ref: ../components/common.yaml#/JsonError }
 
+ChannelNotificationPreferencesBulk:
+  put:
+    tags: [user-data]
+    summary: Enable or disable notifications for many followed channels at once
+    description: Applies to every followed channel when channelUrls is omitted. Channels that are not followed are ignored.
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/push-notifications.yaml#/ChannelNotificationPreferencesBulkRequest }
+    responses:
+      '200':
+        description: Updated channel notification preferences.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: ../components/push-notifications.yaml#/ChannelNotificationPreference }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+
 PushDevices:
   get:
     tags: [user-data]

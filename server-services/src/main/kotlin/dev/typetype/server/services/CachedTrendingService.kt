@@ -14,9 +14,9 @@ class CachedTrendingService(
 
     override suspend fun getTrending(serviceId: Int): ExtractionResult<List<VideoItem>> = PublicExtractionCache.getOrLoad(
         cache = cache,
-        area = "trending",
+        area = PublicCacheArea("trending", listSerializer) { videos ->
+            PublicCacheAdmissions.firstPage(null, videos.isEmpty(), PublicCachePolicy.trendingTtl(serviceId))
+        },
         key = PublicCacheKey.of("trending", serviceId.toString()),
-        serializer = listSerializer,
-        ttlSeconds = { PublicCachePolicy.trendingTtl(serviceId) },
     ) { delegate.getTrending(serviceId) }
 }

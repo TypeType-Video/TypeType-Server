@@ -26,7 +26,9 @@ object DatabasePrimaryKeyMigrations {
                 JOIN pg_class t ON t.oid = c.conrelid
                 JOIN pg_index i ON i.indrelid = t.oid AND i.indisprimary
                 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(i.indkey)
-                WHERE t.relname = '$table' AND c.contype = 'p'
+                WHERE t.relname = '$table'
+                  AND t.relnamespace = current_schema()::regnamespace
+                  AND c.contype = 'p'
                 GROUP BY c.conname;
                 IF current_cols IS DISTINCT FROM '$columns' THEN
                     IF current_name IS NOT NULL THEN

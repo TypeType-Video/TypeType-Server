@@ -8,7 +8,7 @@ import dev.typetype.server.routes.proxyRoutes
 import dev.typetype.server.routes.providerMediaHandleRoutes
 import dev.typetype.server.routes.storyboardProxyRoutes
 import dev.typetype.server.routes.streamRoutes
-import dev.typetype.server.routes.withPlayableSabrStreams
+import dev.typetype.server.routes.withPreparedSabrStreams
 import dev.typetype.server.routes.youtubeSubtitleRoutes
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
@@ -33,11 +33,12 @@ internal fun Route.installStreamRoutes(
             blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             providerMediaHandleService = svc.providerMediaHandleService,
-            sabrStreamContractFilter = { url, data -> data.withPlayableSabrStreams(url, svc.sabrSessionStore) },
+            sabrStreamContractFilter = { url, data -> data.withPreparedSabrStreams(url, svc.sabrSessionStore) },
             bilibiliSessionStreamInfo = { userId, url -> svc.bilibiliSessionStreamService.getStreamInfo(userId, url) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
             },
+            youtubeRelatedVideos = { url -> svc.youtubeRelatedVideosService.related(url) },
         )
         audioOnlyContractRoutes(
             streamService = svc.streamService,

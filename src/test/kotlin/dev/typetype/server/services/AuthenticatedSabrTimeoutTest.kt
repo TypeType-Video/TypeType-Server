@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.cache.CacheService
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import io.mockk.coEvery
@@ -21,7 +23,7 @@ class AuthenticatedSabrTimeoutTest {
     fun `visitor data timeout returns a typed failure`() = runBlocking {
         val service = service(visitor = { blockingCall() })
 
-        val result = withTimeout(4_000L) { service.fetch(USER_ID, VIDEO_ID) }
+        val result = withTimeout(8_000L) { service.fetch(USER_ID, VIDEO_ID) }
 
         assertEquals(AuthenticatedSabrInfoResult.TimedOut, result)
     }
@@ -30,7 +32,7 @@ class AuthenticatedSabrTimeoutTest {
     fun `token timeout returns a typed failure`() = runBlocking {
         val service = service(token = { _, _, _ -> blockingCall() })
 
-        val result = withTimeout(4_000L) { service.fetch(USER_ID, VIDEO_ID) }
+        val result = withTimeout(8_000L) { service.fetch(USER_ID, VIDEO_ID) }
 
         assertEquals(AuthenticatedSabrInfoResult.TimedOut, result)
     }
@@ -39,7 +41,7 @@ class AuthenticatedSabrTimeoutTest {
     fun `probe timeout returns a typed failure`() = runBlocking {
         val service = service(probe = { _, _ -> blockingCall() })
 
-        val result = withTimeout(4_000L) { service.fetch(USER_ID, VIDEO_ID) }
+        val result = withTimeout(8_000L) { service.fetch(USER_ID, VIDEO_ID) }
 
         assertEquals(AuthenticatedSabrInfoResult.TimedOut, result)
     }
@@ -52,8 +54,8 @@ class AuthenticatedSabrTimeoutTest {
             if (calls == 1) blockingCall() else SESSION_BINDING
         })
 
-        val timedOut = withTimeout(4_000L) { service.fetch(USER_ID, VIDEO_ID) }
-        val recovered = withTimeout(4_000L) { service.fetch(USER_ID, VIDEO_ID) }
+        val timedOut = withTimeout(8_000L) { service.fetch(USER_ID, VIDEO_ID) }
+        val recovered = withTimeout(8_000L) { service.fetch(USER_ID, VIDEO_ID) }
 
         assertEquals(AuthenticatedSabrInfoResult.TimedOut, timedOut)
         assertEquals(2, calls)
@@ -61,7 +63,7 @@ class AuthenticatedSabrTimeoutTest {
     }
 
     @Test
-    fun `authenticated stream metadata timeout is typed`() = runTest {
+    fun `authenticated stream metadata timeout is transient failure without marking reconnect`() = runTest {
         val metadata = mockk<YoutubeSessionStreamService>()
         coEvery { metadata.getStreamInfo(USER_ID, URL) } coAnswers {
             delay(60_000L)
@@ -70,33 +72,50 @@ class AuthenticatedSabrTimeoutTest {
         val service = YoutubeSessionSabrStreamService(
             metadata,
             mockk(relaxed = true),
+            cache = mockk<CacheService>(relaxed = true),
             timeoutMs = 20L,
         )
-        coEvery { metadata.markYoutubeSessionNeedsReconnect(USER_ID) } returns Unit
 
         val result = withTimeout(1_000L) { service.getStreamInfo(USER_ID, URL) }
 
-        assertTrue(result is ExtractionResult.BadRequest)
-        assertEquals(YOUTUBE_SESSION_RECONNECT_CODE, (result as ExtractionResult.BadRequest).code)
-        coVerify { metadata.markYoutubeSessionNeedsReconnect(USER_ID) }
+        assertTrue(result is ExtractionResult.Failure)
+        assertEquals("Timed out loading authenticated YouTube stream", (result as ExtractionResult.Failure).message)
+        assertEquals(ExtractionFailureKind.UpstreamTimeout, result.kind)
+        coVerify(exactly = 0) { metadata.markYoutubeSessionNeedsReconnect(any()) }
     }
 
     @Test
-    fun `authenticated SABR probe timeout marks session needs reconnect`() = runTest {
+    fun `authenticated SABR probe timeout falls back to standard stream without marking reconnect`() = runTest {
         val metadata = mockk<YoutubeSessionStreamService>()
         val info = mockk<AuthenticatedSabrInfoService>()
         val stream = mockk<StreamResponse>(relaxed = true)
         coEvery { metadata.getStreamInfo(USER_ID, URL) } returns ExtractionResult.Success(stream)
-        coEvery { metadata.markYoutubeSessionNeedsReconnect(USER_ID) } returns Unit
         coEvery { info.oauthStream(USER_ID, VIDEO_ID) } returns null
         coEvery { info.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.TimedOut
-        val service = YoutubeSessionSabrStreamService(metadata, info)
+        val service = YoutubeSessionSabrStreamService(metadata, info, mockk<CacheService>(relaxed = true))
 
         val result = service.getStreamInfo(USER_ID, URL)
 
-        assertTrue(result is ExtractionResult.BadRequest)
-        assertEquals(YOUTUBE_SESSION_RECONNECT_CODE, (result as ExtractionResult.BadRequest).code)
-        coVerify { metadata.markYoutubeSessionNeedsReconnect(USER_ID) }
+        assertTrue(result is ExtractionResult.Success)
+        assertEquals(stream, (result as ExtractionResult.Success).data)
+        coVerify(exactly = 0) { metadata.markYoutubeSessionNeedsReconnect(any()) }
+    }
+
+    @Test
+    fun `authenticated SABR probe failure falls back to standard stream`() = runTest {
+        val metadata = mockk<YoutubeSessionStreamService>()
+        val info = mockk<AuthenticatedSabrInfoService>()
+        val stream = mockk<StreamResponse>(relaxed = true)
+        coEvery { metadata.getStreamInfo(USER_ID, URL) } returns ExtractionResult.Success(stream)
+        coEvery { info.oauthStream(USER_ID, VIDEO_ID) } returns null
+        coEvery { info.fetch(USER_ID, VIDEO_ID) } returns AuthenticatedSabrInfoResult.Failed
+        val service = YoutubeSessionSabrStreamService(metadata, info, mockk<CacheService>(relaxed = true))
+
+        val result = service.getStreamInfo(USER_ID, URL)
+
+        assertTrue(result is ExtractionResult.Success)
+        assertEquals(stream, (result as ExtractionResult.Success).data)
+        coVerify(exactly = 0) { metadata.markYoutubeSessionNeedsReconnect(any()) }
     }
 
     private fun service(
@@ -119,16 +138,18 @@ class AuthenticatedSabrTimeoutTest {
             tokenClient,
             visitorDataFetcher = visitor,
             probe = probeMock,
-            cache = AuthenticatedSabrInfoCache(timeoutMs = 1_200L),
+            cache = AuthenticatedSabrInfoCache(timeoutMs = 2_500L),
+            tvClient = mockk(relaxed = true),
         )
     }
 
     private fun blockingCall(): Nothing {
-        Thread.sleep(5_000L)
+        Thread.sleep(10_000L)
         error("unreachable")
     }
 
     private fun playableInfo(): YoutubeSabrInfo = mockk {
+        every { serverAbrStreamingUrl } returns null
         every { formats } returns listOf(
             mockk {
                 every { isAudio } returns true

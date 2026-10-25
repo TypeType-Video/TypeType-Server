@@ -10,7 +10,11 @@ fun PlaylistInfo.toPublicPlaylistItem(): PublicPlaylistItem = PublicPlaylistItem
     thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
     uploaderName = uploaderName ?: "",
     streamCount = streamCount,
-    playlistType = playlistType?.name?.lowercase() ?: "",
+    playlistType = when {
+        url?.contains("business=space_collection") == true -> "collection"
+        url?.contains("business=space_series") == true -> "series"
+        else -> playlistType?.name?.lowercase() ?: ""
+    },
 )
 
 fun emptyPublicPlaylistItem(url: String): PublicPlaylistItem = PublicPlaylistItem(

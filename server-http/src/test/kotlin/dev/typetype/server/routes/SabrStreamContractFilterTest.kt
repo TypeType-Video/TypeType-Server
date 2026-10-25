@@ -81,7 +81,7 @@ class SabrStreamContractFilterTest {
             ),
         )
 
-        val sabr = response.withPlayableSabrStreams(YOUTUBE_URL, store).onlySabrStreams()
+        val sabr = response.withPreparedSabrStreams(YOUTUBE_URL, store).let { checkNotNull(it) }.onlySabrStreams()
 
         assertEquals(setOf(137, 248, 399), sabr.videoOnlyStreams.map { it.itag }.toSet())
         assertEquals(setOf("avc1.4d4028", "vp9", "av01.0.08M.08"), sabr.videoOnlyStreams.map { it.codec }.toSet())
@@ -120,7 +120,7 @@ class SabrStreamContractFilterTest {
                 ),
             ),
             audioStreams = listOf(aacStream),
-        ).withPlayableSabrStreams(YOUTUBE_URL, store).onlySabrStreams()
+        ).withPreparedSabrStreams(YOUTUBE_URL, store).let { checkNotNull(it) }.onlySabrStreams()
 
         assertEquals(setOf(140, 249), filtered.audioStreams.map { it.itag }.toSet())
         assertEquals("audio/webm", filtered.audioStreams.first { it.itag == 249 }.mimeType)

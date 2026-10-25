@@ -54,8 +54,7 @@ fun Route.manifestRoutes(
                 call.respondText(result.data, ContentType.parse("application/dash+xml"))
             is ExtractionResult.BadRequest ->
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
-            is ExtractionResult.Failure ->
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
 

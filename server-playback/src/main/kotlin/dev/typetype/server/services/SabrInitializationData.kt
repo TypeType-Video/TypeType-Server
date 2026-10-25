@@ -71,7 +71,7 @@ object SabrInitializationData {
     ): ByteArray? {
         val initialized = runCatchingNonCancellation {
             holder.pumpMutex.withLock {
-                holder.withPlayerContext { bootstrapInitialization(Localization("en", "US")) }
+                holder.withPlayerContextOffThread { bootstrapInitialization(Localization("en", "US")) }
                 listOf(holder.audioFormat, holder.videoFormat).mapNotNull { candidate ->
                     holder.session.getCachedSegment(SabrSegmentRequest.initialization(candidate))
                         ?.data

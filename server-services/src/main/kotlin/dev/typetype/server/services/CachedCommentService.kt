@@ -12,9 +12,10 @@ class CachedCommentService(
     override suspend fun getComments(url: String, nextpage: String?): ExtractionResult<CommentsPageResponse> =
         PublicExtractionCache.getOrLoad(
             cache = cache,
-            area = "comments",
+            area = PublicCacheArea("comments", CommentsPageResponse.serializer(), keepLastGood = nextpage == null) {
+                val empty = it.comments.isEmpty() && !it.commentsDisabled
+                PublicCacheAdmissions.firstPage(nextpage, empty, PublicCachePolicy.commentsTtl(url, nextpage))
+            },
             key = PublicCacheKey.of("comments", url, nextpage),
-            serializer = CommentsPageResponse.serializer(),
-            ttlSeconds = { PublicCachePolicy.commentsTtl(url, nextpage) },
         ) { delegate.getComments(url, nextpage) }
 }

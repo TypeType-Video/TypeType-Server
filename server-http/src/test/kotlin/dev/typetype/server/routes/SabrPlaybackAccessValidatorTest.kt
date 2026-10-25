@@ -44,14 +44,17 @@ class SabrPlaybackAccessValidatorTest {
     }
 
     @Test
-    fun `uses linked YouTube session even when public metadata is accessible`() = runBlocking {
-        val authenticated = ExtractionResult.Success(testStreamResponse().copy(title = "Authenticated"))
+    fun `uses public metadata without resolving the linked session when unrestricted`() = runBlocking {
+        val public = ExtractionResult.Success(testStreamResponse().copy(title = "Public"))
+        var authenticatedCalls = 0
         val validator = validator(
-            publicResult = ExtractionResult.Success(testStreamResponse().copy(title = "Public")),
-            authenticatedResult = authenticated,
+            publicResult = public,
+            authenticatedResult = ExtractionResult.Success(testStreamResponse().copy(title = "Authenticated")),
+            onAuthenticated = { authenticatedCalls += 1 },
         )
 
-        assertEquals(authenticated, validator.resolve("user-id", "video-id"))
+        assertEquals(public, validator.resolve("user-id", "video-id"))
+        assertEquals(0, authenticatedCalls)
     }
 
     @Test
@@ -92,10 +95,14 @@ class SabrPlaybackAccessValidatorTest {
     private fun validator(
         publicResult: ExtractionResult<StreamResponse>,
         authenticatedResult: ExtractionResult<StreamResponse>?,
+        onAuthenticated: () -> Unit = {},
     ): SabrPlaybackAccessValidator = SabrPlaybackAccessValidator(
         publicStreamService = object : StreamService {
             override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> = publicResult
         },
-        youtubeSessionStreamInfo = { _, _ -> authenticatedResult },
+        youtubeSessionStreamInfo = { _, _ ->
+            onAuthenticated()
+            authenticatedResult
+        },
     )
 }

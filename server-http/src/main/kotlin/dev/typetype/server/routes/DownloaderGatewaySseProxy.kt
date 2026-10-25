@@ -7,6 +7,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 
 suspend fun forwardDownloaderSseRequest(
     call: ApplicationCall,
@@ -39,14 +41,18 @@ suspend fun forwardDownloaderSseRequest(
 
         response.body.byteStream().use { input ->
             call.respondOutputStream(contentType = contentType, status = status) {
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    write(buffer, 0, read)
-                    flush()
-                }
+                stopOnClientDisconnect { relayEvents(input, this) }
             }
         }
+    }
+}
+
+private fun relayEvents(input: InputStream, output: OutputStream): Unit {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) break
+        output.write(buffer, 0, read)
+        output.flush()
     }
 }

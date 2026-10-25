@@ -20,7 +20,7 @@ internal const val YOUTUBE_TV_USER_AGENT =
  * required or the player answers "The page needs to be reloaded."
  */
 class YoutubeTvOauthPlayerClient(
-    private val client: OkHttpClient = OkHttpClient(),
+    private val client: OkHttpClient,
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     private var signatureTimestamp: Pair<Long, Long>? = null

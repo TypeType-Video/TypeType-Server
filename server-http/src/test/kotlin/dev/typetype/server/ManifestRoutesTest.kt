@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.manifestRoutes
 import dev.typetype.server.services.CachedManifestService
@@ -13,6 +14,7 @@ import okhttp3.OkHttpClient
 import dev.typetype.server.cache.CacheService
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
@@ -80,6 +82,23 @@ class ManifestRoutesTest {
         }
         val response = client.get("/streams/native-manifest")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET streams native-manifest answers provider blocks with retry hint`() = testApplication {
+        val blockedNative = mockk<CachedNativeManifestService>()
+        coEvery { blockedNative.nativeManifest(any()) } returns ExtractionResult.Failure(
+            StreamExtractionErrorMapper.PROVIDER_ACCESS_BLOCKED_FALLBACK,
+            StreamExtractionErrorMapper.PROVIDER_ACCESS_BLOCKED_CODE,
+            ExtractionFailureKind.ProviderAccessBlocked,
+        )
+        application {
+            install(ContentNegotiation) { json() }
+            routing { manifestRoutes(manifestService, blockedNative, hlsManifestService) }
+        }
+        val response = client.get("/streams/native-manifest?url=https://youtube.com/watch?v=blocked")
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals("60", response.headers[HttpHeaders.RetryAfter])
     }
 
     @Test

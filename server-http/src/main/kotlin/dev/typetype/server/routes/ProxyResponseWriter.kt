@@ -7,9 +7,12 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondOutputStream
+import io.ktor.server.response.respondBytesWriter
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runInterruptible
+import java.io.InputStream
 
 internal suspend fun ApplicationCall.respondProxyResult(
     result: ExtractionResult<ProxyResponse>,
@@ -27,12 +30,22 @@ private suspend fun ApplicationCall.respondProxy(proxy: ProxyResponse, contentTy
         proxy.contentRange?.let { response.headers.append("Content-Range", it) }
         proxy.acceptRanges?.let { response.headers.append("Accept-Ranges", it) }
         proxy.cacheControl?.let { response.headers.append("Cache-Control", it, safeOnly = false) }
-        respondOutputStream(contentType, status, proxy.contentLength) {
-            withContext(Dispatchers.IO) { proxy.stream.copyTo(this@respondOutputStream, PROXY_COPY_BUFFER_SIZE) }
+        respondBytesWriter(contentType, status, proxy.contentLength) {
+            copyProxyStream(proxy.stream, this)
         }
     } finally {
         proxy.close()
     }
+}
+
+internal suspend fun copyProxyStream(source: InputStream, destination: ByteWriteChannel): Unit = stopOnClientDisconnect {
+    val buffer = ByteArray(PROXY_COPY_BUFFER_SIZE)
+    while (true) {
+        val read = runInterruptible(Dispatchers.IO) { source.read(buffer) }
+        if (read < 0) break
+        destination.writeFully(buffer, 0, read)
+    }
+    destination.flush()
 }
 
 private const val PROXY_COPY_BUFFER_SIZE = 64 * 1024

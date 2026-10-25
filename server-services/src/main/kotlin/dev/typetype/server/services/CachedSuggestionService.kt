@@ -15,9 +15,9 @@ class CachedSuggestionService(
     override suspend fun getSuggestions(query: String, serviceId: Int): ExtractionResult<List<String>> =
         PublicExtractionCache.getOrLoad(
             cache = cache,
-            area = "suggestions",
+            area = PublicCacheArea("suggestions", listSerializer, keepLastGood = false) { suggestions ->
+                PublicCacheAdmissions.firstPage(null, suggestions.isEmpty(), PublicCachePolicy.suggestionTtl(serviceId))
+            },
             key = PublicCacheKey.of("suggestions", serviceId.toString(), query),
-            serializer = listSerializer,
-            ttlSeconds = { PublicCachePolicy.suggestionTtl(serviceId) },
         ) { delegate.getSuggestions(query, serviceId) }
 }

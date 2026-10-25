@@ -11,9 +11,9 @@ class CachedPublicPlaylistService(
     override suspend fun getPlaylist(url: String, nextpage: String?): ExtractionResult<PublicPlaylistResponse> =
         PublicExtractionCache.getOrLoad(
             cache = cache,
-            area = "playlist",
+            area = PublicCacheArea("playlist", PublicPlaylistResponse.serializer(), keepLastGood = nextpage == null) {
+                PublicCacheAdmissions.firstPage(nextpage, it.videos.isEmpty(), PublicCachePolicy.playlistTtl(nextpage))
+            },
             key = PublicCacheKey.of("playlist", url, nextpage),
-            serializer = PublicPlaylistResponse.serializer(),
-            ttlSeconds = { PublicCachePolicy.playlistTtl(nextpage) },
         ) { delegate.getPlaylist(url, nextpage) }
 }

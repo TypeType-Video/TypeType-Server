@@ -51,11 +51,12 @@ class CachedSuggestionServiceTest {
     }
 
     @Test
-    fun `delegate failure is not cached`() = runBlocking {
+    fun `delegate failure is not cached as suggestions`() = runBlocking {
         coEvery { cache.get(any()) } returns null
+        coEvery { cache.set(any(), any(), any()) } returns Unit
         coEvery { delegate.getSuggestions("bad", YOUTUBE_SERVICE_ID) } returns ExtractionResult.Failure("network error")
         val result = service.getSuggestions("bad", YOUTUBE_SERVICE_ID)
         assertEquals(ExtractionResult.Failure("network error"), result)
-        coVerify(exactly = 0) { cache.set(any(), any(), any()) }
+        coVerify(exactly = 0) { cache.set(match { !it.endsWith(":backoff") }, any(), any()) }
     }
 }

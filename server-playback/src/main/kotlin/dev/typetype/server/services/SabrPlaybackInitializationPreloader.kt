@@ -10,6 +10,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 data class SabrPlaybackInitializationPreloadResult(
     val video: ByteArray?,
     val audio: ByteArray?,
+    val timedOut: Boolean = false,
 ) {
     fun isComplete(audioOnly: Boolean): Boolean =
         audio != null && (audioOnly || video != null)
@@ -35,7 +36,7 @@ object SabrPlaybackInitializationPreloader {
             val audio = async { fetchTrack(sessionStore, holder, holder.audioFormat, "audio") }
             SabrPlaybackInitializationPreloadResult(video?.await(), audio.await())
         }
-    } ?: SabrPlaybackInitializationPreloadResult(null, null)
+    } ?: SabrPlaybackInitializationPreloadResult(null, null, timedOut = true)
 
     private suspend fun fetchTrack(
         sessionStore: SabrSessionStore,

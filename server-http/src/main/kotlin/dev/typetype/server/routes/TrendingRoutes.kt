@@ -29,7 +29,7 @@ fun Route.trendingRoutes(
         when (val result = trendingService.getTrending(serviceId = serviceId)) {
             is ExtractionResult.Success -> call.respond(result.data.filterAllowed(profile))
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
 }

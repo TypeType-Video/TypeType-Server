@@ -19,6 +19,14 @@ class SabrSessionPumpLoop(
     private val onResolved: (SabrSessionHolder, SabrMediaSegment) -> Unit = { _, _ -> },
 ) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
+        try {
+            runRounds(isAlive, holder, intervalMs)
+        } finally {
+            holder.signalPlaybackProgress()
+        }
+    }
+
+    private suspend fun runRounds(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         val localization = Localization("en", "US")
         val runtime = runtimeFactory()
         var consecutiveIoErrors = 0
@@ -27,6 +35,7 @@ class SabrSessionPumpLoop(
                 val wakeVersion = holder.pumpWakeVersion()
                 val requestNumber = holder.session.requestNumber
                 val immediate = holder.pumpMutex.withLock { pumpRound(holder, localization, runtime) }
+                holder.signalPlaybackProgress()
                 if (holder.session.requestNumber != requestNumber) consecutiveIoErrors = 0
                 if (immediate) delay(0L)
                 else holder.awaitPumpWake(wakeVersion, pumpDemandDelayMs(holder, intervalMs))
@@ -39,6 +48,9 @@ class SabrSessionPumpLoop(
                     return
                 }
                 delay(SabrPumpPolicy.ERROR_RETRY_MS)
+            } catch (error: SabrUpstreamUnauthorizedException) {
+                unauthorizedRecovery.fail(holder, error)
+                return
             } catch (error: SabrRecoverableException) {
                 holder.failTerminal(sabrRecoverableFailureMessage(error.message))
                 return
@@ -141,7 +153,7 @@ class SabrSessionPumpLoop(
     private suspend fun pumpOnce(holder: SabrSessionHolder, localization: Localization, runtime: SabrPumpRuntime): Int {
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreaming(localization) } }
-                .also { unauthorizedRecovery.verify(holder) }
+                .also { runInterruptible(Dispatchers.IO) { unauthorizedRecovery.verify(holder) } }
                 .also { runtime.verifyProtectedResponse(holder) }
         } finally {
             runtime.recordRequest()
@@ -156,7 +168,7 @@ class SabrSessionPumpLoop(
     ): YoutubeSabrSession.DemandResponseResult {
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreamingForDemand(localization, request) } }
-                .also { unauthorizedRecovery.verify(holder) }
+                .also { runInterruptible(Dispatchers.IO) { unauthorizedRecovery.verify(holder) } }
                 .also { runtime.verifyProtectedResponse(holder) }
         } finally {
             runtime.recordRequest()

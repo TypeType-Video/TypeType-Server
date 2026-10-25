@@ -36,24 +36,43 @@ class ChannelNotificationPreferenceService(
         val channelUrl = ChannelUrlCanonicalizer.canonicalize(rawChannelUrl)
         if (!isSubscribed(userId, channelUrl)) return PreferenceUpdateResult.NotSubscribed
         val now = System.currentTimeMillis()
-        DatabaseFactory.query {
-            val inserted = ChannelNotificationPreferencesTable.insertIgnore {
-                it[ChannelNotificationPreferencesTable.userId] = userId
-                it[ChannelNotificationPreferencesTable.channelUrl] = channelUrl
+        DatabaseFactory.query { upsert(userId, channelUrl, enabled, now) }
+        return PreferenceUpdateResult.Updated(ChannelNotificationPreference(channelUrl, enabled, now))
+    }
+
+    suspend fun setAll(
+        userId: String,
+        enabled: Boolean,
+        rawChannelUrls: List<String>?,
+    ): List<ChannelNotificationPreference> {
+        val subscribed = subscriptionsService.getAll(userId)
+            .mapTo(linkedSetOf()) { ChannelUrlCanonicalizer.canonicalize(it.channelUrl) }
+        val targets = rawChannelUrls
+            ?.mapTo(linkedSetOf(), ChannelUrlCanonicalizer::canonicalize)
+            ?.filterTo(linkedSetOf()) { it in subscribed }
+            ?: subscribed
+        if (targets.isEmpty()) return emptyList()
+        val now = System.currentTimeMillis()
+        DatabaseFactory.query { targets.forEach { upsert(userId, it, enabled, now) } }
+        return targets.map { ChannelNotificationPreference(it, enabled, now) }
+    }
+
+    private fun upsert(userId: String, channelUrl: String, enabled: Boolean, now: Long) {
+        val inserted = ChannelNotificationPreferencesTable.insertIgnore {
+            it[ChannelNotificationPreferencesTable.userId] = userId
+            it[ChannelNotificationPreferencesTable.channelUrl] = channelUrl
+            it[ChannelNotificationPreferencesTable.enabled] = enabled
+            it[ChannelNotificationPreferencesTable.updatedAt] = now
+        }.insertedCount
+        if (inserted == 0) {
+            ChannelNotificationPreferencesTable.update({
+                (ChannelNotificationPreferencesTable.userId eq userId) and
+                    (ChannelNotificationPreferencesTable.channelUrl eq channelUrl)
+            }) {
                 it[ChannelNotificationPreferencesTable.enabled] = enabled
                 it[ChannelNotificationPreferencesTable.updatedAt] = now
-            }.insertedCount
-            if (inserted == 0) {
-                ChannelNotificationPreferencesTable.update({
-                    (ChannelNotificationPreferencesTable.userId eq userId) and
-                        (ChannelNotificationPreferencesTable.channelUrl eq channelUrl)
-                }) {
-                    it[ChannelNotificationPreferencesTable.enabled] = enabled
-                    it[ChannelNotificationPreferencesTable.updatedAt] = now
-                }
             }
         }
-        return PreferenceUpdateResult.Updated(ChannelNotificationPreference(channelUrl, enabled, now))
     }
 
     suspend fun remove(userId: String, rawChannelUrl: String) {

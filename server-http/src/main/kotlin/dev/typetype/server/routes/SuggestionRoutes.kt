@@ -28,7 +28,7 @@ fun Route.suggestionRoutes(
         when (val result = suggestionService.getSuggestions(query = query, serviceId = serviceId)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
 }

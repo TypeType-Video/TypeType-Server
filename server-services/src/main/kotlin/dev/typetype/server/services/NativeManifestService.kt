@@ -21,7 +21,7 @@ class NativeManifestService {
 
     private suspend fun nativeManifestWithoutCredentials(videoUrl: String): ExtractionResult<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            runExtractionCatching {
                 withExtractionRetry {
                     withTimeout(30_000L) {
                         val service = NewPipe.getServiceByUrl(videoUrl)

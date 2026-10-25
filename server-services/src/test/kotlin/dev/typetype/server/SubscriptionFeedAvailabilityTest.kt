@@ -39,8 +39,9 @@ class SubscriptionFeedAvailabilityTest {
         feed.getAllWithAvailability(TEST_USER_ID)
         feed.awaitRefresh(TEST_USER_ID)
         failRefresh = true
-        now += 61_000
+        now += 16 * 60_000L
         try {
+            feed.refreshDueUsers()
             val refreshing = feed.getAllWithAvailability(TEST_USER_ID)
             assertTrue(refreshing.available)
             assertEquals(1, refreshing.videos.size)

@@ -56,8 +56,8 @@ suspend fun forwardDownloaderArtifactRequest(
         call.respondOutputStream(contentType = contentType, status = status) {
             artifact.use { response ->
                 if (method != "HEAD") {
-                    response.body.byteStream().use { input ->
-                        input.copyTo(this, DEFAULT_BUFFER_SIZE)
+                    stopOnClientDisconnect {
+                        response.body.byteStream().use { input -> input.copyTo(this, DEFAULT_BUFFER_SIZE) }
                     }
                 }
             }

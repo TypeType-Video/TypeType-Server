@@ -50,5 +50,5 @@ object YoutubeSessionTokenScope {
             if (acquired.get()) permits.release(count)
         }
     }
-    private const val PERMIT_ACQUIRE_TIMEOUT_MS = 15_000L
+    private const val PERMIT_ACQUIRE_TIMEOUT_MS = 30_000L
 }

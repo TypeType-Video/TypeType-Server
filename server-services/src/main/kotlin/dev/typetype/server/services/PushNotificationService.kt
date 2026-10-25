@@ -88,6 +88,16 @@ class PushNotificationService(
         return result
     }
 
+    suspend fun setPreferences(
+        userId: String,
+        enabled: Boolean,
+        channelUrls: List<String>?,
+    ): List<ChannelNotificationPreference> {
+        val updated = preferenceService.setAll(userId, enabled, channelUrls)
+        if (!enabled) updated.forEach { deliveryStore.clearPending(userId, it.channelUrl) }
+        return updated
+    }
+
     suspend fun onSubscriptionRemoved(userId: String, channelUrl: String) {
         val canonical = ChannelUrlCanonicalizer.canonicalize(channelUrl)
         preferenceService.remove(userId, canonical)

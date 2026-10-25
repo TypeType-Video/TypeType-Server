@@ -81,7 +81,7 @@ class StreamRoutesTest {
 
         val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=live")
 
-        assertEquals(HttpStatusCode.BadGateway, response.status)
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
     }
 
@@ -261,7 +261,7 @@ class StreamRoutesTest {
         val response = client.get("/streams/youtube/sabr?url=https://youtube.com/watch?v=test")
         val body = response.bodyAsText()
 
-        assertEquals(HttpStatusCode.BadGateway, response.status)
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(body.contains("\"code\":\"no_playable_streams\""))
     }
 

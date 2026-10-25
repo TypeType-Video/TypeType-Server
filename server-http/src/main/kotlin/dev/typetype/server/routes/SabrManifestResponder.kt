@@ -28,7 +28,7 @@ internal class SabrManifestResponder(private val store: SabrSessionStore) {
         call.response.headers.append("Cache-Control", "no-store")
         try {
             call.respondOutputStream(DOWNLOAD_CONTENT_TYPE, HttpStatusCode.OK) {
-                downloadStreamer.stream(holder, this, requireNotNull(downloadRange))
+                stopOnClientDisconnect { downloadStreamer.stream(holder, this, requireNotNull(downloadRange)) }
             }
         } finally {
             store.release(holder)

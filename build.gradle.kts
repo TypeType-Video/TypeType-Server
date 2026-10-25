@@ -1,8 +1,8 @@
 import java.time.Instant
 
 plugins {
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.serialization") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.serialization") version "2.4.21"
     id("io.ktor.plugin") version "3.6.0"
     id("jacoco")
 }
@@ -38,7 +38,7 @@ dependencies {
     implementation(project(":server-http"))
     implementation(project(":server-sabr"))
     implementation(project(":server-token-gateway"))
-    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.4"))
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation(platform("io.netty:netty-bom:4.2.19.Final"))
     constraints {
@@ -57,12 +57,12 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
     implementation("ch.qos.logback:logback-classic:1.6.5")
-    implementation("com.github.TypeType-Video.PipePipeExtractor:extractor:705e2649f96e69d7525dac4fa625c60498639f81")
+    implementation("com.github.TypeType-Video.PipePipeExtractor:extractor:${property("pipePipeExtractorRevision")}")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("org.json:json:20260814")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    implementation("org.jetbrains.exposed:exposed-core:1.5.1")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.5.1")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation("org.jetbrains.exposed:exposed-core:1.6.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.6.0")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.14")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")

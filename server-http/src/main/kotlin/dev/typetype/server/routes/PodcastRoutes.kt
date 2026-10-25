@@ -24,7 +24,7 @@ fun Route.podcastRoutes(
         when (val result = podcastService.getPodcasts(url = url, nextpage = nextpage)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
     get("/podcasts/episodes") {
@@ -36,7 +36,7 @@ fun Route.podcastRoutes(
         when (val result = podcastService.getPodcastEpisodes(url = url, nextpage = nextpage)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
 }

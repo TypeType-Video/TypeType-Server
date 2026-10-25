@@ -21,7 +21,7 @@ class PipePipeCommentService : CommentService {
                     .getOrElse { return@withContext ExtractionResult.BadRequest("Invalid nextpage cursor") }
             } else null
 
-            runCatching {
+            runExtractionCatching {
                 withExtractionRetry {
                     withTimeout(30_000L) {
                         if (page == null) {
@@ -35,7 +35,7 @@ class PipePipeCommentService : CommentService {
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
-                onFailure = { ExtractionResult.Failure(it.message ?: "Comment extraction failed") }
+                onFailure = { transientAwareFailure(it, "Comment extraction failed") }
             )
         }
 

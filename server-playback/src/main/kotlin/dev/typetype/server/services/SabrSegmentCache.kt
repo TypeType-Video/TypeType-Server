@@ -21,6 +21,7 @@ class SabrSegmentCache {
         val cached = segment.toCachedSabrSegment(mimeType, mediaParts?.media ?: segment.data)
         val key = key(holder, format, cached.init, cached.sequence)
         holder.putCachedSegment(key, cached)
+        holder.signalPlaybackProgress()
     }
 
     fun putAll(holder: SabrSessionHolder, segments: List<SabrMediaSegment>): Unit {

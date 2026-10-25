@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.FavoriteStatusResponse
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.FavoritesService
 import dev.typetype.server.services.UserVideoMetadataRepairService
@@ -17,6 +18,13 @@ fun Route.favoritesRoutes(favoritesService: FavoritesService, authService: AuthS
             val items = favoritesService.getAll(userId)
             metadataRepairService?.scheduleFavorites(call.application, userId)
             call.respond(items)
+        }
+    }
+    get("/favorites/status") {
+        call.withJwtAuth(authService) { userId ->
+            val videoUrl = call.request.queryParameters["videoUrl"]?.takeIf { it.isNotBlank() }
+                ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing videoUrl"))
+            call.respond(FavoriteStatusResponse(favoritesService.get(userId, videoUrl) != null))
         }
     }
     get("/favorites/{videoUrl...}") {

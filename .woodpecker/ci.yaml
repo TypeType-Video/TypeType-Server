@@ -13,23 +13,25 @@ when:
   - event: manual
 
 services:
-  docker:
-    image: docker:29.1.3-dind@sha256:64d6ee47ea821c986467199baa162f5ac8cde3f57b719f18e23f3ed7a7444131
-    privileged: true
+  postgres:
+    image: postgres:16-alpine@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36
     environment:
-      DOCKER_TLS_CERTDIR: ""
-    commands:
-      - dockerd-entrypoint.sh --host=tcp://0.0.0.0:2375 --tls=false
+      POSTGRES_DB: typetype
+      POSTGRES_USER: typetype
+      POSTGRES_PASSWORD: typetype-ci-only
 
 steps:
-  - name: wait-docker
-    image: docker:29.1.3-cli@sha256:e0b6ff45302985d99b9685b2a2fec50c3379bd47067493968f51da901dc53ad5
+  - name: wait-postgres
+    image: postgres:16-alpine@sha256:f4610795587492cd4fb887c2dc3de301b813278bb6f616992061141b5f15ac36
     environment:
-      DOCKER_HOST: tcp://docker:2375
+      PGHOST: postgres
+      PGUSER: typetype
+      PGPASSWORD: typetype-ci-only
+      PGDATABASE: typetype
     commands:
       - |
         for attempt in $$(seq 1 60); do
-          if docker info >/dev/null 2>&1; then
+          if pg_isready -q; then
             exit 0
           fi
           sleep 1
@@ -38,11 +40,11 @@ steps:
 
   - name: gradle
     image: gradle:9.7.0-jdk25@sha256:24bfb4bc1b96afef848086d39a7f585c0b7217bf9581fa228a06ff305ecd9b20
-    depends_on: [wait-docker]
+    depends_on: [wait-postgres]
     environment:
-      DOCKER_HOST: tcp://docker:2375
-      TESTCONTAINERS_HOST_OVERRIDE: docker
-      TESTCONTAINERS_RYUK_DISABLED: "true"
+      TEST_DATABASE_URL: jdbc:postgresql://postgres:5432/typetype
+      TEST_DATABASE_USER: typetype
+      TEST_DATABASE_PASSWORD: typetype-ci-only
     commands:
       - |
         set -eu

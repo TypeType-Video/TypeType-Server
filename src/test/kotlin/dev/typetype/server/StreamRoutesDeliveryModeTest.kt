@@ -71,7 +71,7 @@ class StreamRoutesDeliveryModeTest {
 
         val response = client.get("/streams/youtube/sabr?url=$VIDEO_URL")
 
-        assertEquals(HttpStatusCode.BadGateway, response.status)
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertTrue(response.bodyAsText().contains("\"code\":\"no_playable_streams\""))
     }
 

@@ -45,6 +45,7 @@ paths:
   /channel/playlists: { $ref: ./openapi/paths/channel.yaml#/ChannelPlaylists }
   /podcasts: { $ref: ./openapi/paths/podcasts.yaml#/Podcasts }
   /podcasts/episodes: { $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes }
+  /favorites/status: { $ref: ./openapi/paths/favorites.yaml#/FavoriteStatus }
   /playlist: { $ref: ./openapi/paths/playlists.yaml#/Playlist }
   /saved-playlists: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylists }
   /saved-playlists/{id}: { $ref: ./openapi/paths/saved-playlists.yaml#/SavedPlaylist }
@@ -65,6 +66,7 @@ paths:
   /notifications/read-all: { $ref: ./openapi/paths/notifications.yaml#/NotificationsReadAll }
   /notifications/{notificationId}/read: { $ref: ./openapi/paths/notifications.yaml#/NotificationsRead }
   /notifications/channel-preferences: { $ref: ./openapi/paths/push-notifications.yaml#/ChannelNotificationPreferences }
+  /notifications/channel-preferences/bulk: { $ref: ./openapi/paths/push-notifications.yaml#/ChannelNotificationPreferencesBulk }
   /notifications/push/devices: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevices }
   /notifications/push/devices/{deviceId}: { $ref: ./openapi/paths/push-notifications.yaml#/PushDevice }
   /notifications/push/deliveries/acknowledgement: { $ref: ./openapi/paths/push-notifications.yaml#/PushDeliveryAcknowledgement }

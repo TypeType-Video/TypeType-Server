@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaType
 import dev.typetype.server.services.YOUTUBE_SESSION_REQUIRED_CODE
@@ -44,6 +45,20 @@ internal suspend fun resolveStreamInfo(
     userId: String?,
     publicResult: ExtractionResult<StreamResponse>,
     dependencies: StreamRouteDependencies,
+): StreamResolution = resolvePublicOrAuthenticatedStreamInfo(
+    url = url,
+    deliveryMode = deliveryMode,
+    userId = userId,
+    publicResult = publicResult,
+    dependencies = dependencies,
+).withRelatedVideos(url, dependencies.youtubeRelatedVideos)
+
+private suspend fun resolvePublicOrAuthenticatedStreamInfo(
+    url: String,
+    deliveryMode: StreamDeliveryMode,
+    userId: String?,
+    publicResult: ExtractionResult<StreamResponse>,
+    dependencies: StreamRouteDependencies,
 ): StreamResolution {
     if (deliveryMode == StreamDeliveryMode.BiliBili) {
         val bilibiliInfo = dependencies.bilibiliSessionStreamInfo
@@ -55,6 +70,9 @@ internal suspend fun resolveStreamInfo(
     }
     val authenticatedInfo = dependencies.youtubeSessionSabrStreamInfo
     if (!deliveryMode.isSabr() || authenticatedInfo == null) {
+        return StreamResolution(publicResult)
+    }
+    if (!publicResult.requiresYoutubeSession()) {
         return StreamResolution(publicResult)
     }
     val authenticatedResult = userId?.let { authenticatedInfo(it, url) }
@@ -75,6 +93,16 @@ internal suspend fun resolveStreamInfo(
     } else {
         StreamResolution(publicResult)
     }
+}
+
+internal suspend fun StreamResolution.withRelatedVideos(
+    url: String,
+    loader: (suspend (String) -> ExtractionResult<List<VideoItem>>)?,
+): StreamResolution {
+    val success = result as? ExtractionResult.Success<StreamResponse> ?: return this
+    if (success.data.relatedStreams.isNotEmpty() || loader == null) return this
+    val related = loader(url) as? ExtractionResult.Success<List<VideoItem>> ?: return this
+    return copy(result = ExtractionResult.Success(success.data.copy(relatedStreams = related.data)))
 }
 
 internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(

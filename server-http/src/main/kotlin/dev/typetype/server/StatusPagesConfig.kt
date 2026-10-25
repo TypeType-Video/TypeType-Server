@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.routes.TooManyRequestsBodyAttribute
+import dev.typetype.server.routes.isClientDisconnect
 import dev.typetype.server.routes.isMultipartSizeLimit
 import dev.typetype.server.routes.respondPortabilityError
 import io.ktor.http.HttpHeaders
@@ -28,8 +29,16 @@ fun Application.configureStatusPages() {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse(cause.message ?: "Bad request", "bad_request"))
         }
         exception<Throwable> { call, cause ->
-            if (cause is io.ktor.utils.io.ClosedWriteChannelException) return@exception
-            if (cause is kotlinx.coroutines.CancellationException) throw cause
+            if (cause is CancellationException) throw cause
+            if (cause.isClientDisconnect()) {
+                log.debug("Client disconnected requestId=${call.requestId()} path=${call.request.path()}")
+                if (!call.response.isCommitted) call.respond(CLIENT_CLOSED_REQUEST)
+                return@exception
+            }
+            if (call.response.isSent) {
+                log.warn("Response failed after it was sent requestId=${call.requestId()} path=${call.request.path()}", cause)
+                return@exception
+            }
             // Ktor's multipart producer can fail outside the route's receive block.
             if (call.request.path() == "/portability/imports" && cause.isMultipartSizeLimit()) {
                 call.respondPortabilityError(dev.typetype.server.portability.PortabilityUploadTooLargeException())
@@ -40,3 +49,5 @@ fun Application.configureStatusPages() {
         }
     }
 }
+
+private val CLIENT_CLOSED_REQUEST = HttpStatusCode(499, "Client Closed Request")

@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.cache.CacheService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import dev.typetype.server.sabr.YoutubeSabrClientProfile
@@ -16,8 +17,11 @@ class SabrInfoFetcher(
     private val infoCache: SabrPreparedInfoCache = SabrPreparedInfoCache(),
     sharedCache: CacheService? = null,
     private val playerInfoProbe: SabrPlayerInfoProbe = PipePipeSabrPlayerInfoProbe,
+    private val sessionEpoch: ProviderSessionEpoch = ProviderSessionEpoch(),
+    private val infoTimeoutMs: Long = SabrSessionStoreDefaults.INFO_TIMEOUT_MS,
 ) {
-    private val repository = SabrInfoRepository(infoCache, sharedCache)
+    private val repository = SabrInfoRepository(infoCache, sharedCache, sessionEpoch)
+    private val singleFlight = KeyedSingleFlight<SabrInfoFetchKey, SabrPreparedInfo?>()
     private val protectedContextRecovery = SabrProtectedContextRecovery(tokenClient)
 
     suspend fun fetchInfo(
@@ -25,6 +29,18 @@ class SabrInfoFetcher(
         startTimeMs: Long = 0L,
         cachedFirst: Boolean = false,
         isolatedPlayback: Boolean = false,
+    ): SabrPreparedInfo? {
+        if (isolatedPlayback) return fetchInfoUncoalesced(videoId, startTimeMs, cachedFirst, isolatedPlayback = true)
+        if (cachedFirst) repository.local(videoId, startTimeMs)?.let { return it }
+        val key = SabrInfoFetchKey(videoId, startTimeMs / START_BUCKET_MS, cachedFirst)
+        return singleFlight.run(key) { fetchInfoUncoalesced(videoId, startTimeMs, cachedFirst, isolatedPlayback = false) }
+    }
+
+    private suspend fun fetchInfoUncoalesced(
+        videoId: String,
+        startTimeMs: Long,
+        cachedFirst: Boolean,
+        isolatedPlayback: Boolean,
     ): SabrPreparedInfo? = withContext(Dispatchers.IO) {
         val startedAt = System.currentTimeMillis()
         if (isolatedPlayback) {
@@ -35,7 +51,7 @@ class SabrInfoFetcher(
             logFetch(videoId, startTimeMs, startedAt, "cache")
             return@withContext it
         }
-        if (cachedFirst) tokenClient.fetch(videoId)?.let { token ->
+        if (cachedFirst) runInterruptible { tokenClient.fetch(videoId) }?.let { token ->
             repository.shared(videoId, token)?.let { prepared ->
                 logFetch(videoId, startTimeMs, startedAt, "shared_cache")
                 return@withContext prepared
@@ -75,6 +91,8 @@ class SabrInfoFetcher(
 
     suspend fun invalidatePlayback(videoId: String): Unit = repository.invalidatePlayback(videoId)
 
+    fun hasPreparedInfo(videoId: String): Boolean = repository.local(videoId, startTimeMs = 0L) != null
+
     suspend fun recoverProtectedPlayback(videoId: String, rejectedVisitorData: String?): Unit =
         withContext(Dispatchers.IO) {
             protectedContextRecovery.refreshIfRejected(videoId, rejectedVisitorData)
@@ -86,18 +104,20 @@ class SabrInfoFetcher(
 
     fun evictExpired(): Unit = repository.evictExpired()
 
-    private suspend fun fetchPlayable(videoId: String, startTimeMs: Long): SabrPreparedInfo? =
-        fetchInfoOnce(videoId, startTimeMs)?.let { repository.putPrepared(videoId, startTimeMs, it) }
+    private suspend fun fetchPlayable(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
+        val epoch = sessionEpoch.current()
+        return fetchInfoOnce(videoId, startTimeMs)?.let { repository.putPrepared(videoId, startTimeMs, it, epoch = epoch) }
+    }
 
     private suspend fun fetchInfoOnce(
         videoId: String,
         startTimeMs: Long,
         isolatedPlayback: Boolean = false,
     ): SabrPreparedInfo? =
-        withTimeoutOrNull(SabrSessionStoreDefaults.INFO_TIMEOUT_MS) {
+        withTimeoutOrNull(infoTimeoutMs) {
             val tokenSession = sessionClient?.fetchPlaybackSession(videoId, isolatedPlayback)
             tokenSession?.preparedSabrInfo()?.let { return@withTimeoutOrNull it }
-            val token = tokenClient.fetch(videoId)
+            val token = runInterruptible { tokenClient.fetch(videoId) }
                 ?: return@withTimeoutOrNull null.also {
                     logger.warn(
                         "sabr_probe event=token_missing videoId={} startTimeMs={}",
@@ -114,7 +134,7 @@ class SabrInfoFetcher(
                 ?.let { return@withTimeoutOrNull it }
             val recovery = SabrPlayerContextRecovery(videoId, token, tokenClient, playerInfoProbe)
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
-                fetchInfoForProfile(videoId, startTimeMs, profile, recovery)
+                runInterruptible { fetchInfoForProfile(videoId, startTimeMs, profile, recovery) }
                     ?.takeIf { it.hasAudioAndVideoFormats() }
             }
         }
@@ -166,5 +186,6 @@ class SabrInfoFetcher(
     private companion object {
         val logger = LoggerFactory.getLogger(SabrInfoFetcher::class.java)
         val CLIENT_PROFILES = listOf(YoutubeSabrClientProfile.WEB, YoutubeSabrClientProfile.MWEB)
+        const val START_BUCKET_MS = 30_000L
     }
 }

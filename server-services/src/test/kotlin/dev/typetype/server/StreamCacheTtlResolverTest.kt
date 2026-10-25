@@ -7,6 +7,23 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class StreamCacheTtlResolverTest {
+    @Test
+    fun youtubeSignedStreamExpiryBoundsItsCacheLifetime() {
+        val url = "https://rr1.googlevideo.com/videoplayback?expire=10000&sig=signature"
+        val stream = response("").copy(videoOnlyStreams = listOf(video(url)))
+
+        assertEquals(1_700L, stream.streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
+    }
+
+    @Test
+    fun sabrSessionUrlExpiryAlsoBoundsItsCacheLifetime() {
+        val stream = response("").copy(
+            videoOnlyStreams = listOf(video("").copy(sabrSessionUrl = "/sabr/session/id?expires=10000")),
+        )
+
+        assertEquals(1_700L, stream.streamCacheTtlSeconds(nowEpochSeconds = 8_000L))
+    }
+
 
     @Test
     fun `default stream ttl is six hours`() {
@@ -26,6 +43,23 @@ class StreamCacheTtlResolverTest {
             hlsUrl = "/streams/hls-manifest?token=live",
         )
         assertEquals(0L, response.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
+    fun `a finished live is cached briefly like a video`() {
+        val replay = response("https://example.com/video.mp4").copy(isLiveContent = true)
+
+        assertEquals(300L, replay.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
+    fun `a live still being processed or carrying a client hls token is not cached`() {
+        val postLive = response("https://example.com/video.mp4").copy(isLiveContent = true, isPostLive = true)
+        val tokenized = response("https://example.com/video.mp4", hlsUrl = "/streams/hls-manifest?token=client")
+            .copy(isLiveContent = true)
+
+        assertEquals(0L, postLive.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+        assertEquals(0L, tokenized.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
     }
 
     @Test

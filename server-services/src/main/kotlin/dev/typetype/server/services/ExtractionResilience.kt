@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.exceptions.NeedLoginException
 import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliRiskControlException
 
 suspend fun <T> withExtractionRetry(
     attempts: Int = 3,
@@ -30,8 +31,10 @@ suspend fun <T> withExtractionRetry(
     throw lastError ?: IllegalStateException("Extraction retry failed")
 }
 
-private fun Throwable.isRetriableExtractionError(): Boolean = when (this) {
-    is CancellationException,
+private fun Throwable.isRetriableExtractionError(): Boolean =
+    this !is CancellationException && causeChain().none { it.isDeterministicExtractionError() }
+
+private fun Throwable.isDeterministicExtractionError(): Boolean = when (this) {
     is ContentNotAvailableException,
     is AgeRestrictedContentException,
     is GeographicRestrictionException,
@@ -40,6 +43,7 @@ private fun Throwable.isRetriableExtractionError(): Boolean = when (this) {
     is NeedLoginException,
     is AntiBotException,
     is ReCaptchaException,
-    is IllegalArgumentException -> false
-    else -> true
+    is BilibiliRiskControlException,
+    is IllegalArgumentException -> true
+    else -> false
 }

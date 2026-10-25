@@ -1,6 +1,7 @@
 services:
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.39.0
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v2.0.2
+    command: ["--noversion_check"]
     ports:
       - "6379:6379"
     ulimits:
@@ -8,7 +9,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:17
+    image: postgres:17.11
     environment:
       POSTGRES_DB: typetype
       POSTGRES_USER: typetype

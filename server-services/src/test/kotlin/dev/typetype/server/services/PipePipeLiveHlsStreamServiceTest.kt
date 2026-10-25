@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
 import io.mockk.every
 import io.mockk.just
@@ -35,6 +36,18 @@ class PipePipeLiveHlsStreamServiceTest {
         verify(exactly = 1) { extractor.fetchPage() }
         verify(exactly = 0) { extractor.audioStreams }
         verify(exactly = 0) { extractor.videoStreams }
+    }
+
+    @Test
+    fun answersSlowExtractionAsUpstreamTimeout() = runTest {
+        val extractor = mockk<StreamExtractor>(relaxed = true)
+        every { extractor.fetchPage() } answers { Thread.sleep(5_000L) }
+        val service = PipePipeLiveHlsStreamService(timeoutMs = 50L) { extractor }
+
+        val result = service.getStreamInfo(YOUTUBE_URL)
+
+        assertEquals(ExtractionFailureKind.UpstreamTimeout, (result as ExtractionResult.Failure).kind)
+        assertEquals(StreamExtractionErrorMapper.UPSTREAM_TIMEOUT_CODE, result.code)
     }
 
     @Test

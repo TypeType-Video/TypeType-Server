@@ -1,10 +1,17 @@
 <configuration>
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook" />
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="INFO">
+    <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>8192</queueSize>
+        <neverBlock>true</neverBlock>
+        <maxFlushTime>2000</maxFlushTime>
         <appender-ref ref="STDOUT" />
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="ASYNC_STDOUT" />
     </root>
 </configuration>

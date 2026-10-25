@@ -55,7 +55,7 @@ fun Route.channelRoutes(
                 call.respond(result.data.filterAllowed(access.profile).filterBlocked(blocked))
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
     post("/channel/page") {
@@ -119,7 +119,7 @@ private suspend fun ApplicationCall.respondChannelResult(
             respond(result.data.filterAllowed(profile).filterBlocked(blocked))
         }
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+        is ExtractionResult.Failure -> respondExtractionFailure(result, youtube = false)
     }
 }
 
@@ -131,6 +131,6 @@ private suspend fun ApplicationCall.respondChannelPlaylistsResult(
     when (result) {
         is ExtractionResult.Success -> respond(result.data.filterAllowed(profile).filterBlocked(blocked))
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-        is ExtractionResult.Failure -> respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+        is ExtractionResult.Failure -> respondExtractionFailure(result, youtube = false)
     }
 }

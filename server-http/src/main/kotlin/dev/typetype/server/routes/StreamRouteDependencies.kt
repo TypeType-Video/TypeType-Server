@@ -2,6 +2,7 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
@@ -16,7 +17,8 @@ internal data class StreamRouteDependencies(
     val blockedService: BlockedService?,
     val publicHlsManifestTokenService: PublicHlsManifestTokenService?,
     val providerMediaHandleService: ProviderMediaHandleService?,
-    val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)?,
+    val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse?)?,
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
+    val youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)?,
 )

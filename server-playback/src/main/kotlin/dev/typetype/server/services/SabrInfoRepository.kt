@@ -8,6 +8,7 @@ import java.time.Duration
 class SabrInfoRepository(
     infoCache: SabrPreparedInfoCache,
     sharedCache: CacheService?,
+    private val sessionEpoch: ProviderSessionEpoch = ProviderSessionEpoch(),
 ) {
     private val preparedInfos = infoCache
     private val sharedInfos = SabrInfoSharedCache(sharedCache)
@@ -17,8 +18,9 @@ class SabrInfoRepository(
     )
 
     fun local(videoId: String, startTimeMs: Long): SabrPreparedInfo? {
-        val cachedAtStart = preparedInfos.get(videoId, startTimeMs)
-        val cached = cachedAtStart ?: if (startTimeMs > 0L) preparedInfos.get(videoId, startTimeMs = 0L) else null
+        val epoch = sessionEpoch.current()
+        val cachedAtStart = preparedInfos.get(videoId, startTimeMs, epoch)
+        val cached = cachedAtStart ?: if (startTimeMs > 0L) preparedInfos.get(videoId, startTimeMs = 0L, epoch) else null
         cached ?: return null
         if (cached.hasAudioAndVideoFormats()) return cached
         preparedInfos.remove(videoId, if (cachedAtStart == null) 0L else startTimeMs)
@@ -26,10 +28,11 @@ class SabrInfoRepository(
     }
 
     suspend fun shared(videoId: String, token: SabrTokenBundle): SabrPreparedInfo? {
+        val epoch = sessionEpoch.current()
         sharedInfos.getInitialization(videoId)?.let { initializationInfos.put(videoId, it) }
         val info = sharedInfos.getPlayback(videoId) ?: return null
         if (info.visitorData != token.visitorData) return null
-        return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(info, token), share = false)
+        return putPrepared(videoId, startTimeMs = 0L, SabrPreparedInfo(info, token), share = false, epoch = epoch)
     }
 
     suspend fun rememberInitialization(videoId: String, info: YoutubeSabrInfo): Unit {
@@ -48,8 +51,9 @@ class SabrInfoRepository(
         startTimeMs: Long,
         prepared: SabrPreparedInfo,
         share: Boolean = true,
+        epoch: Long = sessionEpoch.current(),
     ): SabrPreparedInfo {
-        preparedInfos.put(videoId, startTimeMs, prepared)
+        preparedInfos.put(videoId, startTimeMs, prepared, epoch)
         if (share) sharedInfos.putPlayback(videoId, prepared.info)
         return prepared
     }

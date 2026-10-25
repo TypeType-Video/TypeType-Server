@@ -4,6 +4,7 @@ import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoItem
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
@@ -22,7 +23,6 @@ import io.ktor.server.routing.get
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
-
 fun Route.streamRoutes(
     streamService: StreamService,
     authService: AuthService? = null,
@@ -37,8 +37,9 @@ fun Route.streamRoutes(
     youtubeLiveHlsStreamService: StreamService = streamService,
     youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)? = null,
     previewsEnabled: Boolean = StreamPreview.enabledByDefault,
-    sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse)? = null,
+    sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse?)? = null,
 ) {
     val dependencies = StreamRouteDependencies(
         authService = authService,
@@ -50,14 +51,16 @@ fun Route.streamRoutes(
         sabrStreamContractFilter = sabrStreamContractFilter,
         youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
         bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
+        youtubeRelatedVideos = youtubeRelatedVideos,
     )
+    val bootstrapDependencies = dependencies.copy(youtubeRelatedVideos = null)
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies, previewsEnabled)
     streamRoute("/streams/youtube/live", StreamDeliveryMode.YoutubeLiveHls, youtubeLiveHlsStreamService, dependencies, previewsEnabled)
     streamRoute(
         "/streams/youtube/sabr/bootstrap",
         StreamDeliveryMode.YoutubeSabr,
         sabrBootstrapStreamService,
-        dependencies,
+        bootstrapDependencies,
         previewsEnabled,
     )
     streamRoute("/streams/niconico", StreamDeliveryMode.NicoNico, nicoNicoStreamService, dependencies, previewsEnabled)
@@ -161,17 +164,10 @@ private fun Route.streamRoute(
                     filtered
                 } else {
                     dependencies.sabrStreamContractFilter.invoke(url, filtered)
+                        ?: return@get call.respondNoPlayableStreams(upstreamOutage = true)
                 }
                 if (!data.hasPlayableSource()) {
-                    return@get call.respond(
-                        if (deliveryMode.isYoutube()) {
-                            HttpStatusCode.BadGateway
-                        } else HttpStatusCode.UnprocessableEntity,
-                        ErrorResponse(
-                            "No compatible stream is available for this video",
-                            "no_playable_streams",
-                        ),
-                    )
+                    return@get call.respondNoPlayableStreams(upstreamOutage = false)
                 }
                 val publicData = try {
                     dependencies.providerMediaHandleService?.let { service ->
@@ -180,13 +176,7 @@ private fun Route.streamRoute(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    return@get call.respond(
-                        HttpStatusCode.BadGateway,
-                        ErrorResponse(
-                            error.message ?: "Provider media handle service failed",
-                            "media_handle_unavailable",
-                        ),
-                    )
+                    return@get call.respondMediaHandleFailure(error)
                 }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,
@@ -194,16 +184,8 @@ private fun Route.streamRoute(
                 )
                 call.respond(publicData)
             }
-            is ExtractionResult.BadRequest -> call.respond(
-                if (deliveryMode.isYoutube()) youtubeBadRequestStatus(result.code) else HttpStatusCode.BadRequest,
-                ErrorResponse(result.message, result.code),
-            )
-            is ExtractionResult.Failure -> call.respond(
-                if (deliveryMode.isYoutube()) {
-                    youtubeExtractionFailureStatus(result)
-                } else HttpStatusCode.UnprocessableEntity,
-                ErrorResponse(result.message, result.code),
-            )
+            is ExtractionResult.BadRequest -> call.respondExtractionBadRequest(result, deliveryMode.isYoutube())
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, deliveryMode.isYoutube())
         }
     }
 }

@@ -10,5 +10,9 @@ fun PlaylistInfoItem.toPlaylistResultItem(): PlaylistResultItem = PlaylistResult
     thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
     uploaderName = uploaderName ?: "",
     streamCount = streamCount,
-    playlistType = playlistType?.name?.lowercase() ?: "",
+    playlistType = when {
+        url?.contains("business=space_collection") == true -> "collection"
+        url?.contains("business=space_series") == true -> "series"
+        else -> playlistType?.name?.lowercase() ?: ""
+    },
 )

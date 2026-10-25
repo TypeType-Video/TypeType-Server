@@ -1,24 +1,36 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.sabr.SabrRecoverableException
-
 class SabrUnauthorizedResponseRecovery(
+    private val onRefused: () -> Unit = {},
     private val refreshPoToken: (SabrSessionHolder) -> SabrTokenBundle?,
 ) {
     fun verify(holder: SabrSessionHolder): Unit {
         val status = latestUnauthorizedStatus(holder.session.diagnosticTrace) ?: return
-        if (!holder.markUnauthorizedRefreshAttempted()) throw unauthorized(status)
-        val refreshed = refreshPoToken(holder) ?: throw unauthorized(status)
+        if (!holder.markUnauthorizedRefreshAttempted()) throw refused(status)
+        val refreshed = refreshPoToken(holder) ?: throw refused(status)
+        if (refreshed.changesProviderSession(holder)) throw refused(status, providerSessionChanged = true)
         val token = refreshed.streamingPoTokenBytesFor(holder.info)
             ?.takeUnless { holder.session.streamState.poToken?.contentEquals(it) == true }
-            ?: throw unauthorized(status)
+            ?: throw refused(status)
         holder.playerContextToken = refreshed
         holder.session.streamState.setPoToken(token)
         holder.session.addDiagnosticEvent("upstream $status refreshed TypeType PO token")
     }
 
-    private fun unauthorized(status: Int): SabrRecoverableException =
-        SabrRecoverableException("SABR upstream unauthorized HTTP $status after TypeType token refresh")
+    fun fail(holder: SabrSessionHolder, error: SabrUpstreamUnauthorizedException): Unit {
+        if (!error.providerSessionChanged) onRefused()
+        holder.failTerminal(sabrRecoverableFailureMessage(error.message), error.kind)
+    }
+
+    private fun refused(status: Int, providerSessionChanged: Boolean = false): SabrUpstreamUnauthorizedException =
+        SabrUpstreamUnauthorizedException(status, providerSessionChanged)
+
+    private fun SabrTokenBundle.changesProviderSession(holder: SabrSessionHolder): Boolean {
+        val current = holder.playerContextToken
+        val generationChanged = generation != null && current?.generation != null && generation != current.generation
+        val visitorChanged = visitorData != holder.info.visitorData && sessionBinding != holder.info.visitorData
+        return generationChanged || visitorChanged
+    }
 
     companion object {
         fun latestUnauthorizedStatus(trace: String): Int? {

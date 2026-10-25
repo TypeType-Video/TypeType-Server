@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ChannelNotificationPreferenceRequest
+import dev.typetype.server.models.ChannelNotificationPreferencesBulkRequest
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.PushDeviceRegistrationRequest
 import dev.typetype.server.models.PushDeliveryAcknowledgementRequest
@@ -46,6 +47,18 @@ internal fun Route.pushNotificationRoutes(
                     ErrorResponse("Channel is not subscribed", "channel_not_subscribed"),
                 )
             }
+        }
+    }
+    put("/notifications/channel-preferences/bulk") {
+        call.withJwtAuth(authService) { userId ->
+            val request = runCatching { call.receive<ChannelNotificationPreferencesBulkRequest>() }.getOrNull()
+                ?: return@withJwtAuth call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("Invalid channel notification preferences", "push_request_invalid"),
+                )
+            val updated = service.setPreferences(userId, request.enabled, request.channelUrls)
+            notificationsService.invalidateUnreadCount(userId)
+            call.respond(updated)
         }
     }
     get("/notifications/push/devices") {

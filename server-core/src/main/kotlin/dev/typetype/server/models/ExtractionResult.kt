@@ -6,6 +6,7 @@ sealed class ExtractionResult<out T> {
         val message: String,
         val code: String = "error",
         val kind: ExtractionFailureKind = ExtractionFailureKind.Unknown,
+        val retryAfterSeconds: Long? = null,
     ) : ExtractionResult<Nothing>()
     data class BadRequest(val message: String, val code: String = "error") : ExtractionResult<Nothing>()
 }
@@ -17,4 +18,7 @@ enum class ExtractionFailureKind {
     ScheduledPremiere,
     ContentUnavailable,
     ProviderAccessBlocked,
+    RateLimited,
+    UpstreamTimeout,
+    Unavailable,
 }

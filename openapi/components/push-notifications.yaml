@@ -31,6 +31,15 @@ ChannelNotificationPreferenceRequest:
   properties:
     channelUrl: { type: string, minLength: 1 }
     enabled: { type: boolean }
+ChannelNotificationPreferencesBulkRequest:
+  type: object
+  required: [enabled]
+  properties:
+    enabled: { type: boolean }
+    channelUrls:
+      type: array
+      items: { type: string }
+
 ChannelNotificationPreference:
   type: object
   required: [channelUrl, enabled, updatedAt]
@@ -70,3 +79,4 @@ UnifiedPushNotificationPayload:
     accountId: { type: string }
     publishedAt: { type: integer, format: int64 }
     title: { type: string }
+    thumbnailUrl: { type: string, description: Upstream video thumbnail URL, empty when unknown. }

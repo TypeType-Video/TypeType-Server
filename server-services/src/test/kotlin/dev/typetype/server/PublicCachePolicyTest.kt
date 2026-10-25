@@ -42,10 +42,17 @@ class PublicCachePolicyTest {
     }
 
     @Test
-    fun `channel ttl keeps livestream state fresh`() {
-        assertEquals(60L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/streams", null, null))
-        assertEquals(60L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/livestreams", null, null))
+    fun `channel ttl keeps livestream pages for five minutes`() {
+        assertEquals(300L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/streams", null, null))
+        assertEquals(300L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/livestreams", null, null))
         assertEquals(300L, PublicCachePolicy.channelTtl("https://www.youtube.com/channel/id/streams", "cursor", null))
+    }
+
+    @Test
+    fun `feed tabs poll live state at most every ten minutes`() {
+        assertEquals(600L, PublicCachePolicy.feedTabTtl("https://www.youtube.com/channel/id/streams"))
+        assertEquals(900L, PublicCachePolicy.feedTabTtl("https://www.youtube.com/channel/id/shorts"))
+        assertEquals(3_600L, PublicCachePolicy.feedTabTtl("https://www.youtube.com/channel/id"))
     }
 
     @Test

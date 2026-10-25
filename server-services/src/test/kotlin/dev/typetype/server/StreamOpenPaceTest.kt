@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.CachedStreamService
@@ -54,6 +55,10 @@ class StreamOpenPaceTest {
         val answers = (1..6).map { video -> async { service.getStreamInfo("https://youtu.be/w$video") as ExtractionResult.Failure } }.awaitAll()
         assertEquals(3, provider.askedAt.size)
         assertEquals(3, answers.count { it.code == CachedStreamService.PACED_CODE })
+        answers.filter { it.code == CachedStreamService.PACED_CODE }.forEach { paced ->
+            assertEquals(ExtractionFailureKind.RateLimited, paced.kind)
+            assertEquals(CachedStreamService.PACED_RETRY_AFTER_SECONDS, paced.retryAfterSeconds)
+        }
         val background = withContext(StreamRequestWatch.NobodyWaiting.mark) { service.getStreamInfo("https://youtu.be/hover") } as ExtractionResult.Failure
         assertEquals(CachedStreamService.PACED_CODE, background.code)
         assertEquals(3, provider.askedAt.size)

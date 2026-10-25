@@ -15,6 +15,7 @@ class ChannelNotificationPreferenceServiceTest {
 
     companion object {
         private const val CHANNEL_URL = "https://www.youtube.com/channel/UCNotification"
+        private const val OTHER_CHANNEL_URL = "https://www.youtube.com/channel/UCOther"
 
         @BeforeAll
         @JvmStatic
@@ -33,5 +34,31 @@ class ChannelNotificationPreferenceServiceTest {
         preferences.set(TEST_USER_ID, CHANNEL_URL, true)
 
         assertEquals(true, preferences.list(TEST_USER_ID).single().enabled)
+    }
+
+    @Test
+    fun `bulk update applies to every subscribed channel in one call`() = runTest {
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(CHANNEL_URL, "Channel", ""))
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(OTHER_CHANNEL_URL, "Other", ""))
+
+        val updated = preferences.setAll(TEST_USER_ID, enabled = true, rawChannelUrls = null)
+
+        assertEquals(2, updated.size)
+        assertEquals(listOf(true, true), preferences.list(TEST_USER_ID).map { it.enabled })
+    }
+
+    @Test
+    fun `bulk update ignores channels that are not subscribed`() = runTest {
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(CHANNEL_URL, "Channel", ""))
+        preferences.setAll(TEST_USER_ID, enabled = true, rawChannelUrls = null)
+
+        val updated = preferences.setAll(
+            TEST_USER_ID,
+            enabled = false,
+            rawChannelUrls = listOf(CHANNEL_URL, "https://www.youtube.com/channel/UCUnknown"),
+        )
+
+        assertEquals(listOf(CHANNEL_URL), updated.map { it.channelUrl })
+        assertEquals(false, preferences.list(TEST_USER_ID).single().enabled)
     }
 }

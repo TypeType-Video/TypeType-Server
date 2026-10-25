@@ -62,11 +62,13 @@ private suspend fun ApplicationCall.stream(
     status: HttpStatusCode,
     mimeType: String,
 ): Unit = respondOutputStream(containerMime(mimeType), status, length) {
-    openStream().use { input ->
-        runInterruptible(Dispatchers.IO) {
-            input.skipNBytes(offset)
-            onOpened()
-            copyExactly(input, length)
+    stopOnClientDisconnect {
+        openStream().use { input ->
+            runInterruptible(Dispatchers.IO) {
+                input.skipNBytes(offset)
+                onOpened()
+                copyExactly(input, length)
+            }
         }
     }
 }

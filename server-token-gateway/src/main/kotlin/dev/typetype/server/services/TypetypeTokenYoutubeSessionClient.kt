@@ -1,36 +1,22 @@
 package dev.typetype.server.services
 
-import com.grack.nanojson.JsonParser
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import org.json.JSONObject
-import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
-import dev.typetype.server.sabr.SabrAdapter
-import dev.typetype.server.PLAYBACK_TRACE_ID_HEADER
-import dev.typetype.server.REQUEST_ID_HEADER
-import dev.typetype.server.PlaybackTraceLog
-import dev.typetype.server.currentPlaybackTraceId
-import dev.typetype.server.currentRequestId
-import dev.typetype.server.sabr.YoutubeSabrClientProfile
 import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.io.IOException
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import kotlin.coroutines.resume
 
 class TypetypeTokenYoutubeSessionClient(
     private val tokenServiceUrl: String,
-    private val client: OkHttpClient = OkHttpClient(),
+    client: OkHttpClient = OkHttpClient(),
 ) {
+    internal val client: OkHttpClient = TypetypeTokenHttpClient.bounded(client)
+    private val sessionFetcher = TokenYoutubeSabrSessionFetcher(tokenServiceUrl, this.client)
+
     suspend fun importSessionBinding(cookies: String): TokenSessionBinding? =
         withContext(Dispatchers.IO) {
             val body = JSONObject().put("cookies", cookies).toString()
@@ -94,9 +80,9 @@ class TypetypeTokenYoutubeSessionClient(
         deviceCall("/device/revoke", token, "token")
     }
 
-    suspend fun fetchTvPoToken(): TokenTvPoToken? = withContext(Dispatchers.IO) {
+    suspend fun fetchTvPoToken(refresh: Boolean = false): TokenTvPoToken? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
-            .url("${tokenServiceUrl.trimEnd('/')}/tv-token")
+            .url("${tokenServiceUrl.trimEnd('/')}/tv-token" + if (refresh) "?refresh=true" else "")
             .get()
             .build()
         try {
@@ -107,6 +93,8 @@ class TypetypeTokenYoutubeSessionClient(
                     poToken = payload.optString("poToken"),
                     visitorData = payload.optString("visitorData"),
                     livingRoomPoTokenId = payload.optString("livingRoomPoTokenId"),
+                    generation = TokenFreshness.generation(payload),
+                    expiresAtMs = TokenFreshness.expiresAtMs(payload),
                 ).takeIf {
                     it.poToken.isNotBlank() &&
                         it.visitorData.isNotBlank() &&
@@ -146,150 +134,22 @@ class TypetypeTokenYoutubeSessionClient(
         ?.trim()
         ?.ifBlank { null }
 
-    suspend fun fetchSabrInfo(videoId: String): YoutubeSabrInfo? = fetchSession(videoId)?.let { session ->
-        session.toSabrInfo(videoId)
-    }
+    suspend fun fetchSabrInfo(videoId: String): YoutubeSabrInfo? = fetchSession(videoId)?.toSabrInfo(videoId)
 
     suspend fun fetchPlaybackSession(
         videoId: String,
         isolated: Boolean = false,
-    ): TokenYoutubeSession? = fetchSession(videoId, isolated)?.let { session ->
-        session.toPlaybackSession(videoId)
+    ): TokenYoutubeSession? = fetchPlaybackSessionResult(videoId, isolated).valueOrNull()
+
+    suspend fun fetchPlaybackSessionResult(
+        videoId: String,
+        isolated: Boolean = false,
+    ): TokenServiceResult<TokenYoutubeSession> = when (val result = sessionFetcher.fetch(videoId, isolated)) {
+        is TokenServiceResult.Success -> result.value.toPlaybackSession(videoId)
+            ?.let { TokenServiceResult.Success(it) }
+            ?: TokenServiceResult.Failure(TokenServiceFailureReason.INVALID_RESPONSE, 200)
+        is TokenServiceResult.Failure -> result
     }
 
-    private fun JSONObject.toPlaybackSession(videoId: String): TokenYoutubeSession? {
-        val session = this
-        val info = session.toSabrInfo(videoId) ?: return null
-        val metadata = session.optJSONObject("metadata") ?: JSONObject()
-        return TokenYoutubeSession(
-            info = info,
-            token = SabrTokenBundle.fromResponse(videoId, session),
-            title = metadata.optString("title", session.optString("title")),
-            author = metadata.optString("author"),
-            channelId = metadata.optString("channelId"),
-            channelAvatarUrl = metadata.optString("channelAvatarUrl"),
-            description = metadata.optString("description"),
-            durationMs = metadata.optLong("durationMs", session.optLong("durationMs")),
-            viewCount = metadata.optLong("viewCount"),
-            thumbnailUrl = metadata.optString("thumbnailUrl"),
-            tags = metadata.optJSONArray("tags")?.let { tags ->
-                List(tags.length()) { index -> tags.optString(index) }.filter { it.isNotBlank() }
-            }.orEmpty(),
-            isLive = metadata.optBoolean("isLive"),
-            isLiveContent = metadata.optBoolean("isLiveContent"),
-            hlsUrl = session.optString("hlsManifestUrl").trim(),
-        )
-    }
-
-    private suspend fun fetchSession(videoId: String, isolated: Boolean = false): JSONObject? {
-        val encodedVideoId = URLEncoder.encode(videoId, StandardCharsets.UTF_8)
-        val url = "${tokenServiceUrl.trimEnd('/')}/youtube/sabr/session?videoId=$encodedVideoId&client=MWEB" +
-            if (isolated) "&isolated=true" else ""
-        return suspendCancellableCoroutine { continuation ->
-            val requestBuilder = Request.Builder().url(url).get()
-            currentRequestId()?.let { requestBuilder.header(REQUEST_ID_HEADER, it) }
-            currentPlaybackTraceId()?.let { requestBuilder.header(PLAYBACK_TRACE_ID_HEADER, it) }
-            val traceId = currentPlaybackTraceId()
-            val requestId = currentRequestId()
-            val startedAt = System.nanoTime()
-            PlaybackTraceLog.record("token_session_start", "operation=youtube_sabr_session isolated=$isolated")
-            val call = client.newCall(requestBuilder.build())
-            continuation.invokeOnCancellation { call.cancel() }
-            call.enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    PlaybackTraceLog.record(traceId, requestId, "token_session_complete", "status=network_error durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
-                    if (continuation.isActive) continuation.resume(null)
-                }
-
-                override fun onResponse(call: Call, response: Response) {
-                    val status = response.code
-                    val session = response.use {
-                        if (!it.isSuccessful) null else runCatching { JSONObject(it.body.string()) }.getOrNull()
-                    }
-                    PlaybackTraceLog.record(traceId, requestId, "token_session_complete", "status=$status result=${if (session == null) "empty" else "ok"} durationMs=${(System.nanoTime() - startedAt) / 1_000_000}")
-                    if (continuation.isActive) continuation.resume(session)
-                }
-            })
-        }
-    }
-
-    private fun JSONObject.toSabrInfo(videoId: String): YoutubeSabrInfo? = runCatching {
-        val playerResponse = JSONObject()
-            .put("responseContext", JSONObject().put("visitorData", getString("visitorData")))
-            .put(
-                "streamingData",
-                JSONObject()
-                    .put(
-                        "serverAbrStreamingUrl",
-                        optString("rawServerAbrStreamingUrl").ifBlank { getString("serverAbrStreamingUrl") },
-                    )
-                    .put("adaptiveFormats", getJSONArray("adaptiveFormats")),
-            )
-            .put(
-                "playerConfig",
-                JSONObject().put(
-                    "mediaCommonConfig",
-                    JSONObject().put(
-                        "mediaUstreamerRequestConfig",
-                        JSONObject().put("videoPlaybackUstreamerConfig", getString("videoPlaybackUstreamerConfig")),
-                    ),
-                ),
-            )
-        val info = SabrAdapter.fromPlayerResponse(
-            videoId,
-            YoutubeSabrClientProfile.MWEB,
-            YoutubeParsingHelper.generateContentPlaybackNonce(),
-            JsonParser.`object`().from(playerResponse.toString()),
-        )
-        val playbackUrl = optString("serverAbrStreamingUrl").takeIf { it.isNotBlank() }
-        val parsedPlaybackUrl = playbackUrl?.toHttpUrlOrNull()
-        val clientVersion = parsedPlaybackUrl
-            ?.queryParameter("cver")
-            ?.takeIf { it.isNotBlank() }
-        val playbackCpn = parsedPlaybackUrl
-            ?.queryParameter("cpn")
-            ?.takeIf { it.isNotBlank() }
-        if (playbackUrl != null && clientVersion != null) {
-            SabrAdapter.withPlaybackIdentity(
-                info,
-                playbackUrl,
-                clientVersion,
-                playbackCpn ?: info.cpn,
-                getString("visitorData"),
-            )
-        } else {
-            info
-        }
-    }.getOrNull()
-
+    private suspend fun fetchSession(videoId: String): JSONObject? = sessionFetcher.fetch(videoId, isolated = false).valueOrNull()
 }
-
-data class TokenSessionBinding(
-    val cookies: String,
-    val poToken: String,
-    val authUser: Int,
-)
-
-data class TokenDeviceStart(
-    val userCode: String,
-    val verificationUrl: String,
-    val expiresAt: Long,
-    val intervalSeconds: Int,
-)
-
-data class TokenDevicePoll(
-    val status: String,
-    val tokens: TokenDeviceTokens?,
-)
-
-data class TokenTvPoToken(
-    val poToken: String,
-    val visitorData: String,
-    val livingRoomPoTokenId: String,
-)
-
-data class TokenDeviceTokens(
-    val accessToken: String,
-    val refreshToken: String?,
-    val expiresIn: Long,
-)

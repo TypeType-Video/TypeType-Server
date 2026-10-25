@@ -13,8 +13,10 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.encodeToString
@@ -42,21 +44,7 @@ fun Route.youtubeLiveChatRoutes(
                 call.response.headers.append("X-Accel-Buffering", "no")
                 try {
                     call.respondBytesWriter(contentType = ContentType.Text.EventStream, status = HttpStatusCode.OK) {
-                        writeFully(": connected\n\n".encodeToByteArray())
-                        flush()
-                        result.session.events.catch { error ->
-                            if (error is CancellationException) throw error
-                            emit(YoutubeLiveChatEvent.Error(ErrorResponse("Live chat retrieval failed")))
-                        }.collect { event ->
-                            when (event) {
-                                is YoutubeLiveChatEvent.Message -> writeSse("message", Json.encodeToString(event.message))
-                                is YoutubeLiveChatEvent.Error -> writeSse("error", Json.encodeToString(event.error))
-                                YoutubeLiveChatEvent.Heartbeat -> {
-                                    writeFully(": keep-alive\n\n".encodeToByteArray())
-                                    flush()
-                                }
-                            }
-                        }
+                        stopOnClientDisconnect { writeLiveChat(result.session.events) }
                     }
                 } finally {
                     result.session.close()
@@ -66,7 +54,25 @@ fun Route.youtubeLiveChatRoutes(
     }
 }
 
-private suspend fun io.ktor.utils.io.ByteWriteChannel.writeSse(event: String, data: String) {
+internal suspend fun ByteWriteChannel.writeLiveChat(events: Flow<YoutubeLiveChatEvent>): Unit {
+    writeFully(": connected\n\n".encodeToByteArray())
+    flush()
+    events.catch { error ->
+        if (error is CancellationException) throw error
+        emit(YoutubeLiveChatEvent.Error(ErrorResponse("Live chat retrieval failed")))
+    }.collect { event ->
+        when (event) {
+            is YoutubeLiveChatEvent.Message -> writeSse("message", Json.encodeToString(event.message))
+            is YoutubeLiveChatEvent.Error -> writeSse("error", Json.encodeToString(event.error))
+            YoutubeLiveChatEvent.Heartbeat -> {
+                writeFully(": keep-alive\n\n".encodeToByteArray())
+                flush()
+            }
+        }
+    }
+}
+
+private suspend fun ByteWriteChannel.writeSse(event: String, data: String) {
     writeFully("event: $event\ndata: $data\n\n".encodeToByteArray())
     flush()
 }

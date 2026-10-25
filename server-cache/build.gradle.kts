@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    api("io.lettuce:lettuce-core:7.8.0.RELEASE")
+    api("io.lettuce:lettuce-core:7.9.0.RELEASE")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     testImplementation(testFixtures(project(":server-cache")))

@@ -22,7 +22,7 @@ class PipePipeTrendingService(
 
     private suspend fun fetchViaPipePipe(serviceId: Int): ExtractionResult<List<VideoItem>> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            runExtractionCatching {
                 withTimeout(30_000L) {
                     val service = NewPipe.getService(serviceId)
                     val extractor = service.kioskList.getDefaultKioskExtractor()
@@ -34,7 +34,7 @@ class PipePipeTrendingService(
                 }
             }.fold(
                 onSuccess = { ExtractionResult.Success(it) },
-                onFailure = { ExtractionResult.Failure(it.message ?: "Trending failed") }
+                onFailure = { transientAwareFailure(it, "Trending failed") }
             )
         }
 }

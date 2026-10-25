@@ -1,6 +1,7 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.YoutubeRelatedVideosService
+import dev.typetype.server.services.CachedRelatedVideosService
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AccountIdentityService
 import dev.typetype.server.services.AdminManagedAccessService
@@ -113,12 +114,18 @@ class ServiceRegistry(
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)
     val subscriptionGroupsService = SubscriptionGroupsService()
-    val subscriptionFeedService = SubscriptionFeedService(subscriptionsService, channelService, cache)
+    val subscriptionFeedService = SubscriptionFeedService(
+        subscriptionsService,
+        channelService,
+        cache,
+        channelVideos = extraction.channelVideosSource,
+    )
     val subscriptionShortsFeedService = SubscriptionShortsFeedService(
         subscriptionsService,
         channelService,
         SubscriptionShortsBlendService(trendingService),
         cache,
+        extraction.channelVideosSource,
     )
     init {
         SubscriptionFeedCacheInvalidation.configure(
@@ -188,11 +195,12 @@ class ServiceRegistry(
     val homeRecommendationServices = createHomeRecommendationServices(cache, recommendationPoolResolverDependencies)
     val homeRecommendationService = homeRecommendationServices.recommendationService
     val homeRecommendationWarmupService = homeRecommendationServices.warmupService
+    val youtubeRelatedVideosService = CachedRelatedVideosService(YoutubeRelatedVideosService(), cache)
     val recommenderServices = RecommenderServices(
         RecommenderDependencies(
             cache, adminSettingsService, historyService, progressService, favoritesService, subscriptionsService,
             subscriptionFeedService, blockedService, settingsService, searchService, channelService, streamService,
-            trendingService, extraction.streamRequestWatch, YoutubeRelatedVideosService(),
+            trendingService, extraction.streamRequestWatch, youtubeRelatedVideosService,
         ),
     )
 

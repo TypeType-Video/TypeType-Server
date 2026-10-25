@@ -1,0 +1,20 @@
+FavoriteStatus:
+  get:
+    tags: [user-data]
+    summary: Check whether a video is in the current user's favorites
+    parameters:
+      - name: videoUrl
+        in: query
+        required: true
+        description: Provider URL used to look up the favorite.
+        schema:
+          type: string
+          minLength: 1
+    responses:
+      '200':
+        description: Favorite status for the requested video URL.
+        content:
+          application/json:
+            schema: { $ref: ../components/favorites.yaml#/FavoriteStatusResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }

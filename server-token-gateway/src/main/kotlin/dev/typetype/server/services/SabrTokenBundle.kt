@@ -14,6 +14,8 @@ class SabrTokenBundle(
     val videoBoundPoTokenBytes: ByteArray,
     val sessionBinding: String? = null,
     val sessionBoundPoToken: String? = null,
+    val generation: String? = null,
+    val expiresAtMs: Long? = null,
 ) {
     val visitorPoToken: String = visitorBoundPoToken
     val visitorPoTokenBytes: ByteArray = visitorBoundPoTokenBytes
@@ -38,6 +40,8 @@ class SabrTokenBundle(
                 visitorData = visitorData,
                 videoBoundPoToken = videoBoundPoToken,
                 videoBoundPoTokenBytes = decodeBase64Url(videoBoundPoToken),
+                generation = TokenFreshness.generation(json),
+                expiresAtMs = TokenFreshness.expiresAtMs(json),
             )
         }.getOrNull()
 
@@ -58,6 +62,8 @@ class SabrTokenBundle(
                 videoBoundPoTokenBytes = base.videoBoundPoTokenBytes,
                 sessionBinding = sessionBinding,
                 sessionBoundPoToken = sessionBoundPoToken,
+                generation = base.generation,
+                expiresAtMs = base.expiresAtMs,
             )
         }
 
@@ -67,6 +73,9 @@ class SabrTokenBundle(
         }
     }
 }
+
+fun SabrTokenBundle.isExpired(nowMs: Long = System.currentTimeMillis()): Boolean =
+    expiresAtMs?.let { it <= nowMs } ?: false
 
 fun SabrTokenBundle.youtubeSessionPoToken(): YoutubeSessionPoToken =
     YoutubeSessionPoToken(sessionBinding ?: visitorData, sessionBoundPoToken ?: visitorBoundPoToken)

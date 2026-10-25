@@ -18,7 +18,10 @@ class CachedSearchService(
         filters: List<String>,
     ): ExtractionResult<SearchPageResponse> = PublicExtractionCache.getOrLoad(
         cache = cache,
-        area = "search",
+        area = PublicCacheArea("search", SearchPageResponse.serializer(), keepLastGood = false) {
+            val empty = it.items.isEmpty() && it.playlists.isEmpty() && it.channels.isEmpty()
+            PublicCacheAdmissions.firstPage(nextpage, empty, PublicCachePolicy.searchTtl(serviceId, nextpage))
+        },
         key = PublicCacheKey.of(
             "search-v4",
             serviceId.toString(),
@@ -27,8 +30,6 @@ class CachedSearchService(
             contentFilter,
             *filters.sorted().toTypedArray(),
         ),
-        serializer = SearchPageResponse.serializer(),
-        ttlSeconds = { PublicCachePolicy.searchTtl(serviceId, nextpage) },
     ) { delegate.search(query, serviceId, nextpage, contentFilter, filters) }
 
     override suspend fun filters(

@@ -10,14 +10,13 @@ import dev.typetype.server.sabr.YoutubeSabrInfo
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-internal suspend fun StreamResponse.withPlayableSabrStreams(
+internal suspend fun StreamResponse.withPreparedSabrStreams(
     url: String,
     sabrSessionStore: SabrSessionStore,
-): StreamResponse {
+): StreamResponse? {
     if (!hasSabrStreams()) return this
     val videoId = url.youtubeVideoId() ?: return this
-    val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true)
-        ?: return withoutSabrStreams()
+    val prepared = sabrSessionStore.fetchInfo(videoId, cachedFirst = true) ?: return null
     val hasAudio = SabrFormatSelector.audio(prepared.info, null, null, requireAac = false) != null
     if (!hasAudio) return withoutSabrStreams()
     val enriched = withMissingSabrVideoStreams(videoId, prepared.info)

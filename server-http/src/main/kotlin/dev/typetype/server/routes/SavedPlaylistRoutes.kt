@@ -35,7 +35,7 @@ fun Route.savedPlaylistRoutes(
                     savedPlaylistService.save(userId, result.data.playlist),
                 )
                 is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-                is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+                is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
             }
         }
     }

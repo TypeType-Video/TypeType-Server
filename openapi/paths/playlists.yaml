@@ -25,3 +25,9 @@ Playlist:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/RetryableError
+      '503':
+        $ref: ../components/common.yaml#/RetryableError
+      '504':
+        $ref: ../components/common.yaml#/UpstreamTimeoutError

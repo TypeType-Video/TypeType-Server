@@ -7,7 +7,8 @@ object SabrPumpLogger {
     private val logger = LoggerFactory.getLogger(SabrSessionPumpLoop::class.java)
 
     fun start(holder: SabrSessionHolder, event: String, request: SabrSegmentRequest?): Unit {
-        logger.info(
+        if (!logger.isDebugEnabled) return
+        logger.debug(
             "sabr_pump event={}_start videoId={} request={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
             event,
             holder.key.videoId,
@@ -22,7 +23,8 @@ object SabrPumpLogger {
     }
 
     fun finish(holder: SabrSessionHolder, event: String, request: SabrSegmentRequest?, pumped: Int): Unit {
-        logger.info(
+        if (!logger.isDebugEnabled) return
+        logger.debug(
             "sabr_pump event={}_finish videoId={} request={} pumped={} cached={} state={} requestNumber={} edgeMs={} readerHeadMs={} readerTailMs={} cachedBytes={}",
             event,
             holder.key.videoId,

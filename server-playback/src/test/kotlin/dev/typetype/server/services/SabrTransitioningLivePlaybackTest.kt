@@ -17,6 +17,8 @@ import dev.typetype.server.sabr.YoutubeSabrSession
 import dev.typetype.server.sabr.YoutubeSabrStreamState
 import java.io.IOException
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SabrTransientDemandFailureTest {
@@ -30,17 +32,17 @@ class SabrTransientDemandFailureTest {
             val segment = mediaSegment(140, 50, 499_414L)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
-            var cached = false
-            var attempts = 0
+            val cached = AtomicBoolean(false)
+            val attempts = AtomicInteger()
             every { session.streamState } returns streamState
-            every { session.requestNumber } answers { attempts }
-            every { session.getCachedSegment(request) } answers { segment.takeIf { cached } }
+            every { session.requestNumber } answers { attempts.get() }
+            every { session.getCachedSegment(request) } answers { segment.takeIf { cached.get() } }
             every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
             every { streamState.getMinBufferedEndMs() } returns 499_233L
             every { session.pumpOnceStreamingForDemand(any(), request) } answers {
-                attempts++
-                if (attempts == 3) cached = true
-                result(segmentCount = if (attempts < 3) 4 else 1, targetTrackSegmentCount = if (attempts < 3) 0 else 1)
+                val attempt = attempts.incrementAndGet()
+                if (attempt == 3) cached.set(true)
+                result(segmentCount = if (attempt < 3) 4 else 1, targetTrackSegmentCount = if (attempt < 3) 0 else 1)
             }
             val holder = holder(session, audio, video)
             holder.requestSegmentDemand(request)
@@ -109,15 +111,15 @@ class SabrTransientDemandFailureTest {
             val request = SabrSegmentRequest.media(audio, 50)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
-            var attempts = 0
+            val attempts = AtomicInteger()
             every { session.streamState } returns streamState
             every { session.requestNumber } returns 3
             every { session.getCachedSegment(request) } returns null
             every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
             every { streamState.getMinBufferedEndMs() } returns 499_233L
             every { session.pumpOnceStreamingForDemand(any(), request) } answers {
-                attempts++
-                if (attempts % 2 == 1) throw IOException("timeout")
+                val attempt = attempts.incrementAndGet()
+                if (attempt % 2 == 1) throw IOException("timeout")
                 result(segmentCount = 0, targetTrackSegmentCount = 0)
             }
             val holder = holder(session, audio, video)
@@ -143,17 +145,17 @@ class SabrTransientDemandFailureTest {
             val request = SabrSegmentRequest.media(audio, 50)
             val session = mockk<YoutubeSabrSession>(relaxed = true)
             val streamState = mockk<YoutubeSabrStreamState>(relaxed = true)
-            var attempts = 0
-            var requestNumber = 3
+            val attempts = AtomicInteger()
+            val requestNumber = AtomicInteger(3)
             every { session.streamState } returns streamState
-            every { session.requestNumber } answers { requestNumber }
+            every { session.requestNumber } answers { requestNumber.get() }
             every { session.getCachedSegment(request) } returns null
             every { streamState.getSegmentStartMs(audio, 50) } returns 499_414L
             every { streamState.getMinBufferedEndMs() } returns 499_233L
             every { session.pumpOnceStreamingForDemand(any(), request) } answers {
-                attempts++
-                if (attempts != 5) throw IOException("timeout")
-                requestNumber++
+                val attempt = attempts.incrementAndGet()
+                if (attempt != 5) throw IOException("timeout")
+                requestNumber.incrementAndGet()
                 result(segmentCount = 4, targetTrackSegmentCount = 0)
             }
             val holder = holder(session, audio, video)
@@ -226,7 +228,7 @@ class SabrTransientDemandFailureTest {
     )
 
     private fun format(itag: Int, isAudio: Boolean): YoutubeSabrFormat {
-        val format = mockk<YoutubeSabrFormat>()
+        val format = mockk<YoutubeSabrFormat>(relaxed = true)
         every { format.itag } returns itag
         every { format.isAudio } returns isAudio
         every { format.bitrate } returns if (isAudio) 128_000 else 2_000_000

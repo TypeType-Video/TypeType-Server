@@ -7,11 +7,9 @@ import dev.typetype.server.services.StoryboardProxyDetector
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondOutputStream
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 fun Route.storyboardProxyRoutes(proxyService: ProxyService) {
     get("/proxy/image") {
@@ -29,8 +27,8 @@ fun Route.storyboardProxyRoutes(proxyService: ProxyService) {
                     val contentType = ContentType.parse(proxy.contentType)
                     proxy.contentRange?.let { call.response.headers.append("Content-Range", it) }
                     proxy.acceptRanges?.let { call.response.headers.append("Accept-Ranges", it) }
-                    call.respondOutputStream(contentType, status, proxy.contentLength) {
-                        withContext(Dispatchers.IO) { proxy.stream.copyTo(this@respondOutputStream) }
+                    call.respondBytesWriter(contentType, status, proxy.contentLength) {
+                        copyProxyStream(proxy.stream, this)
                     }
                 } finally {
                     proxy.close()

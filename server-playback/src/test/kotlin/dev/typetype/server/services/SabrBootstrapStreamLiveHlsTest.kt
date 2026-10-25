@@ -19,7 +19,7 @@ class SabrBootstrapStreamLiveHlsTest {
         val liveMetadata = mockk<TokenYoutubeSession>()
         every { liveMetadata.isLive } returns true
         val expected = ExtractionResult.Success(mockk<StreamResponse>())
-        coEvery { tokenClient.fetchPlaybackSession(VIDEO_ID) } returns liveMetadata
+        coEvery { tokenClient.fetchPlaybackSessionResult(VIDEO_ID) } returns TokenServiceResult.Success(liveMetadata)
         coEvery { liveHlsService.getStreamInfo(YOUTUBE_URL) } returns expected
         val service = SabrBootstrapStreamService(sessionStore, tokenClient, liveHlsService)
 

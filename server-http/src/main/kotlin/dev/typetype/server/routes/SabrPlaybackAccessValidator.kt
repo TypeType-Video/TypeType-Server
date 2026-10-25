@@ -14,9 +14,10 @@ internal class SabrPlaybackAccessValidator(
     suspend fun resolve(userId: String?, videoId: String): ExtractionResult<StreamResponse> {
         val url = "https://www.youtube.com/watch?v=$videoId"
         val publicResult = publicStreamService.getStreamInfo(url)
+        if (!publicResult.requiresYoutubeSession()) return publicResult
         val authenticatedResult = userId?.let { id -> youtubeSessionStreamInfo?.invoke(id, url) }
         if (authenticatedResult != null) return authenticatedResult
-        return if (publicResult.requiresYoutubeSession() && youtubeSessionStreamInfo != null) {
+        return if (youtubeSessionStreamInfo != null) {
             ExtractionResult.BadRequest(YOUTUBE_SESSION_REQUIRED_ERROR, YOUTUBE_SESSION_REQUIRED_CODE)
         } else {
             publicResult

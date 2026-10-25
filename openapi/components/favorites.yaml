@@ -1,0 +1,7 @@
+FavoriteStatusResponse:
+  type: object
+  required: [isFavorite]
+  properties:
+    isFavorite:
+      type: boolean
+      description: Whether the current user's favorites contain the requested video URL.

@@ -14,16 +14,59 @@ ErrorResponse:
       description: >-
         Stable machine-readable error code when available. Playback extraction
         routes may return geographic_restriction, provider_access_blocked,
-        private_content, no_playable_streams, age_restricted, scheduled_premiere,
-        live_not_started, content_unavailable, upstream_failure,
+        provider_rate_limited, provider_paced, private_content,
+        no_playable_streams, media_handle_unavailable, provider_data_missing,
+        age_restricted, scheduled_premiere, live_not_started,
+        content_unavailable, upstream_failure, upstream_timeout,
         youtube_session_rejected, youtube_session_needs_reconnect, paid_content,
         members_only, or youtube_session_required.
     requestId: { type: string, nullable: true }
 RequestIdHeader:
   description: Request correlation id returned by TypeType-Server.
   schema: { type: string }
+RetryAfterHeader:
+  description: Seconds to wait before retrying the request.
+  schema: { type: integer, minimum: 1 }
 JsonError:
   description: Request failed.
+  headers:
+    X-Request-ID:
+      $ref: '#/RequestIdHeader'
+  content:
+    application/json:
+      schema:
+        $ref: '#/ErrorResponse'
+RetryableError:
+  description: >-
+    Temporary failure; retry after Retry-After seconds. The provider blocks this
+    server (`provider_access_blocked`), rate limits it (`provider_rate_limited`),
+    the server paces provider requests (`provider_paced`), SABR playback could not
+    be prepared (`no_playable_streams`), or media handles cannot be stored
+    (`media_handle_unavailable`).
+  headers:
+    X-Request-ID:
+      $ref: '#/RequestIdHeader'
+    Retry-After:
+      $ref: '#/RetryAfterHeader'
+  content:
+    application/json:
+      schema:
+        $ref: '#/ErrorResponse'
+UpstreamTimeoutError:
+  description: The provider did not answer in time (`upstream_timeout`).
+  headers:
+    X-Request-ID:
+      $ref: '#/RequestIdHeader'
+  content:
+    application/json:
+      schema:
+        $ref: '#/ErrorResponse'
+UnplayableContentError:
+  description: >-
+    The provider cannot serve this video: content restrictions such as
+    `geographic_restriction` outside YouTube, unavailable content,
+    `provider_data_missing`, `no_playable_streams`, or an expired
+    `media_handle_unavailable`.
   headers:
     X-Request-ID:
       $ref: '#/RequestIdHeader'

@@ -33,7 +33,7 @@ fun Route.searchRoutes(
         when (val result = searchService.filters(serviceId = serviceId, contentFilter = contentFilter)) {
             is ExtractionResult.Success -> call.respond(result.data)
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
     get("/search") {
@@ -55,7 +55,7 @@ fun Route.searchRoutes(
         when (val result = searchService.search(query, serviceId, nextpage, contentFilter, filters)) {
             is ExtractionResult.Success -> call.respond(result.data.filterAllowed(access.profile).filterBlocked(blocked))
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            is ExtractionResult.Failure -> call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message))
+            is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
         }
     }
 }

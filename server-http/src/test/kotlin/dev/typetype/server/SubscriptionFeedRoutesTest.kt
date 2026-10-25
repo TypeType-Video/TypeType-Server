@@ -198,7 +198,7 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
-    fun `partial refresh publishes videos from successful sources`() = withApp {
+    fun `partial refresh keeps the previous videos of failed sources`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
         subscriptionsService.add(TEST_USER_ID, subscription(2))
         var rebuilding = false
@@ -214,7 +214,7 @@ class SubscriptionFeedRoutesTest {
         feedService.awaitRefresh(TEST_USER_ID)
         val refreshed = Json.decodeFromString<SubscriptionFeedResponse>(requestFeed().bodyAsText())
         assertTrue(refreshed.generation != original.generation)
-        assertEquals(listOf(9000L), refreshed.videos.map { it.uploaded })
+        assertEquals(listOf(9000L, 2000L), refreshed.videos.map { it.uploaded })
     }
 
     @Test

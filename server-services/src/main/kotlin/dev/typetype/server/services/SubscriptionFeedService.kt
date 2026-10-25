@@ -17,23 +17,22 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 
 class SubscriptionFeedService(
-    private val subscriptionsService: SubscriptionsService,
+    subscriptionsService: SubscriptionsService,
     channelService: ChannelService,
     cache: CacheService,
     private val clock: () -> Long = System::currentTimeMillis,
     refreshScope: CoroutineScope? = null,
+    channelVideos: ChannelVideosSource = ChannelServiceVideosSource(channelService),
 ) {
     private val refreshScope = refreshScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val ownsRefreshScope = refreshScope == null
     private val store = SubscriptionFeedSnapshotStore(cache, clock)
     private val selections = SubscriptionFeedSelectionStore(cache, subscriptionsService)
-    private val builder = SubscriptionFeedBuilder(channelService)
-    private val orderer = SubscriptionFeedOrderer()
+    private val refresher = SubscriptionFeedRefresher(subscriptionsService, store, SubscriptionFeedBuilder(channelVideos), clock)
     private val refreshJobs = ConcurrentHashMap<String, Job>()
-    private val generation = AtomicLong(clock())
+    private val planner = SubscriptionFeedRefreshPlanner(clock)
 
     suspend fun getPage(
         userId: String,
@@ -45,13 +44,11 @@ class SubscriptionFeedService(
         selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
     ): SubscriptionFeedPageResult {
+        planner.touch(userId)
         val current = store.current(userId)
         if (current == null) {
-            scheduleRefresh(userId, requestId)
+            requestColdRefresh(userId, requestId)
             return SubscriptionFeedPageResult.Preparing(PREPARING_RETRY_AFTER_MS)
-        }
-        if (current.stale || clock() - current.generatedAt >= SubscriptionFeedSettings.freshnessMs) {
-            scheduleRefresh(userId, requestId)
         }
         val cursorState = cursor?.let(SubscriptionFeedCursorCodec::decode)
         if (cursor != null && cursorState == null) return SubscriptionFeedPageResult.InvalidCursor
@@ -73,7 +70,7 @@ class SubscriptionFeedService(
         }
         if (selection != SubscriptionSelection.All && !snapshot.hasCompleteSourceAttribution()) {
             if (cursorState != null) return SubscriptionFeedPageResult.StaleGeneration
-            scheduleRefresh(userId, requestId)
+            requestColdRefresh(userId, requestId)
             return SubscriptionFeedPageResult.Preparing(PREPARING_RETRY_AFTER_MS)
         }
         val offset = cursorState?.offset ?: page * limit
@@ -106,10 +103,9 @@ class SubscriptionFeedService(
     }
 
     suspend fun getAllWithAvailability(userId: String): SubscriptionFeedAvailability {
+        planner.touch(userId)
         val snapshot = store.current(userId)
-        if (snapshot == null || snapshot.stale || clock() - snapshot.generatedAt >= SubscriptionFeedSettings.freshnessMs) {
-            scheduleRefresh(userId, currentRequestId())
-        }
+        if (snapshot == null) requestColdRefresh(userId, currentRequestId())
         if (snapshot != null) {
             return SubscriptionFeedAvailability(
                 videos = snapshot.videos,
@@ -141,6 +137,13 @@ class SubscriptionFeedService(
         scheduleRefresh(userId, currentRequestId())
     }
 
+    suspend fun refreshDueUsers() {
+        planner.activeUsers().forEach { userId ->
+            val generatedAt = store.current(userId)?.generatedAt
+            if (!isRefreshing(userId) && planner.isDue(userId, generatedAt)) scheduleRefresh(userId, null)
+        }
+    }
+
     suspend fun awaitRefresh(userId: String) {
         while (true) {
             val jobs = listOfNotNull(refreshJobs[userId])
@@ -157,12 +160,17 @@ class SubscriptionFeedService(
         if (ownsRefreshScope) refreshScope.cancel()
     }
 
+    private fun requestColdRefresh(userId: String, requestId: String?) {
+        if (planner.canRetryCold(userId)) scheduleRefresh(userId, requestId)
+    }
+
     private fun scheduleRefresh(userId: String, requestId: String?) {
         val job = refreshScope.launch(start = CoroutineStart.LAZY) {
+            planner.recordAttempt(userId)
             var retry = false
             val invalidation = store.invalidationToken(userId)
             try {
-                retry = refresh(userId, requestId, invalidation)
+                retry = refresher.refresh(userId, requestId, invalidation)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -174,48 +182,6 @@ class SubscriptionFeedService(
         }
         val existing = refreshJobs.putIfAbsent(userId, job)
         if (existing == null) job.start() else job.cancel()
-    }
-
-    private suspend fun refresh(userId: String, requestId: String?, invalidation: String?): Boolean {
-        val startedAt = clock()
-        val previous = store.current(userId)
-        logger.info("subscription_feed event=refresh_started user={} requestId={}", userKey(userId), requestId ?: "none")
-        val subscriptions = subscriptionsService.getAll(userId)
-        val result = builder.build(subscriptions)
-        if (store.invalidationToken(userId) != invalidation) return true
-        val valid = result.successfulSources > 0 || subscriptions.isEmpty()
-        if (!valid) {
-            if (previous != null) store.markStale(userId)
-            logger.warn(
-                "subscription_feed event=refresh_kept_previous user={} durationMs={} failedSources={}",
-                userKey(userId), clock() - startedAt, result.failedSources,
-            )
-            return false
-        }
-        val refreshedAt = clock()
-        val ordering = orderer.order(result.videos, previous, refreshedAt)
-        val nextGeneration = generation.updateAndGet { maxOf(it + 1, clock(), (previous?.generation ?: 0L) + 1) }
-        val snapshot = SubscriptionFeedSnapshot(
-            generation = nextGeneration,
-            generatedAt = refreshedAt,
-            stale = false,
-            videos = ordering.videos,
-            livePromotedAt = ordering.livePromotedAt,
-            sourceChannelUrls = result.sourceChannelUrls,
-        )
-        runCatching { store.publish(userId, snapshot) }.onFailure {
-            logger.warn("subscription_feed event=publish_failed user={} error={}", userKey(userId), it.message)
-            return false
-        }
-        if (store.invalidationToken(userId) != invalidation) {
-            runCatching { store.markStale(userId) }
-            return true
-        }
-        logger.info(
-            "subscription_feed event=refresh_completed user={} requestId={} generation={} videos={} failedSources={} durationMs={}",
-            userKey(userId), requestId ?: "none", nextGeneration, ordering.videos.size, result.failedSources, clock() - startedAt,
-        )
-        return false
     }
 
     private fun userKey(userId: String): String = SubscriptionFeedCacheKeys.feed(userId).substringAfter(':')

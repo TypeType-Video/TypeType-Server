@@ -1,4 +1,5 @@
 services:
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.39.0
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v2.0.2
+    command: ["--noversion_check"]
     platform: linux/arm64

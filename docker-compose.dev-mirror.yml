@@ -77,7 +77,7 @@ services:
       YOUTUBE_REMOTE_LOGIN_MAX_FRAME_BYTES: "524288"
     restart: unless-stopped
   postgres:
-    image: postgres:17
+    image: postgres:17.11
     environment:
       POSTGRES_DB: typetype
       POSTGRES_USER: typetype
@@ -90,7 +90,7 @@ services:
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     restart: unless-stopped
   postgres-init:
-    image: postgres:17
+    image: postgres:17.11
     depends_on:
       postgres: { condition: service_healthy }
     environment: { PGPASSWORD: typetype }
@@ -104,11 +104,12 @@ services:
         fi
     restart: "no"
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.39.0
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v2.0.2
+    command: ["--noversion_check"]
     ulimits: { memlock: -1 }
     restart: unless-stopped
   garage:
-    image: dxflrs/garage:v2.2.0
+    image: dxflrs/garage:v2.5.0
     ports: ["23900:3900", "23903:3903"]
     volumes:
       - ./garage.toml:/etc/garage.toml:ro

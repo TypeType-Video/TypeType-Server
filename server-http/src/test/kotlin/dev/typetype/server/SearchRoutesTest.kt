@@ -14,6 +14,10 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.mockk.coEvery
+import dev.typetype.server.services.transientAwareFailure
+import io.ktor.http.HttpHeaders
+import org.schabi.newpipe.extractor.exceptions.AntiBotException
+import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -102,5 +106,22 @@ class SearchRoutesTest {
             ExtractionResult.BadRequest("bad")
         val response = client.get("/search?q=test&service=0")
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET search answers provider blocks with 503 and a retry hint`() = withApp {
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns
+            transientAwareFailure(ExtractionException("search failed", AntiBotException("challenge")), "Search failed")
+        val response = client.get("/search?q=test&service=0")
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals("60", response.headers[HttpHeaders.RetryAfter])
+    }
+
+    @Test
+    fun `GET search keeps other extraction failures as 422`() = withApp {
+        coEvery { searchService.search(any(), any(), any(), any(), any()) } returns
+            transientAwareFailure(IllegalStateException("parse error"), "Search failed")
+        val response = client.get("/search?q=test&service=0")
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
     }
 }

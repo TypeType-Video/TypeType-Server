@@ -3,16 +3,17 @@ package dev.typetype.server.services
 class SabrPlaybackInfoResolver(
     private val sessionStore: SabrSessionStore,
     private val authenticatedInfoService: AuthenticatedSabrInfoService?,
+    private val publicRequiresYoutubeSession: suspend (String) -> Boolean = { false },
 ) {
     suspend fun initial(
         userId: String?,
         videoId: String,
         startTimeMs: Long,
-    ): SabrPreparedInfo? = when (val authenticated = authenticatedInfoService?.fetch(userId, videoId)) {
-        is AuthenticatedSabrInfoResult.Ready -> authenticated.prepared
-        AuthenticatedSabrInfoResult.Failed, AuthenticatedSabrInfoResult.TimedOut -> null
-        AuthenticatedSabrInfoResult.NotConnected, null ->
-            sessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
+    ): SabrPreparedInfo? {
+        if (!publicRequiresYoutubeSession(videoId)) {
+            return sessionStore.fetchInfo(videoId, startTimeMs, cachedFirst = true)
+        }
+        return (authenticatedInfoService?.fetch(userId, videoId) as? AuthenticatedSabrInfoResult.Ready)?.prepared
     }
 
     suspend fun replacement(holder: SabrSessionHolder, startTimeMs: Long): SabrPreparedInfo? {

@@ -5,12 +5,15 @@ import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.stream.StreamExtractor
 
 class PipePipeLiveHlsStreamService(
+    private val timeoutMs: Long = LIVE_EXTRACTION_TIMEOUT_MS,
     private val extractorForUrl: (String) -> StreamExtractor = ::createStreamExtractor,
 ) : StreamService {
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
@@ -19,7 +22,7 @@ class PipePipeLiveHlsStreamService(
         return withContext(Dispatchers.IO) {
             try {
                 val extractor = extractorForUrl(url)
-                val response = withTimeout(LIVE_EXTRACTION_TIMEOUT_MS) {
+                val response = withTimeout(timeoutMs) {
                     runPipePipeCall {
                         extractor.fetchPage()
                         val streamType = extractor.streamType
@@ -38,8 +41,9 @@ class PipePipeLiveHlsStreamService(
                         "No active YouTube live stream is available",
                         "live_stream_unavailable",
                     )
-            } catch (_: TimeoutCancellationException) {
-                ExtractionResult.Failure("YouTube live extraction timed out", "live_stream_unavailable")
+            } catch (error: TimeoutCancellationException) {
+                currentCoroutineContext().ensureActive()
+                StreamExtractionErrorMapper.map(error, sourceUrl = url)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

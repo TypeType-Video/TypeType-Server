@@ -31,6 +31,12 @@ Channel:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/RetryableError
+      '503':
+        $ref: ../components/common.yaml#/RetryableError
+      '504':
+        $ref: ../components/common.yaml#/UpstreamTimeoutError
 ChannelPlaylists:
   get:
     tags: [extraction]
@@ -58,6 +64,12 @@ ChannelPlaylists:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/RetryableError
+      '503':
+        $ref: ../components/common.yaml#/RetryableError
+      '504':
+        $ref: ../components/common.yaml#/UpstreamTimeoutError
 ChannelPage:
   post:
     tags: [extraction]
@@ -82,3 +94,9 @@ ChannelPage:
         $ref: ../components/common.yaml#/JsonError
       '422':
         $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/RetryableError
+      '503':
+        $ref: ../components/common.yaml#/RetryableError
+      '504':
+        $ref: ../components/common.yaml#/UpstreamTimeoutError

@@ -6,6 +6,7 @@ import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.CachedChannelService
+import dev.typetype.server.services.CachedChannelVideosSource
 import dev.typetype.server.services.CachedImageProxyService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
@@ -34,6 +35,7 @@ import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.SabrFallbackStreamService
+import dev.typetype.server.services.SabrBootstrapCache
 import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SignedHlsManifestTokenService
@@ -50,6 +52,7 @@ import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeLiveHlsStreamService
 import dev.typetype.server.services.YoutubeDirectLiveHlsStreamService
 import dev.typetype.server.services.YoutubeScopedChannelService
+import dev.typetype.server.services.YoutubeScopedChannelVideosSource
 import dev.typetype.server.services.YoutubeScopedCommentService
 import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
 import dev.typetype.server.services.YoutubeScopedSearchService
@@ -64,11 +67,8 @@ import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStore
 import dev.typetype.server.services.YoutubeSessionStreamService
 import dev.typetype.server.services.YoutubeSessionSabrStreamService
-import okhttp3.ConnectionPool
-import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.net.ProxySelector
-import java.util.concurrent.TimeUnit
 
 internal class ExtractionServiceRegistry(
     cache: DragonflyService,
@@ -79,22 +79,18 @@ internal class ExtractionServiceRegistry(
 ) {
     private val youtubeSessionSecret = youtubeSessionEncryptionKey?.trim()
         ?.takeIf { it.length >= MIN_YOUTUBE_SESSION_SECRET_LENGTH }
-    val httpClient = OkHttpClient.Builder()
-        .apply { youtubeProxySelector?.let(::proxySelector) }
-        .build()
-    val subtitleHttpClient = httpClient.newBuilder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .callTimeout(15, TimeUnit.SECONDS)
-        .build()
-    val proxyHttpClient: OkHttpClient = httpClient.newBuilder()
-        .dispatcher(proxyDispatcher())
-        .connectionPool(ConnectionPool(64, 5, TimeUnit.MINUTES))
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .build()
-    val sabrSessionStore = SabrSessionStore(subtitleServiceUrl, initCache = cache)
+    private val egress = YoutubeEgressClients(youtubeProxySelector)
+    private val httpClient = egress.base
+    private val subtitleHttpClient = egress.subtitle
+    private val proxyHttpClient: OkHttpClient = egress.proxy
+    private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, egress.token)
+    private val sabrTokenClient = TypetypeTokenSabrTokenClient(subtitleServiceUrl, egress.token)
+    val sabrSessionStore = SabrSessionStore(
+        subtitleServiceUrl,
+        tokenClient = sabrTokenClient,
+        sessionClient = tokenYoutubeSessionClient,
+        initCache = cache,
+    )
     val youtubeSubtitleService = YouTubeSubtitleService(subtitleHttpClient, subtitleServiceUrl)
     private val bilibiliRelatedService = BilibiliRelatedService()
     private val directPipePipeStreamService = PipePipeStreamService(
@@ -125,20 +121,19 @@ internal class ExtractionServiceRegistry(
         sabrPipePipeStreamService,
         YoutubePlayerClient.MWEB,
     )
-    private val tokenYoutubeSessionClient =
-        TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, httpClient)
     private val youtubeSessionCrypto = youtubeSessionSecret?.let(YoutubeSessionCrypto::fromSecret)
     private val youtubeSessionStore = YoutubeSessionStore()
     val youtubeSessionService =
         YoutubeSessionService(youtubeSessionCrypto, store = youtubeSessionStore, bindingClient = tokenYoutubeSessionClient)
     val youtubeSessionRefreshService =
         YoutubeSessionRefreshService(youtubeSessionCrypto, youtubeSessionStore)
-    private val sabrTokenClient = TypetypeTokenSabrTokenClient(subtitleServiceUrl, httpClient)
     val authenticatedSabrInfoService =
         AuthenticatedSabrInfoService(
             youtubeSessionService = youtubeSessionService,
             tokenClient = sabrTokenClient,
+            tvClient = egress.tvPlayerClient(),
             bindingClient = tokenYoutubeSessionClient,
+            sessionEpoch = sabrTokenClient.sessionEpoch,
         )
     private val hlsTokenService = youtubeSessionSecret?.let(::SignedHlsManifestTokenService)
     private val youtubeSabrFallbackStreamService = SabrFallbackStreamService(
@@ -150,7 +145,7 @@ internal class ExtractionServiceRegistry(
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
     }
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
-        YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService)
+        YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
     private val youtubeStreamGuards = YoutubeStreamGuards(sabrTokenClient)
     val streamRequestWatch get() = youtubeStreamGuards.watch
@@ -179,7 +174,12 @@ internal class ExtractionServiceRegistry(
         YouTubeSubtitleCache(cache),
     )
     val youtubeSabrBootstrapStreamService = YoutubeScopedStreamService(
-        SabrBootstrapStreamService(sabrSessionStore, tokenYoutubeSessionClient, liveHlsStreamService),
+        SabrBootstrapStreamService(
+            sabrSessionStore,
+            tokenYoutubeSessionClient,
+            liveHlsStreamService,
+            SabrBootstrapCache(sabrSessionStore.sessionEpoch::current, sabrSessionStore::hasPreparedInfo),
+        ),
     )
     val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
     val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v3")
@@ -196,7 +196,13 @@ internal class ExtractionServiceRegistry(
     )
     val commentService = CachedCommentService(YoutubeScopedCommentService(PipePipeCommentService()), cache)
     val bulletCommentService = PipePipeBulletCommentService()
-    val channelService = CachedChannelService(YoutubeScopedChannelService(PipePipeChannelService()), cache)
+    private val pipePipeChannelService = PipePipeChannelService()
+    val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService), cache)
+    val channelVideosSource = CachedChannelVideosSource(
+        channelService,
+        YoutubeScopedChannelVideosSource(pipePipeChannelService),
+        cache,
+    )
     val podcastService = CachedPodcastService(PipePipePodcastService(), cache)
     val publicPlaylistService = CachedPublicPlaylistService(
         YoutubeScopedPublicPlaylistService(PipePipePublicPlaylistService()),
@@ -224,10 +230,5 @@ internal class ExtractionServiceRegistry(
 
     private companion object {
         const val MIN_YOUTUBE_SESSION_SECRET_LENGTH = 32
-
-        fun proxyDispatcher(): Dispatcher = Dispatcher().apply {
-            maxRequests = 256
-            maxRequestsPerHost = 64
-        }
     }
 }

@@ -43,7 +43,7 @@ class PipePipeStreamService(
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            runExtractionCatching {
                 withExtractionRetry {
                     val (service, linkHandler, extractor) = playbackTracePhase("extractor_setup") {
                         val service = NewPipe.getServiceByUrl(url)
@@ -128,7 +128,7 @@ class PipePipeStreamService(
             .contains(MediaCapability.SPONSORBLOCK)
         if (!hasSponsorBlock) return emptyArray()
         val cacheKey = "sponsorblock:${extractor.id}"
-        runCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
+        runExtractionCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
             return runCatching {
                 val items = CacheJson.decodeFromString<List<SponsorBlockSegmentItem>>(cached)
                 items.toSponsorBlockSegments()
@@ -141,7 +141,7 @@ class PipePipeStreamService(
         extractor: StreamExtractor,
         cacheKey: String,
     ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
-        val segments = runCatching {
+        val segments = runExtractionCatching {
             withTimeout(15_000L) {
                 runPipePipeCall { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
             }

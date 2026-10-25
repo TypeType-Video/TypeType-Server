@@ -29,6 +29,7 @@ object PushNotificationSupport {
     fun payload(instanceId: String, eventId: String, candidate: PushCandidate, userId: String): String = CacheJson.encodeToString(
         UnifiedPushNotificationPayload.serializer(),
         UnifiedPushNotificationPayload(
+            version = PAYLOAD_VERSION,
             eventType = "subscription_new_video",
             serviceId = candidate.serviceId,
             serviceName = serviceName(candidate.serviceId),
@@ -42,12 +43,15 @@ object PushNotificationSupport {
             accountId = userId,
             publishedAt = candidate.publishedAt,
             title = candidate.video.title,
+            thumbnailUrl = candidate.video.thumbnailUrl,
         ),
     )
 
     fun eventId(instanceId: String, candidate: PushCandidate): String = sha256(
         "$instanceId|subscription_new_video|${candidate.serviceId}|${candidate.channelId}|${candidate.videoId}",
     )
+
+    private const val PAYLOAD_VERSION = 1
 
     private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray()).joinToString("") { byte -> "%02x".format(byte) }

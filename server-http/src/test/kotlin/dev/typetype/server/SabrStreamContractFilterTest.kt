@@ -1,6 +1,6 @@
 package dev.typetype.server
 
-import dev.typetype.server.routes.withPlayableSabrStreams
+import dev.typetype.server.routes.withPreparedSabrStreams
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.SabrTokenBundle
@@ -9,26 +9,25 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import dev.typetype.server.sabr.YoutubeSabrFormat
 import dev.typetype.server.sabr.YoutubeSabrInfo
 
 class SabrStreamContractFilterTest {
     @Test
-    fun `filter removes sabr streams when probe is unavailable`() = runTest {
+    fun `filter reports an unprepared sabr probe`() = runTest {
         val store = mockk<SabrSessionStore>()
         coEvery { store.fetchInfo("video1", cachedFirst = true) } returns null
-        val progressive = testVideoStream(itag = 18)
         val sabrVideo = testVideoStream(itag = 299).copy(deliveryMethod = "sabr")
         val sabrAudio = testAudioStream(itag = 140, deliveryMethod = "sabr")
 
         val filtered = testStreamResponse(
-            videoOnlyStreams = listOf(progressive, sabrVideo),
+            videoOnlyStreams = listOf(sabrVideo),
             audioStreams = listOf(sabrAudio),
-        ).withPlayableSabrStreams("https://youtube.com/watch?v=video1", store)
+        ).withPreparedSabrStreams("https://youtube.com/watch?v=video1", store)
 
-        assertEquals(listOf(progressive), filtered.videoOnlyStreams)
-        assertEquals(emptyList<Any>(), filtered.audioStreams)
+        assertNull(filtered)
     }
 
     @Test
@@ -46,7 +45,8 @@ class SabrStreamContractFilterTest {
         val filtered = testStreamResponse(
             videoOnlyStreams = listOf(playableVideo, missingVideo),
             audioStreams = listOf(playableAudio, missingAudio),
-        ).withPlayableSabrStreams("https://youtube.com/watch?v=video1", store)
+        ).withPreparedSabrStreams("https://youtube.com/watch?v=video1", store)
+            .let { checkNotNull(it) }
 
         assertEquals(listOf(playableVideo), filtered.videoOnlyStreams)
         assertEquals(listOf(playableAudio), filtered.audioStreams)
@@ -69,7 +69,8 @@ class SabrStreamContractFilterTest {
         val filtered = testStreamResponse(
             videoOnlyStreams = listOf(vp9Stream, av1Stream),
             audioStreams = listOf(testAudioStream(itag = 140, deliveryMethod = "sabr")),
-        ).withPlayableSabrStreams("https://youtube.com/watch?v=video1", store)
+        ).withPreparedSabrStreams("https://youtube.com/watch?v=video1", store)
+            .let { checkNotNull(it) }
 
         assertEquals(listOf(vp9Stream, av1Stream), filtered.videoOnlyStreams)
     }
@@ -88,7 +89,8 @@ class SabrStreamContractFilterTest {
         val filtered = testStreamResponse(
             videoOnlyStreams = listOf(avcStream),
             audioStreams = listOf(testAudioStream(itag = 140, deliveryMethod = "sabr")),
-        ).withPlayableSabrStreams("https://youtube.com/watch?v=video1", store)
+        ).withPreparedSabrStreams("https://youtube.com/watch?v=video1", store)
+            .let { checkNotNull(it) }
 
         assertEquals(listOf(137, 247, 399), filtered.videoOnlyStreams.map { it.itag })
         assertEquals("video/webm", filtered.videoOnlyStreams.first { it.itag == 247 }.mimeType)
