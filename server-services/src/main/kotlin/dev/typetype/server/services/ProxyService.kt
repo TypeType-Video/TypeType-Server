@@ -13,4 +13,11 @@ interface ProviderMediaAwareProxyService {
         rangeHeader: String?,
         domandBid: String? = null,
     ): ExtractionResult<ProxyResponse>
+
+    suspend fun pipeProviderMediaWithAlternates(
+        url: String,
+        rangeHeader: String?,
+        domandBid: String? = null,
+        alternateUrls: List<String>,
+    ): ExtractionResult<ProxyResponse> = pipeProviderMedia(url, rangeHeader, domandBid)
 }

@@ -28,7 +28,12 @@ internal fun Route.providerMediaHandleRoutes(
 
         val rangeHeader = call.request.headers["Range"]
         val result = if (proxyService is ProviderMediaAwareProxyService) {
-            proxyService.pipeProviderMedia(target.url, rangeHeader, target.domandBid)
+            proxyService.pipeProviderMediaWithAlternates(
+                target.url,
+                rangeHeader,
+                target.domandBid,
+                target.alternateUrls,
+            )
         } else {
             proxyService.pipe(target.url, rangeHeader, target.domandBid)
         }

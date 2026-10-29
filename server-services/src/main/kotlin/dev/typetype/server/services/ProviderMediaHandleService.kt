@@ -28,6 +28,7 @@ enum class ProviderMediaType {
 data class ProviderMediaTarget(
     val url: String,
     val domandBid: String? = null,
+    val alternateUrls: List<String> = emptyList(),
 )
 
 class ProviderMediaHandleService(
@@ -40,19 +41,24 @@ class ProviderMediaHandleService(
     suspend fun materialize(response: StreamResponse, provider: ProviderMediaType): StreamResponse = coroutineScope {
         val hls = async { response.hlsUrl.handleIfRemote(provider) }
         val dash = async { response.dashMpdUrl.handleIfRemote(provider) }
-        val video = async { response.videoStreams.withHandledVideoUrls(provider) }
+        val video = async { response.videoStreams.withHandledVideoUrls(provider, response.providerMediaAlternates) }
         val audio = async { response.audioStreams.withHandledAudioUrls(provider) }
-        val videoOnly = async { response.videoOnlyStreams.withHandledVideoUrls(provider) }
+        val videoOnly = async { response.videoOnlyStreams.withHandledVideoUrls(provider, response.providerMediaAlternates) }
         response.copy(
             hlsUrl = hls.await(),
             dashMpdUrl = dash.await(),
             videoStreams = video.await(),
             audioStreams = audio.await(),
             videoOnlyStreams = videoOnly.await(),
+            providerMediaAlternates = emptyMap(),
         )
     }
 
-    suspend fun createPath(rawUrl: String, domandBid: String? = null): String {
+    suspend fun createPath(
+        rawUrl: String,
+        domandBid: String? = null,
+        alternateUrls: List<String> = emptyList(),
+    ): String {
         val (cleanUrl, fragment) = rawUrl.splitFragment()
         val resolvedBid = domandBid?.takeIf { it.isNotBlank() }
             ?: fragment.takeIf { it.isNotBlank() }?.let(::parseNicoCookie)
@@ -61,15 +67,28 @@ class ProviderMediaHandleService(
             "Unsupported provider media URL"
         }
         val normalizedUrl = stripTrackingParams(target.url.toString())
-        val handle = handleId(normalizedUrl, resolvedBid)
-        val ttl = mediaHandleTtlSeconds(normalizedUrl)
+        val normalizedAlternates = if (target.provider == ProxyProvider.BILIBILI) {
+            (alternateUrls + bilibiliUposMirrorAlternates(normalizedUrl)).asSequence().mapNotNull { alternate ->
+                runCatching {
+                    val candidate = requireProxyTarget(stripTrackingParams(alternate))
+                    if (candidate.provider != ProxyProvider.BILIBILI ||
+                        candidate.url.encodedPath != target.url.encodedPath
+                    ) null
+                    else stripTrackingParams(candidate.url.toString()).also { mediaHandleTtlSeconds(it) }
+                }.getOrNull()
+            }.filter { it != normalizedUrl }.distinct().take(MAX_ALTERNATE_URLS).toList()
+        } else {
+            emptyList()
+        }
+        val handle = handleId(normalizedUrl, resolvedBid, normalizedAlternates)
+        val ttl = (listOf(normalizedUrl) + normalizedAlternates).minOf(::mediaHandleTtlSeconds)
         val key = cacheKey(handle)
         val path = "/media/$handle"
         val pending = CompletableDeferred<String>()
         val existing = inFlightWrites.putIfAbsent(key, pending)
         if (existing != null) return existing.await()
         return try {
-            val value = CacheJson.encodeToString(ProviderMediaTarget(normalizedUrl, resolvedBid))
+            val value = CacheJson.encodeToString(ProviderMediaTarget(normalizedUrl, resolvedBid, normalizedAlternates))
             writeLimiter.withPermit { cache.set(key, value, ttl) }
             pending.complete(path)
             path
@@ -91,17 +110,23 @@ class ProviderMediaHandleService(
     fun relativeManifestPath(path: String): String =
         "../media/${path.substringAfterLast('/')}"
 
-    private suspend fun String.handleIfRemote(provider: ProviderMediaType): String {
+    private suspend fun String.handleIfRemote(
+        provider: ProviderMediaType,
+        alternateUrls: List<String> = emptyList(),
+    ): String {
         if (isBlank() || (startsWith("/") && !startsWith("//"))) return this
         val candidate = if (startsWith("//")) "https:$this" else this
-        return if (supportsProvider(candidate, provider)) createPath(candidate) else this
+        return if (supportsProvider(candidate, provider)) createPath(candidate, alternateUrls = alternateUrls) else this
     }
 
-    private suspend fun List<VideoStreamItem>.withHandledVideoUrls(provider: ProviderMediaType): List<VideoStreamItem> = coroutineScope {
+    private suspend fun List<VideoStreamItem>.withHandledVideoUrls(
+        provider: ProviderMediaType,
+        alternates: Map<String, List<String>>,
+    ): List<VideoStreamItem> = coroutineScope {
         map { item ->
             async {
                 item.copy(
-                    url = item.url.handleIfRemote(provider),
+                    url = item.url.handleIfRemote(provider, alternates[item.url].orEmpty()),
                     manifestUrl = item.manifestUrl?.handleIfRemote(provider),
                     sabrSessionUrl = item.sabrSessionUrl?.handleIfRemote(provider),
                 )
@@ -124,12 +149,16 @@ class ProviderMediaHandleService(
     private fun supportsProvider(url: String, provider: ProviderMediaType): Boolean =
         runCatching { requireProxyTarget(url).provider }.getOrNull() == provider.toProxyProvider()
 
-    private fun handleId(url: String, domandBid: String?): String {
+    private fun handleId(url: String, domandBid: String?, alternateUrls: List<String>): String {
         val input = buildString {
             append("provider-media:v1:")
             append(url)
             append('\u0000')
             append(domandBid.orEmpty())
+            alternateUrls.forEach {
+                append('\u0000')
+                append(it)
+            }
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(StandardCharsets.UTF_8))
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(digest.copyOf(HANDLE_BYTES))
@@ -158,6 +187,7 @@ class ProviderMediaHandleService(
         const val MAX_TTL_SECONDS = 3_600L
         const val EXPIRY_SAFETY_SECONDS = 30L
         const val MAX_CONCURRENT_CACHE_WRITES = 32
+        const val MAX_ALTERNATE_URLS = 2
         val HANDLE_PATTERN = Regex("m1_[A-Za-z0-9_-]{24}")
         val EXPIRY_PATTERN = Regex("(?:^|[?&#=])(?:deadline|Expires|exp)=(\\d+)", RegexOption.IGNORE_CASE)
 

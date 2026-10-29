@@ -12,4 +12,5 @@ data class ChannelResponse(
     val isVerified: Boolean,
     val videos: List<VideoItem>,
     val nextpage: String?,
+    val verification: String? = null,
 )

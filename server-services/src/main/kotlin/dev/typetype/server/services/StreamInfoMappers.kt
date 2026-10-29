@@ -55,6 +55,7 @@ fun StreamInfo.toStreamResponse(): StreamResponse {
         sponsorBlockSegments = runCatching { getSponsorBlockSegments().map { it.toSegmentItem() } }.getOrElse { emptyList() },
         relatedStreams = relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { runCatching { it.toVideoItem() }.getOrNull() },
         collections = collections.orEmpty().map { it.toStreamCollectionItem() },
+        providerMediaAlternates = videoOnlyStreams.bilibiliMediaAlternates(),
         parts = partitions.orEmpty().mapIndexedNotNull { index, part ->
             runCatching { part.toStreamPartItem(index + 1) }.getOrNull()
         },

@@ -39,6 +39,7 @@ private fun StreamResponse.stableMetadataTtlSeconds(): Long =
 private fun StreamResponse.signedMediaUrls(): Sequence<String> = sequence {
     yield(hlsUrl)
     yield(dashMpdUrl)
+    providerMediaAlternates.values.forEach { yieldAll(it) }
     videoStreams.forEach {
         yield(it.url)
         yield(it.manifestUrl.orEmpty())

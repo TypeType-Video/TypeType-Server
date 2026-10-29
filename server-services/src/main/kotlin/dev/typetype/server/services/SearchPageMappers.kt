@@ -3,6 +3,7 @@ package dev.typetype.server.services
 import dev.typetype.server.models.SearchPageResponse
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.search.SearchInfo
@@ -14,7 +15,7 @@ fun SearchInfo.toSearchPageResponse(): SearchPageResponse = SearchPageResponse(
     searchSuggestion = searchSuggestion?.takeIf { it.isNotBlank() },
     isCorrectedSearch = isCorrectedSearch,
     playlists = relatedItems.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
-    channels = relatedItems.filterIsInstance<ChannelInfoItem>().map { it.toChannelResultItem() },
+    channels = relatedItems.filterIsInstance<ChannelInfoItem>().toChannelResults(),
 )
 
 fun InfoItemsPage<InfoItem>.toSearchPageResponse(): SearchPageResponse = SearchPageResponse(
@@ -23,5 +24,9 @@ fun InfoItemsPage<InfoItem>.toSearchPageResponse(): SearchPageResponse = SearchP
     searchSuggestion = null,
     isCorrectedSearch = false,
     playlists = items.filterIsInstance<PlaylistInfoItem>().map { it.toPlaylistResultItem() },
-    channels = items.filterIsInstance<ChannelInfoItem>().map { it.toChannelResultItem() },
+    channels = items.filterIsInstance<ChannelInfoItem>().toChannelResults(),
 )
+
+private fun List<ChannelInfoItem>.toChannelResults() =
+    sortedByDescending { it.serviceId == ServiceList.BiliBili.serviceId && it.isVerified }
+        .map { it.toChannelResultItem() }

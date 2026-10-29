@@ -20,6 +20,7 @@ fun ChannelInfo.toChannelResponse(): ChannelResponse {
         bannerUrl = bannerUrl ?: "",
         subscriberCount = subscriberCount,
         isVerified = isVerified,
+        verification = verification.toApiValue(),
         videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
     )
@@ -40,6 +41,7 @@ fun ChannelTabInfo.toChannelTabResponse(metadata: ChannelInfo? = null): ChannelR
         bannerUrl = metadata?.bannerUrl ?: "",
         subscriberCount = metadata?.subscriberCount ?: -1L,
         isVerified = metadata?.isVerified ?: false,
+        verification = metadata?.verification.toApiValue(),
         videos = videoItems.map { it.toVideoItem(fallbackAvatarUrl = metadata?.avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
     )

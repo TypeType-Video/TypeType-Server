@@ -1,6 +1,5 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
@@ -85,7 +84,7 @@ class CachedStreamService(
             val ttl = result.data.streamCacheTtlSeconds()
             if (ttl > 0) {
                 runCatching {
-                    cache.set(key, CacheJson.encodeToString(StreamResponse.serializer(), result.data), ttl)
+                    cache.set(key, encodeCachedStream(result.data), ttl)
                 }
             }
         }
@@ -104,7 +103,7 @@ class CachedStreamService(
         .getOrNull()
         ?.let { cached ->
             runCatching {
-                ExtractionResult.Success(CacheJson.decodeFromString<StreamResponse>(cached))
+                ExtractionResult.Success(decodeCachedStream(cached))
             }.getOrNull()
         }
 }

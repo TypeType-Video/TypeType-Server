@@ -40,16 +40,69 @@ class RetryingProxyInputStreamTest {
     }
 
     @Test
-    fun `truncated response replays verified prefix without duplicate bytes`() {
+    fun `truncated response replays verified prefix when the resume range is ignored`() {
         val bodies = listOf(GeneratedBody(100_000, failAt = 20_000), GeneratedBody(100_000))
-        var calls = 0
+        val ranges = mutableListOf<String?>()
         val proxy = open { next ->
-            assertEquals(request.header("Range"), next.header("Range"))
-            response(bodies[calls++])
+            ranges += next.header("Range")
+            response(bodies[ranges.size - 1])
         }
         proxy.stream.use { assertArrayEquals(ByteArray(100_000) { 42 }, it.readBytes()) }
-        assertEquals(2, calls)
+        assertEquals(listOf("bytes=0-", "bytes=3616-99999"), ranges)
         assertTrue(bodies.all { it.closed })
+    }
+
+    @Test
+    fun `truncated response resumes with an overlap and only the missing bytes`() {
+        val first = GeneratedBody(100_000, failAt = 20_000)
+        val ranges = mutableListOf<String?>()
+        val proxy = open { next ->
+            ranges += next.header("Range")
+            if (ranges.size == 1) response(first) else rangeResponse(next, total = 100_000)
+        }
+        proxy.stream.use { assertArrayEquals(ByteArray(100_000) { 42 }, it.readBytes()) }
+        assertEquals(listOf("bytes=0-", "bytes=3616-99999"), ranges)
+        assertTrue(first.closed)
+    }
+
+    @Test
+    fun `a failed resume continues on another mirror with different headers`() {
+        val first = GeneratedBody(100_000, failAt = 20_000)
+        val hosts = mutableListOf<String>()
+        val proxy = open(alternateUrls = listOf("https://mirror.bilivideo.com/test.m4s")) { next ->
+            hosts += next.url.host
+            when (hosts.size) {
+                1 -> response(first).newBuilder().header("ETag", "\"akamai\"").build()
+                2 -> throw IOException("unexpected end of stream")
+                else -> rangeResponse(next, total = 100_000).newBuilder()
+                    .header("ETag", "\"other-mirror\"").header("Content-Type", "application/octet-stream").build()
+            }
+        }
+        proxy.stream.use { assertArrayEquals(ByteArray(100_000) { 42 }, it.readBytes()) }
+        assertEquals(listOf("video.bilivideo.com", "video.bilivideo.com", "mirror.bilivideo.com"), hosts)
+    }
+
+    @Test
+    fun `a failed opening tries the next mirror`() {
+        val hosts = mutableListOf<String>()
+        val proxy = open(alternateUrls = listOf("https://mirror.bilivideo.com/test.m4s")) { next ->
+            hosts += next.url.host
+            if (hosts.size == 1) throw IOException("unexpected end of stream") else response(GeneratedBody(100))
+        }
+        proxy.stream.use { assertArrayEquals(ByteArray(100) { 42 }, it.readBytes()) }
+        assertEquals(listOf("video.bilivideo.com", "mirror.bilivideo.com"), hosts)
+    }
+
+    @Test
+    fun `a resume whose overlap differs is rejected`() {
+        val first = GeneratedBody(100_000, failAt = 20_000)
+        var calls = 0
+        val proxy = open { next -> if (calls++ == 0) response(first) else rangeResponse(next, total = 100_000, value = 43) }
+        proxy.stream.use {
+            it.readNBytes(20_000)
+            assertThrows(IOException::class.java) { it.readBytes() }
+        }
+        assertEquals(2, calls)
     }
 
     @Test
@@ -222,13 +275,21 @@ class RetryingProxyInputStreamTest {
         }
     }
 
-    private fun open(checkActive: () -> Unit = {}, execute: (Request) -> Response) =
-        (readBilibiliRangeWithRetry(execute, request, checkActive) as ExtractionResult.Success).data
+    private fun open(
+        checkActive: () -> Unit = {},
+        alternateUrls: List<String> = emptyList(),
+        execute: (Request) -> Response,
+    ) = (readBilibiliRangeWithRetry(execute, request, checkActive, alternateUrls) as ExtractionResult.Success).data
 
-    private fun response(body: GeneratedBody) = Response.Builder()
+    private fun rangeResponse(next: Request, total: Long, value: Byte = 42): Response {
+        val (start, end) = requireNotNull(next.header("Range")).removePrefix("bytes=").split('-').map(String::toLong)
+        return response(GeneratedBody(end - start + 1, value = value), start = start, total = total)
+    }
+
+    private fun response(body: GeneratedBody, start: Long = 0, total: Long = body.length) = Response.Builder()
         .request(request).protocol(Protocol.HTTP_1_1).code(206).message("Partial Content")
         .header("Content-Type", "video/mp4")
-        .header("Content-Range", "bytes 0-${body.length - 1}/${body.length}")
+        .header("Content-Range", "bytes $start-${start + body.length - 1}/$total")
         .body(body).build()
 
     private class GeneratedBody(

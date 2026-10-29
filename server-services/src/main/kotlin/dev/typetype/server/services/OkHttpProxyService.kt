@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayInputStream
 import java.net.URI
+import kotlinx.coroutines.sync.Semaphore
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -28,13 +29,20 @@ fun rewriteHlsManifest(manifest: String): String =
     }
 
 class OkHttpProxyService(
-    client: OkHttpClient,
+    private val client: OkHttpClient,
     private val mediaHandleService: ProviderMediaHandleService? = null,
 ) : ProxyService, ProviderMediaAwareProxyService {
     private val executor = ProxyHttpExecutor(client)
     private val boundedExecutor = ProxyHttpExecutor(
         client.newBuilder()
             .callTimeout(30, TimeUnit.SECONDS)
+            .build(),
+    )
+    private val mirrorPermits = Semaphore(MAX_CONCURRENT_MIRROR_PROBES)
+    private val mirrorExecutor = ProxyHttpExecutor(
+        client.newBuilder()
+            .connectTimeout(MIRROR_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(MIRROR_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build(),
     )
 
@@ -47,11 +55,20 @@ class OkHttpProxyService(
         domandBid: String?,
     ): ExtractionResult<ProxyResponse> = pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = true)
 
+    override suspend fun pipeProviderMediaWithAlternates(
+        url: String,
+        rangeHeader: String?,
+        domandBid: String?,
+        alternateUrls: List<String>,
+    ): ExtractionResult<ProxyResponse> =
+        pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = true, alternateUrls = alternateUrls)
+
     private suspend fun pipeInternal(
         url: String,
         rangeHeader: String?,
         domandBid: String?,
         providerMediaManifest: Boolean,
+        alternateUrls: List<String> = emptyList(),
     ): ExtractionResult<ProxyResponse> {
         val requestContext = currentCoroutineContext()
         return withContext(Dispatchers.IO) {
@@ -75,7 +92,20 @@ class OkHttpProxyService(
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 val request = builder.build()
                 if (bilibili && rangeHeader != null) {
-                    return@withContext readBilibiliRangeWithRetry(requestExecutor::execute, request, requestContext::ensureActive)
+                    val safeAlternates = if (providerMediaManifest) {
+                        validateBilibiliAlternates(cleanUrl, alternateUrls)
+                    } else {
+                        emptyList()
+                    }
+                    return@withContext readBilibiliRangeWithRetry(
+                        requestExecutor::execute,
+                        request,
+                        requestContext::ensureActive,
+                        safeAlternates,
+                        mirrorExecutor::execute,
+                        mirrorPermits,
+                        client.readTimeoutMillis,
+                    )
                 }
                 requestExecutor.execute(request)
             }.fold(
@@ -151,6 +181,16 @@ class OkHttpProxyService(
         return host.contains("bilibili") || host.contains("bilivideo") || host.endsWith("hdslb.com") || host.contains("akamaized")
     }
 
+    private fun validateBilibiliAlternates(primaryUrl: String, alternateUrls: List<String>): List<String> {
+        val primary = runCatching { requireProxyTarget(primaryUrl) }.getOrNull() ?: return emptyList()
+        if (primary.provider != ProxyProvider.BILIBILI) return emptyList()
+        return alternateUrls.asSequence().take(MAX_ALTERNATE_URLS).mapNotNull { value ->
+            runCatching { requireProxyTarget(stripTrackingParams(value)) }.getOrNull()?.takeIf {
+                it.provider == ProxyProvider.BILIBILI && it.url.encodedPath == primary.url.encodedPath
+            }?.url?.toString()
+        }.filter { it != primary.url.toString() }.distinct().toList()
+    }
+
     private fun isNicoNico(url: String): Boolean {
         val host = runCatching { java.net.URI(url).host ?: "" }.getOrElse { "" }
         return providerForProxyHost(host) == ProxyProvider.NICONICO
@@ -160,6 +200,10 @@ class OkHttpProxyService(
         contentType.contains("mpegurl", ignoreCase = true) || runCatching { URI(url).path?.endsWith(".m3u8", ignoreCase = true) == true }.getOrDefault(false)
 
     companion object {
+        private const val MAX_CONCURRENT_MIRROR_PROBES = 8
+        private const val MAX_ALTERNATE_URLS = 2
+        private const val MIRROR_CONNECT_TIMEOUT_SECONDS = 2L
+        private const val MIRROR_READ_TIMEOUT_SECONDS = 2L
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
         private const val ACCEPT_ANY = "*/*"
         private const val PROXY_PATH = "proxy"

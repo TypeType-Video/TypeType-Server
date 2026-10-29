@@ -182,7 +182,7 @@ internal class ExtractionServiceRegistry(
         ),
     )
     val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
-    val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v3")
+    val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v4")
     val streamService = youtubeStreamGuards.cached(publicStreamService, cache, "stream-direct:v1")
     val searchService = CachedSearchService(
         YoutubeScopedSearchService(

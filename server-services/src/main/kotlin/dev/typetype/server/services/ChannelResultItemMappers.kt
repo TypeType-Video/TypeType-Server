@@ -12,4 +12,5 @@ fun ChannelInfoItem.toChannelResultItem(): ChannelResultItem = ChannelResultItem
     subscriberCount = subscriberCount,
     streamCount = streamCount,
     isVerified = isVerified,
+    verification = verification.toApiValue(),
 )

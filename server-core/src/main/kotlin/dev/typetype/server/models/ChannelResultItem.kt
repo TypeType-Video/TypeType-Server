@@ -12,4 +12,5 @@ data class ChannelResultItem(
     val subscriberCount: Long,
     val streamCount: Long,
     val isVerified: Boolean,
+    val verification: String? = null,
 )

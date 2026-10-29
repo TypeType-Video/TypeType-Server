@@ -1,6 +1,7 @@
 package dev.typetype.server.models
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 data class StreamResponse(
@@ -46,4 +47,6 @@ data class StreamResponse(
     val hasLiveManifest: Boolean = false,
     val collections: List<StreamCollectionItem> = emptyList(),
     val parts: List<StreamPartItem> = emptyList(),
+    @Transient
+    val providerMediaAlternates: Map<String, List<String>> = emptyMap(),
 )
