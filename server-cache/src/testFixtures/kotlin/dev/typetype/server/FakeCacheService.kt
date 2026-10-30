@@ -24,6 +24,11 @@ class FakeCacheService : CacheService {
         return matched
     }
 
+    override suspend fun increment(key: String, ttlSeconds: Long): Long =
+        values.merge(key, "1") { current, _ -> (current.toLong() + 1).toString() }?.toLong() ?: 1L
+
+    override suspend fun getAndDelete(key: String): String? = values.remove(key)
+
     override suspend fun delete(key: String) {
         values.remove(key)
     }

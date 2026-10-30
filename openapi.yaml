@@ -57,6 +57,11 @@ paths:
   /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
   /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
+  /auth/device/start: { $ref: ./openapi/paths/device-auth.yaml#/DeviceStart }
+  /auth/device/lookup: { $ref: ./openapi/paths/device-auth.yaml#/DeviceLookup }
+  /auth/device/approve: { $ref: ./openapi/paths/device-auth.yaml#/DeviceApprove }
+  /auth/device/deny: { $ref: ./openapi/paths/device-auth.yaml#/DeviceDeny }
+  /auth/device/token: { $ref: ./openapi/paths/device-auth.yaml#/DeviceToken }
   /profiles: { $ref: ./openapi/paths/profiles.yaml#/AccountProfiles }
   /profiles/{profileId}: { $ref: ./openapi/paths/profiles.yaml#/AccountProfile }
   /profiles/{profileId}/default: { $ref: ./openapi/paths/profiles.yaml#/AccountProfileDefault }
@@ -199,6 +204,11 @@ components:
     SubscriptionGroupMembershipBatchRequest: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionGroupMembershipBatchRequest }
     SubscriptionFeedResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedResponse }
     SubscriptionFeedPreparingResponse: { $ref: ./openapi/components/subscriptions.yaml#/SubscriptionFeedPreparingResponse }
+    DeviceStartRequest: { $ref: ./openapi/components/device-auth.yaml#/DeviceStartRequest }
+    DeviceStartResponse: { $ref: ./openapi/components/device-auth.yaml#/DeviceStartResponse }
+    DeviceUserCodeRequest: { $ref: ./openapi/components/device-auth.yaml#/DeviceUserCodeRequest }
+    DeviceLookupResponse: { $ref: ./openapi/components/device-auth.yaml#/DeviceLookupResponse }
+    DeviceTokenRequest: { $ref: ./openapi/components/device-auth.yaml#/DeviceTokenRequest }
     AccountProfileItem: { $ref: ./openapi/components/profiles.yaml#/AccountProfileItem }
     AccountProfilesResponse: { $ref: ./openapi/components/profiles.yaml#/AccountProfilesResponse }
     ProfileNameRequest: { $ref: ./openapi/components/profiles.yaml#/ProfileNameRequest }

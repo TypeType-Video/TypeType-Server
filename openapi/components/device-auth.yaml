@@ -1,0 +1,30 @@
+DeviceStartRequest:
+  type: object
+  properties:
+    deviceName: { type: string, maxLength: 64, nullable: true, example: TypeType TV · Living room }
+DeviceStartResponse:
+  type: object
+  required: [deviceCode, userCode, expiresIn, interval]
+  properties:
+    deviceCode: { type: string, description: Secret kept by the device only. Never put it in the QR code. }
+    userCode: { type: string, example: KQ4M-7TZD }
+    expiresIn: { type: integer, example: 600 }
+    interval: { type: integer, example: 2, description: Minimum seconds between token requests. }
+DeviceUserCodeRequest:
+  type: object
+  required: [userCode]
+  properties:
+    userCode: { type: string, example: KQ4M-7TZD }
+DeviceLookupResponse:
+  type: object
+  required: [userCode, deviceName, requestedAt, expiresAt]
+  properties:
+    userCode: { type: string }
+    deviceName: { type: string }
+    requestedAt: { type: integer, format: int64 }
+    expiresAt: { type: integer, format: int64 }
+DeviceTokenRequest:
+  type: object
+  required: [deviceCode]
+  properties:
+    deviceCode: { type: string }

@@ -1,5 +1,7 @@
 package dev.typetype.server
 
+import dev.typetype.server.routes.deviceAuthRoutes
+import dev.typetype.server.services.device.DeviceAuthorizationService
 import dev.typetype.server.routes.adminBugReportRoutes
 import dev.typetype.server.routes.adminAllowListRoutes
 import dev.typetype.server.routes.adminRecommenderRoutes
@@ -74,6 +76,7 @@ fun Application.installApplicationRoutes(
     internalHealthService: InternalHealthService,
     restoreService: PipePipeBackupImporterService,
     portabilityEngine: PortabilityEngine,
+    deviceAuthorizationService: DeviceAuthorizationService,
 ) {
     routing {
         internalObservabilityRoutes(internalHealthService::check)
@@ -131,6 +134,7 @@ fun Application.installApplicationRoutes(
             svc.homeRecommendationWarmupService,
             authSessionConfig,
         )
+        deviceAuthRoutes(deviceAuthorizationService, authService, authSessionConfig, svc.homeRecommendationWarmupService)
         accountProfilesRoutes(profileAccountService, authService, authSessionConfig)
         adminRoutes(authService, userAdminService, passwordResetService, adminSettingsService)
         adminRecommenderRoutes(authService, svc.recommenderServices.adminService)

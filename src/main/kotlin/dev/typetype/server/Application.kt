@@ -1,4 +1,5 @@
 package dev.typetype.server
+import dev.typetype.server.services.device.DeviceAuthorizationService
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.downloader.YoutubeProxySelector
@@ -136,5 +137,11 @@ fun Application.module() {
         internalHealthService = internalHealthService,
         restoreService = restoreService,
         portabilityEngine = portabilityEngine,
+        deviceAuthorizationService = DeviceAuthorizationService(
+            cache = cache,
+            secret = jwtSecret,
+            enabled = { adminSettingsService.get().deviceLoginEnabled },
+            ownerOf = profileAccountService::ownerUserId,
+        ),
     )
 }

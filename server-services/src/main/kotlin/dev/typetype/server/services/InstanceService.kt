@@ -53,6 +53,7 @@ class InstanceService(
             youtubeRemoteLoginReady = youtubeRemoteLoginStatus.ready,
             youtubeRemoteLoginUnavailableReason = youtubeRemoteLoginStatus.unavailableReason,
             parentalControlsEnabled = settings.accessMode == ACCESS_MODE_ALLOW_LIST,
+            deviceLoginEnabled = settings.deviceLoginEnabled,
             rss = RssInstanceCapability(
                 enabled = settings.rssEnabled && settings.rssPublicBaseUrl != null,
                 maxFeedsPerUser = settings.rssMaxFeedsPerUser,

@@ -40,6 +40,8 @@ class DragonflyService(url: String) : CacheService {
             ttlSeconds.toString(),
         ).await()
 
+    override suspend fun getAndDelete(key: String): String? = async.getdel(key).await()
+
     override suspend fun delete(key: String): Unit =
         async.del(key).await().let {}
 

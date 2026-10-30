@@ -30,4 +30,5 @@ data class AdminSettingsItem(
     val recommenderAllowedAlgorithms: List<String> = emptyList(),
     val recommenderTimeoutMs: Int = 0,
     val recommenderStreamRequestsPerMinute: Int = 0,
+    val deviceLoginEnabled: Boolean = true,
 )

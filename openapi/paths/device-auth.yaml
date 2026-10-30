@@ -1,0 +1,103 @@
+DeviceStart:
+  post:
+    tags: [user-data]
+    summary: Start a QR code sign-in for a device without a keyboard
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: ../components/device-auth.yaml#/DeviceStartRequest }
+    responses:
+      '200':
+        description: Codes for the device. Show the user code and a QR code of <instance>/link?code=<userCode>.
+        content:
+          application/json:
+            schema: { $ref: ../components/device-auth.yaml#/DeviceStartResponse }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '429': { $ref: ../components/common.yaml#/JsonError }
+
+DeviceLookup:
+  get:
+    tags: [user-data]
+    summary: Show which device asks to sign in, and mark its code as scanned
+    security: [{ bearerAuth: [] }]
+    parameters:
+      - name: code
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '200':
+        description: The pending device request.
+        content:
+          application/json:
+            schema: { $ref: ../components/device-auth.yaml#/DeviceLookupResponse }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+      '429': { $ref: ../components/common.yaml#/JsonError }
+
+DeviceApprove:
+  post:
+    tags: [user-data]
+    summary: Sign the device into the authenticated account
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/device-auth.yaml#/DeviceUserCodeRequest }
+    responses:
+      '204': { description: Approved. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+      '429': { $ref: ../components/common.yaml#/JsonError }
+
+DeviceDeny:
+  post:
+    tags: [user-data]
+    summary: Refuse the device sign-in
+    security: [{ bearerAuth: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/device-auth.yaml#/DeviceUserCodeRequest }
+    responses:
+      '204': { description: Refused. }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '403': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+      '429': { $ref: ../components/common.yaml#/JsonError }
+
+DeviceToken:
+  post:
+    tags: [user-data]
+    summary: Ask whether the sign-in was approved and receive the session once
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/device-auth.yaml#/DeviceTokenRequest }
+    responses:
+      '200':
+        description: Approved. Same body and refresh cookie as a password login.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accessToken]
+              properties:
+                accessToken: { type: string }
+      '400':
+        description: >-
+          The error code is authorization_pending, authorization_scanned (the phone opened the link),
+          slow_down, expired_token, access_denied or invalid_request.
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/ErrorResponse }
+      '403': { $ref: ../components/common.yaml#/JsonError }

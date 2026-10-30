@@ -9,5 +9,7 @@ interface CacheService {
         throw UnsupportedOperationException("Atomic compare-and-expire is not supported")
     suspend fun increment(key: String, ttlSeconds: Long): Long =
         throw UnsupportedOperationException("Atomic increment is not supported")
+    suspend fun getAndDelete(key: String): String? =
+        throw UnsupportedOperationException("Atomic get-and-delete is not supported")
     suspend fun delete(key: String)
 }

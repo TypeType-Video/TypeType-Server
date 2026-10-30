@@ -95,6 +95,7 @@ AdminSettingsItem:
     localLoginEnabled: { type: boolean, default: true }
     oidcAutoRedirect: { type: boolean, default: false }
     youtubeRemoteLoginEnabled: { type: boolean, default: false }
+    deviceLoginEnabled: { type: boolean, default: true, description: Lets TVs sign in by QR code approved from a signed-in phone. }
     recommenderEnabled:
       type: boolean
       default: false

@@ -61,6 +61,7 @@ InstanceResponse:
       $ref: '#/PushNotificationCapability'
     recommender:
       $ref: ./recommender.yaml#/RecommenderCapability
+    deviceLoginEnabled: { type: boolean, default: false, description: True when TVs can sign in by QR code. }
 RssInstanceCapability:
   type: object
   required: [enabled, maxFeedsPerUser, maxItems, minimumPollMinutes, rateLimitPerMinute]

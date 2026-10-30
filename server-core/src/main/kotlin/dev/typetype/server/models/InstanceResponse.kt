@@ -28,6 +28,7 @@ data class InstanceResponse(
     val rss: RssInstanceCapability = RssInstanceCapability(),
     val pushNotifications: PushNotificationCapability = PushNotificationCapability(),
     val recommender: RecommenderCapability = RecommenderCapability(),
+    val deviceLoginEnabled: Boolean = false,
 )
 
 @Serializable
