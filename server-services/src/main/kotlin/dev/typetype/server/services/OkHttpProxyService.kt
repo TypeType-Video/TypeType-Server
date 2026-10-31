@@ -45,9 +45,23 @@ class OkHttpProxyService(
             .readTimeout(MIRROR_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build(),
     )
+    private val bilibiliProxyClient = client.newBuilder()
+        .connectTimeout(BILIBILI_PROXY_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(BILIBILI_PROXY_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+    private val bilibiliProxyExecutor = ProxyHttpExecutor(bilibiliProxyClient)
 
     override suspend fun pipe(url: String, rangeHeader: String?, domandBid: String?): ExtractionResult<ProxyResponse> =
         pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = false)
+
+    override suspend fun pipe(
+        url: String,
+        rangeHeader: String?,
+        domandBid: String?,
+        cdnRegion: String?,
+        enablePrefetch: Boolean,
+    ): ExtractionResult<ProxyResponse> =
+        pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = false, cdnRegion = cdnRegion, enablePrefetch = enablePrefetch)
 
     override suspend fun pipeProviderMedia(
         url: String,
@@ -63,12 +77,32 @@ class OkHttpProxyService(
     ): ExtractionResult<ProxyResponse> =
         pipeInternal(url, rangeHeader, domandBid, providerMediaManifest = true, alternateUrls = alternateUrls)
 
+    override suspend fun pipeProviderMediaWithAlternates(
+        url: String,
+        rangeHeader: String?,
+        domandBid: String?,
+        alternateUrls: List<String>,
+        cdnRegion: String?,
+        enablePrefetch: Boolean,
+    ): ExtractionResult<ProxyResponse> =
+        pipeInternal(
+            url = url,
+            rangeHeader = rangeHeader,
+            domandBid = domandBid,
+            providerMediaManifest = true,
+            alternateUrls = alternateUrls,
+            cdnRegion = cdnRegion,
+            enablePrefetch = enablePrefetch,
+        )
+
     private suspend fun pipeInternal(
         url: String,
         rangeHeader: String?,
         domandBid: String?,
         providerMediaManifest: Boolean,
         alternateUrls: List<String> = emptyList(),
+        cdnRegion: String? = null,
+        enablePrefetch: Boolean = true,
     ): ExtractionResult<ProxyResponse> {
         val requestContext = currentCoroutineContext()
         return withContext(Dispatchers.IO) {
@@ -98,13 +132,15 @@ class OkHttpProxyService(
                         emptyList()
                     }
                     return@withContext readBilibiliRangeWithRetry(
-                        requestExecutor::execute,
+                        bilibiliProxyExecutor::execute,
                         request,
                         requestContext::ensureActive,
                         safeAlternates,
                         mirrorExecutor::execute,
                         mirrorPermits,
-                        client.readTimeoutMillis,
+                        bilibiliProxyClient.readTimeoutMillis,
+                        cdnRegion = cdnRegion,
+                        enablePrefetch = enablePrefetch,
                     )
                 }
                 requestExecutor.execute(request)
@@ -201,9 +237,11 @@ class OkHttpProxyService(
 
     companion object {
         private const val MAX_CONCURRENT_MIRROR_PROBES = 8
-        private const val MAX_ALTERNATE_URLS = 2
+        private const val MAX_ALTERNATE_URLS = 4
         private const val MIRROR_CONNECT_TIMEOUT_SECONDS = 2L
         private const val MIRROR_READ_TIMEOUT_SECONDS = 2L
+        private const val BILIBILI_PROXY_CONNECT_TIMEOUT_SECONDS = 3L
+        private const val BILIBILI_PROXY_READ_TIMEOUT_SECONDS = 8L
         private const val BILIBILI_REFERER = "https://www.bilibili.com"
         private const val ACCEPT_ANY = "*/*"
         private const val PROXY_PATH = "proxy"
