@@ -27,7 +27,20 @@ internal fun Route.proxyRoutes(
 
         val rangeHeader = call.request.headers["Range"]
         val domandBid = call.request.queryParameters["domand_bid"]
+        val cdnRegion = call.request.queryParameters["cdn_region"]
+            ?: call.request.headers["X-Bilibili-Cdn-Region"]
+        val prefetchParam = call.request.queryParameters["concurrent_prefetch"]
+            ?: call.request.headers["X-Bilibili-Concurrent-Prefetch"]
+        val enablePrefetch = prefetchParam?.let { it != "0" && it.lowercase() != "false" } ?: true
 
-        call.respondProxyResult(proxyService.pipe(url, rangeHeader, domandBid))
+        call.respondProxyResult(
+            proxyService.pipe(
+                url = url,
+                rangeHeader = rangeHeader,
+                domandBid = domandBid,
+                cdnRegion = cdnRegion,
+                enablePrefetch = enablePrefetch,
+            )
+        )
     }
 }

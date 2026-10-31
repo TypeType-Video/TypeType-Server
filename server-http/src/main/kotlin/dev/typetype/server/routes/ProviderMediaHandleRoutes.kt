@@ -27,12 +27,20 @@ internal fun Route.providerMediaHandleRoutes(
         )
 
         val rangeHeader = call.request.headers["Range"]
+        val cdnRegion = call.request.queryParameters["cdn_region"]
+            ?: call.request.headers["X-Bilibili-Cdn-Region"]
+        val prefetchParam = call.request.queryParameters["concurrent_prefetch"]
+            ?: call.request.headers["X-Bilibili-Concurrent-Prefetch"]
+        val enablePrefetch = prefetchParam?.let { it != "0" && it.lowercase() != "false" } ?: true
+
         val result = if (proxyService is ProviderMediaAwareProxyService) {
             proxyService.pipeProviderMediaWithAlternates(
                 target.url,
                 rangeHeader,
                 target.domandBid,
                 target.alternateUrls,
+                cdnRegion = cdnRegion,
+                enablePrefetch = enablePrefetch,
             )
         } else {
             proxyService.pipe(target.url, rangeHeader, target.domandBid)

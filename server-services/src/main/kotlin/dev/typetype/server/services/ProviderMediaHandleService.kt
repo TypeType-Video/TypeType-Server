@@ -187,7 +187,7 @@ class ProviderMediaHandleService(
         const val MAX_TTL_SECONDS = 3_600L
         const val EXPIRY_SAFETY_SECONDS = 30L
         const val MAX_CONCURRENT_CACHE_WRITES = 32
-        const val MAX_ALTERNATE_URLS = 2
+        const val MAX_ALTERNATE_URLS = 4
         val HANDLE_PATTERN = Regex("m1_[A-Za-z0-9_-]{24}")
         val EXPIRY_PATTERN = Regex("(?:^|[?&#=])(?:deadline|Expires|exp)=(\\d+)", RegexOption.IGNORE_CASE)
 

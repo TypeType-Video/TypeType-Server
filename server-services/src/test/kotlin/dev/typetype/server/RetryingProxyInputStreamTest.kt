@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import java.io.IOException
@@ -25,6 +26,11 @@ import java.lang.management.ManagementFactory
 class RetryingProxyInputStreamTest {
     private val request = Request.Builder().url("https://video.bilivideo.com/test.m4s")
         .header("Range", "bytes=0-").build()
+
+    @BeforeEach
+    fun resetTracker() {
+        dev.typetype.server.services.BilibiliMirrorSpeedTracker.reset()
+    }
 
     @Test
     fun `large range is read on demand without a body-sized allocation`() {
