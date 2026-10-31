@@ -92,4 +92,32 @@ class SearchHistoryRoutesTest {
         assertEquals(HttpStatusCode.NoContent, client.delete("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.status)
         assertEquals("[]", client.get("/search-history") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText())
     }
+
+    @Test
+    fun `DELETE search-history id removes only that entry`() = withApp {
+        val kept = service.add(TEST_USER_ID, "kept")
+        val removed = service.add(TEST_USER_ID, "removed")
+        val response = client.delete("/search-history/${removed.id}") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        assertEquals(listOf(kept.id), service.getAll(TEST_USER_ID).map { it.id })
+    }
+
+    @Test
+    fun `DELETE search-history id of another user returns 404 and keeps it`() = withApp {
+        val theirs = service.add("other-user", "theirs")
+        val response = client.delete("/search-history/${theirs.id}") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(listOf(theirs.id), service.getAll("other-user").map { it.id })
+    }
+
+    @Test
+    fun `DELETE search-history unknown id returns 404`() = withApp {
+        val response = client.delete("/search-history/unknown") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `DELETE search-history id without token returns 401`() = withApp {
+        assertEquals(HttpStatusCode.Unauthorized, client.delete("/search-history/any").status)
+    }
 }

@@ -5,6 +5,7 @@ import dev.typetype.server.db.tables.SearchHistoryTable
 import dev.typetype.server.models.SearchHistoryItem
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -42,6 +43,10 @@ class SearchHistoryService {
             }
         }
         return SearchHistoryItem(id = id, term = term, searchedAt = now)
+    }
+
+    suspend fun delete(userId: String, id: String): Boolean = DatabaseFactory.query {
+        SearchHistoryTable.deleteWhere { (SearchHistoryTable.id eq id) and (SearchHistoryTable.userId eq userId) } > 0
     }
 
     suspend fun deleteAll(userId: String): Unit = DatabaseFactory.query {
