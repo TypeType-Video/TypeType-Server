@@ -25,7 +25,7 @@ COPY server-sabr/ ./server-sabr/
 COPY server-test-support/ ./server-test-support/
 COPY server-services/ ./server-services/
 COPY server-token-gateway/ ./server-token-gateway/
-RUN --mount=type=cache,target=/root/.gradle \
+RUN --mount=type=cache,target=/root/.gradle/caches \
     ./gradlew shadowJar --no-daemon --build-cache --parallel --max-workers="$GRADLE_MAX_WORKERS" -q -PappVersion="$APP_VERSION"
 
 FROM eclipse-temurin:25.0.4.1_1-jre-alpine-3.23 AS runner
