@@ -136,7 +136,9 @@ class PortabilityRoutesTest {
         id: String,
         expected: PortabilityJobState,
     ): PortabilityJobSnapshot {
-        repeat(100) {
+        // A wall-clock deadline rather than a number of polls: a loaded CI runner can take over a second.
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (System.nanoTime() < deadline) {
             val response = client.get("/portability/jobs/$id") { authorize() }
             val snapshot = CacheJson.decodeFromString(PortabilityJobSnapshot.serializer(), response.bodyAsText())
             if (snapshot.state == expected) return snapshot
