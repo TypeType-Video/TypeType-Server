@@ -35,6 +35,13 @@ fun Route.searchHistoryRoutes(searchHistoryService: SearchHistoryService, authSe
             call.respond(HttpStatusCode.Created, searchHistoryService.add(userId, body.term))
         }
     }
+    delete("/search-history/{id}") {
+        call.withJwtAuth(authService) { userId ->
+            val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
+            val deleted = searchHistoryService.delete(userId, id)
+            if (deleted) call.respond(HttpStatusCode.NoContent) else call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
+        }
+    }
     delete("/search-history") {
         call.withJwtAuth(authService) { userId ->
             searchHistoryService.deleteAll(userId)
