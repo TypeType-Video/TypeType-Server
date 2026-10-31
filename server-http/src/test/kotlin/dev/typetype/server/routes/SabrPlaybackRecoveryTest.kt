@@ -115,4 +115,17 @@ class SabrPlaybackRecoveryTest {
         assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
         coVerify(exactly = 1) { store.recoverProtectedPlaybackInfo(holder) }
     }
+
+    @Test
+    fun `pending attestation without media refreshes context and requests fresh session`() = runTest {
+        val holder = mockk<SabrSessionHolder>()
+        val store = mockk<SabrSessionStore>()
+        every { holder.terminalFailure() } returns
+            "SABR attestation remained pending without media for 3 consecutive responses: parts=5, status=2"
+        every { holder.key } returns SabrSessionKey("video", "user", 140, null, 137, 933_000L)
+        coEvery { store.recoverProtectedPlaybackInfo(holder) } returns Unit
+
+        assertEquals("retry_fresh_session", SabrPlaybackRecovery(store).action(holder))
+        coVerify(exactly = 1) { store.recoverProtectedPlaybackInfo(holder) }
+    }
 }
