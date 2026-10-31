@@ -59,6 +59,8 @@ fun Application.configurePlugins(authService: AuthService) {
         allowCredentials = true
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
+        allowHeader("X-Bilibili-Cdn-Region")
+        allowHeader("X-Bilibili-Concurrent-Prefetch")
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
     }
