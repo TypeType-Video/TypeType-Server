@@ -48,7 +48,7 @@ class YouTubeSubtitleDeliveryService(
                 YouTubeSubtitleResolution.Throttled -> return YouTubeSubtitleContentResult.Throttled
                 YouTubeSubtitleResolution.Unavailable -> return YouTubeSubtitleContentResult.Unavailable
                 is YouTubeSubtitleResolution.Ready -> {
-                    val result = fetchResolved(resolution.track, selection.format)
+                    val result = fetchWithFallback(resolution, selection.format)
                     if (result == YouTubeSubtitleFetchResult.Expired && attempt < MAX_RESOLUTION_ATTEMPTS - 1) {
                         return@repeat
                     }
@@ -57,6 +57,17 @@ class YouTubeSubtitleDeliveryService(
             }
         }
         return YouTubeSubtitleContentResult.Expired
+    }
+
+    private suspend fun fetchWithFallback(
+        resolution: YouTubeSubtitleResolution.Ready,
+        format: YouTubeSubtitleFormat,
+    ): YouTubeSubtitleFetchResult {
+        val result = fetchResolved(resolution.track, format)
+        val fallback = resolution.fallback ?: return result
+        if (result is YouTubeSubtitleFetchResult.Ready || result == YouTubeSubtitleFetchResult.Throttled) return result
+        val alternate = fetchResolved(fallback, format)
+        return if (alternate is YouTubeSubtitleFetchResult.Ready) alternate else result
     }
 
     private suspend fun fetchResolved(
