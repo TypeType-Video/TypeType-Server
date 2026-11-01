@@ -54,15 +54,11 @@ object BilibiliMirrorSpeedTracker {
             else -> 0.0
         }
 
-    fun score(urlOrHost: String, region: String? = null, fallbackIndex: Int = -1): Double {
+    fun score(urlOrHost: String, region: String? = null): Double {
         val host = extractHost(urlOrHost) ?: return Double.MAX_VALUE
         val bucketOffset = regionBucketOffset(host, region)
         val current = stats[host]
-        val staticIndex = if (fallbackIndex >= 0) {
-            fallbackIndex.toDouble() * 100.0
-        } else {
-            ALL_UPOS_MIRROR_HOSTS.indexOf(host).let { if (it >= 0) it.toDouble() * 100.0 else 5000.0 }
-        }
+        val staticIndex = ALL_UPOS_MIRROR_HOSTS.indexOf(host).toDouble() * 100.0
         if (current == null) return bucketOffset + staticIndex
 
         synchronized(current) {
@@ -77,17 +73,17 @@ object BilibiliMirrorSpeedTracker {
         }
     }
 
-    fun prioritize(urls: List<String>, region: String? = null): List<String> {
-        if (region == null && stats.isEmpty()) return urls
-        return urls.withIndex()
-            .sortedBy { (index, url) -> score(url, region, if (region == null) index else -1) }
-            .map { it.value }
+    fun prioritize(urls: List<String>, region: String?): List<String> {
+        if (region == null) return urls
+        return urls.sortedBy { score(it, region) }
     }
 
     fun reset() {
         stats.clear()
     }
 
-    private fun extractHost(urlOrHost: String): String? =
-        if (urlOrHost.contains("://")) urlOrHost.toHttpUrlOrNull()?.host else urlOrHost
+    private fun extractHost(urlOrHost: String): String? {
+        val host = if (urlOrHost.contains("://")) urlOrHost.toHttpUrlOrNull()?.host else urlOrHost
+        return host?.lowercase()?.takeIf { it in ALL_UPOS_MIRROR_HOSTS }
+    }
 }
