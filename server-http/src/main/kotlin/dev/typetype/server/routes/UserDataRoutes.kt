@@ -33,6 +33,7 @@ internal fun Route.userDataRoutes(
         authService,
         svc.settingsService,
         svc.subscriptionGroupsService,
+        svc.blockedService,
     )
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)

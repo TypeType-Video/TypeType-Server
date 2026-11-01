@@ -4,12 +4,14 @@ import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.SubscriptionFeedPreparingResponse
 import dev.typetype.server.routes.preserveTooManyRequestsBody
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.SubscriptionFeedPageResult
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionFeedVisibility
 import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionSelection
 import dev.typetype.server.services.SettingsService
+import dev.typetype.server.services.filterBlocked
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -23,6 +25,7 @@ fun Route.subscriptionFeedRoutes(
     authService: AuthService,
     settingsService: SettingsService? = null,
     groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
+    blockedService: BlockedService? = null,
 ) {
     get("/subscriptions/feed") {
         call.withJwtAuth(authService) { userId ->
@@ -53,7 +56,9 @@ fun Route.subscriptionFeedRoutes(
                     selection,
                 )
             ) {
-                is SubscriptionFeedPageResult.Ready -> call.respond(result.response)
+                is SubscriptionFeedPageResult.Ready -> call.respond(
+                    blockedService?.let { result.response.filterBlocked(it.profileFor(userId)) } ?: result.response,
+                )
                 is SubscriptionFeedPageResult.Preparing -> {
                     call.response.headers.append(HttpHeaders.RetryAfter, "1")
                     call.respond(

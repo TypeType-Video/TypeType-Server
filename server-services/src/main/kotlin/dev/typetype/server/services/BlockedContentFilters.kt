@@ -6,6 +6,7 @@ import dev.typetype.server.models.HomeRecommendationsResponse
 import dev.typetype.server.models.PublicPlaylistResponse
 import dev.typetype.server.models.SearchPageResponse
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.SubscriptionFeedResponse
 
 fun HomeRecommendationsResponse.filterBlocked(profile: BlockedContentProfile): HomeRecommendationsResponse = copy(
     items = items.filter {
@@ -39,4 +40,8 @@ fun ChannelResponse.filterBlocked(profile: BlockedContentProfile): ChannelRespon
 
 fun ChannelPlaylistsResponse.filterBlocked(profile: BlockedContentProfile): ChannelPlaylistsResponse = copy(
     playlists = playlists.filter { profile.allowsChannel(url = "", name = it.uploaderName) },
+)
+
+fun SubscriptionFeedResponse.filterBlocked(profile: BlockedContentProfile): SubscriptionFeedResponse = copy(
+    videos = videos.filter { profile.allowsVideo(it.url, it.title, it.uploaderUrl, it.uploaderName) },
 )
