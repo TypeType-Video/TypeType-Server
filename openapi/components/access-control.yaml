@@ -9,6 +9,12 @@ SettingsItem:
       minimum: 0.25
       maximum: 4
       default: 1
+    holdPlaybackSpeed:
+      type: number
+      format: double
+      enum: [1.5, 2, 2.5, 3, 4]
+      default: 2
+      description: Playback speed while Space or a touch is held.
     defaultLandingPage: { type: string, default: home }
     videoGridColumns:
       type: integer

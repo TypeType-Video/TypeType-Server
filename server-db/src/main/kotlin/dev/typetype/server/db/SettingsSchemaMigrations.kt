@@ -7,6 +7,7 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS subtitles_enabled BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS notification_popups_enabled BOOLEAN NOT NULL DEFAULT true")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_playback_speed DOUBLE PRECISION NOT NULL DEFAULT 1.0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hold_playback_speed DOUBLE PRECISION NOT NULL DEFAULT 2.0")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_subtitle_language TEXT NOT NULL DEFAULT ''")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS default_audio_language TEXT NOT NULL DEFAULT ''")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS prefer_original_language BOOLEAN NOT NULL DEFAULT false")
