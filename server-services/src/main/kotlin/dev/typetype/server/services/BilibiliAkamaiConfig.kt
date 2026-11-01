@@ -10,9 +10,7 @@ object BilibiliAkamaiConfig {
     fun isAkamaiBlacklisted(getEnv: (String) -> String? = { System.getenv(it) ?: System.getProperty(it) }): Boolean =
         getEnv(BLACKLIST_ENV)?.trim()?.lowercase() in TRUE_VALUES
 
-    fun isAkamaiHost(host: String): Boolean =
-        host.equals("upos-hz-mirrorakam.akamaized.net", ignoreCase = true) ||
-            host.endsWith(".akamaized.net", ignoreCase = true)
+    fun isAkamaiHost(host: String): Boolean = host.endsWith(".akamaized.net", ignoreCase = true)
 
     fun isAkamaiUrl(url: String): Boolean =
         url.toHttpUrlOrNull()?.host?.let(::isAkamaiHost) == true

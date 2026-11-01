@@ -10,6 +10,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.Objects
 import java.util.concurrent.Callable
+import java.util.concurrent.CancellationException
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
@@ -100,21 +102,23 @@ class BilibiliSubchunkInputStream(
     }
 
     private fun obtainSubchunkStream(index: Int): InputStream {
-        if (index == prefetchedIndex && prefetchFuture != null) {
-            val future = prefetchFuture
-            prefetchedIndex = -1
-            prefetchFuture = null
-            try {
-                return future!!.get()
-            } catch (_: Exception) {
-                // Fall back to opening the subchunk on demand
-            } finally {
-                releasePrefetchPermit()
-            }
-        }
+        val future = prefetchFuture?.takeIf { index == prefetchedIndex }
+        if (future == null) prefetchFuture?.cancel(true)
+        prefetchedIndex = -1
+        prefetchFuture = null
+        val prefetched = future?.let(::prefetchedStream)
         releasePrefetchPermit()
-        return openSubchunk(index)
+        return prefetched ?: openSubchunk(index)
     }
+
+    private fun prefetchedStream(future: Future<InputStream>): InputStream? =
+        try {
+            future.get()
+        } catch (_: ExecutionException) {
+            null
+        } catch (_: CancellationException) {
+            null
+        }
 
     private fun triggerPrefetch(targetIndex: Int) {
         if (targetIndex >= subRanges.size || closed) return
