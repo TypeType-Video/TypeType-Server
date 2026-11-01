@@ -28,6 +28,5 @@ object BilibiliCdnConfig {
 
     fun isSubchunkProxyEnabled(getEnv: (String) -> String? = { System.getenv(it) ?: System.getProperty(it) }): Boolean =
         getEnv(SUBCHUNK_PROXY_ENV)?.trim()?.lowercase() in TRUE_VALUES ||
-            isPrefetchEnabled(getEnv) ||
-            defaultRegion(getEnv) != null
+            isPrefetchEnabled(getEnv)
 }

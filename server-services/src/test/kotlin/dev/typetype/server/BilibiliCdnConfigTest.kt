@@ -20,10 +20,10 @@ class BilibiliCdnConfigTest {
     }
 
     @Test
-    fun `parses region and enables subchunk proxy when region or prefetch is configured`() {
+    fun `parses region and enables subchunk proxy only for subchunks or prefetch`() {
         val overseasEnv = mapOf("BILIBILI_CDN_REGION" to "overseas")::get
         assertEquals("overseas", BilibiliCdnConfig.defaultRegion(overseasEnv))
-        assertTrue(BilibiliCdnConfig.isSubchunkProxyEnabled(overseasEnv))
+        assertFalse(BilibiliCdnConfig.isSubchunkProxyEnabled(overseasEnv))
 
         val domesticEnv = mapOf("BILIBILI_CDN_REGION" to "cn")::get
         assertEquals("domestic", BilibiliCdnConfig.defaultRegion(domesticEnv))
