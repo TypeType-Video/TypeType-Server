@@ -7,6 +7,7 @@ import dev.typetype.server.SubscriptionFeedTestFixtures.subscription
 import dev.typetype.server.SubscriptionFeedTestFixtures.video
 import dev.typetype.server.routes.subscriptionShortsFeedRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.ChannelService
 import dev.typetype.server.services.SubscriptionShortsBlendService
 import dev.typetype.server.services.SubscriptionShortsFeedService
@@ -54,10 +55,12 @@ class SubscriptionShortsFeedRoutesTest {
         coEvery { trendingService.getTrending(any()) } returns ExtractionResult.Success(emptyList())
     }
 
+    private val blockedService = BlockedService()
+
     private fun withApp(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             install(ContentNegotiation) { json() }
-            routing { subscriptionShortsFeedRoutes(feedService, auth) }
+            routing { subscriptionShortsFeedRoutes(feedService, auth, blockedService) }
         }
         block()
     }
@@ -111,5 +114,32 @@ class SubscriptionShortsFeedRoutesTest {
         assertTrue(page1.contains("/shorts/sa") && page1.contains("/shorts/sb") && !page1.contains("/shorts/sc"))
         assertTrue(page1.contains("\"nextpage\":\"1\""))
         assertTrue(page2.contains("/shorts/sc"))
+    }
+
+    @Test
+    fun `GET subscriptions shorts drops blocked videos, channels and keywords`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/Main", "Main"))
+        subscriptionsService.add(TEST_USER_ID, subscription("https://yt.com/c/Blocked", "Blocked"))
+        val mainShorts = channel(
+            video(4000L, channel = "Main", url = "https://yt.com/watch?v=blocked1"),
+            video(3000L, channel = "Main", url = "https://yt.com/watch?v=keptshort"),
+            video(2000L, channel = "Main", url = "https://yt.com/watch?v=spoiler1").copy(title = "Big spoiler"),
+        )
+        val blockedShorts = channel(video(1000L, channel = "Blocked", url = "https://yt.com/watch?v=otherchan"))
+        coEvery { channelService.getChannel("https://yt.com/c/Main/shorts", null) } returns mainShorts
+        coEvery { channelService.getChannel("https://yt.com/c/Main", null) } returns mainShorts
+        coEvery { channelService.getChannel("https://yt.com/c/Blocked/shorts", null) } returns blockedShorts
+        coEvery { channelService.getChannel("https://yt.com/c/Blocked", null) } returns blockedShorts
+        blockedService.addVideo(TEST_USER_ID, "https://www.youtube.com/watch?v=blocked1")
+        blockedService.addChannel(TEST_USER_ID, "https://yt.com/c/Blocked", "Blocked")
+        blockedService.addKeyword(TEST_USER_ID, "spoiler")
+
+        listOf("true", "false").forEach { blended ->
+            val body = client.get("/subscriptions/shorts?page=0&limit=10&blended=$blended") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            }.bodyAsText()
+            assertTrue(body.contains("/shorts/keptshort"), body)
+            assertTrue(listOf("blocked1", "spoiler1", "otherchan").none(body::contains), body)
+        }
     }
 }

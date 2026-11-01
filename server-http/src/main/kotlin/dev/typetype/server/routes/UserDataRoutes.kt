@@ -35,7 +35,7 @@ internal fun Route.userDataRoutes(
         svc.subscriptionGroupsService,
         svc.blockedService,
     )
-    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService)
+    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)
     savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
