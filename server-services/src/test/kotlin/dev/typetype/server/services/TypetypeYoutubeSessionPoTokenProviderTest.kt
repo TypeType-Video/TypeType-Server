@@ -33,6 +33,25 @@ class StreamYouTubeSubtitleResolverTest {
     }
 
     @Test
+    fun `stream track stays available behind the fresh inventory track`() = runBlocking {
+        val resolver = StreamYouTubeSubtitleResolver(
+            streamService = streamService(
+                listOf(track("https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en&src=stream", false)),
+            ),
+            fetchInventory = {
+                YouTubeSubtitleInventoryResult.Ready(
+                    listOf(track("https://m.youtube.com/api/timedtext?v=abcdefghijk&lang=en&exp=xpe", false)),
+                )
+            },
+        )
+
+        val ready = resolver.resolve(selection(YouTubeSubtitleVariant.Manual)) as YouTubeSubtitleResolution.Ready
+
+        assertEquals("m.youtube.com", ready.track.content.toHttpUrl().host)
+        assertEquals("stream", requireNotNull(ready.fallback).content.toHttpUrl().queryParameter("src"))
+    }
+
+    @Test
     fun `stream inventory is used when fresh inventory is unavailable`() = runBlocking {
         val resolver = StreamYouTubeSubtitleResolver(
             streamService = streamService(

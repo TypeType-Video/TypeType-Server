@@ -154,6 +154,22 @@ class SettingsRoutesTest {
         }.bodyAsText()
         assertTrue(body.contains("\"defaultPlaybackSpeed\":4.0"))
     }
+
+    @Test
+    fun `PUT settings keeps a supported hold speed and resets an unknown one`() = withApp {
+        val put = suspend { speed: String ->
+            client.put("/settings") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody("""{"holdPlaybackSpeed":$speed}""")
+            }
+            client.get("/settings") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            }.bodyAsText()
+        }
+        assertTrue(put("3.0").contains("\"holdPlaybackSpeed\":3.0"))
+        assertTrue(put("7.0").contains("\"holdPlaybackSpeed\":2.0"))
+    }
     @Test
     fun `upcoming playlist visibility defaults to visible and survives partial updates`() = withApp {
         val get = suspend {

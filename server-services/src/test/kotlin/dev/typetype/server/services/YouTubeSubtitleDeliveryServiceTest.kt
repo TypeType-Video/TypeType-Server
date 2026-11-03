@@ -123,6 +123,48 @@ class YouTubeSubtitleDeliveryServiceTest {
     }
 
     @Test
+    fun `fallback track is used when the fresh track returns no subtitles`() = runTest {
+        val fetched = mutableListOf<String>()
+        val service = service(
+            resolver = {
+                YouTubeSubtitleResolution.Ready(
+                    ResolvedYouTubeSubtitle(GATED_URL, isUrl = true, isLive = false),
+                    fallback = ResolvedYouTubeSubtitle(TIMED_TEXT_URL, isUrl = true, isLive = false),
+                )
+            },
+            fetcher = { url, _ ->
+                fetched += url
+                if (url == GATED_URL) YouTubeSubtitleFetchResult.InvalidPayload else YouTubeSubtitleFetchResult.Ready(VTT)
+            },
+        )
+
+        val result = service.fetch(SELECTION)
+
+        assertTrue(result is YouTubeSubtitleContentResult.Ready)
+        assertEquals(listOf(GATED_URL, TIMED_TEXT_URL), fetched)
+    }
+
+    @Test
+    fun `throttled fresh track does not hit the fallback`() = runTest {
+        val fetches = AtomicInteger()
+        val service = service(
+            resolver = {
+                YouTubeSubtitleResolution.Ready(
+                    ResolvedYouTubeSubtitle(GATED_URL, isUrl = true, isLive = false),
+                    fallback = ResolvedYouTubeSubtitle(TIMED_TEXT_URL, isUrl = true, isLive = false),
+                )
+            },
+            fetcher = { _, _ ->
+                fetches.incrementAndGet()
+                YouTubeSubtitleFetchResult.Throttled
+            },
+        )
+
+        assertEquals(YouTubeSubtitleContentResult.Throttled, service.fetch(SELECTION))
+        assertEquals(1, fetches.get())
+    }
+
+    @Test
     fun `upstream subtitle failure is isolated as unavailable`() = runTest {
         val service = service(
             resolver = { readyTrack() },
@@ -149,6 +191,7 @@ class YouTubeSubtitleDeliveryServiceTest {
         val VTT = "WEBVTT\n\n00:00.000 --> 00:01.000\nHello".encodeToByteArray()
         val TTML = "<?xml version=\"1.0\"?><tt><body /></tt>".encodeToByteArray()
         const val TIMED_TEXT_URL = "https://www.youtube.com/api/timedtext?v=abcdefghijk&lang=en&fmt=vtt"
+        const val GATED_URL = "https://m.youtube.com/api/timedtext?v=abcdefghijk&lang=en&exp=xpe&fmt=vtt"
         val SELECTION = YouTubeSubtitleSelection(
             videoId = "abcdefghijk",
             language = "en",

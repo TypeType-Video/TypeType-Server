@@ -19,22 +19,17 @@ class StreamYouTubeSubtitleResolver(
     override suspend fun resolve(selection: YouTubeSubtitleSelection): YouTubeSubtitleResolution = try {
         withTimeout(RESOLUTION_TIMEOUT_MS) {
             val stream = streamService.streamForSubtitle(selection.videoId)
-            val inventory = fetchInventory(selection.videoId)
-            val tracks = (inventory as? YouTubeSubtitleInventoryResult.Ready)?.tracks
+            val inventory = (fetchInventory(selection.videoId) as? YouTubeSubtitleInventoryResult.Ready)?.tracks
                 ?.takeIf(List<SubtitleItem>::isNotEmpty)
-                ?: stream?.subtitles
-                ?: return@withTimeout YouTubeSubtitleResolution.Unavailable
-            val track = tracks.firstOrNull { it.matchesYouTubeSubtitle(selection) }
-                ?: return@withTimeout YouTubeSubtitleResolution.NotFound
-            val content = track.contentForYouTubeSubtitle(selection)
-                ?: return@withTimeout YouTubeSubtitleResolution.NotFound
-            YouTubeSubtitleResolution.Ready(
-                ResolvedYouTubeSubtitle(
-                    content = content,
-                    isUrl = true,
-                    isLive = stream?.isLiveSubtitleContent() == true,
-                ),
-            )
+            if (inventory == null && stream?.subtitles == null) {
+                return@withTimeout YouTubeSubtitleResolution.Unavailable
+            }
+            val isLive = stream?.isLiveSubtitleContent() == true
+            val candidates = listOfNotNull(inventory, stream?.subtitles)
+                .mapNotNull { it.resolvedFor(selection, isLive) }
+                .distinctBy(ResolvedYouTubeSubtitle::content)
+            val track = candidates.firstOrNull() ?: return@withTimeout YouTubeSubtitleResolution.NotFound
+            YouTubeSubtitleResolution.Ready(track, fallback = candidates.getOrNull(1))
         }
     } catch (_: TimeoutCancellationException) {
         YouTubeSubtitleResolution.Unavailable
@@ -56,6 +51,11 @@ private suspend fun StreamService.streamForSubtitle(videoId: String): StreamResp
     }
 
 private fun StreamResponse.isLiveSubtitleContent(): Boolean = isLive || isLiveContent
+
+private fun List<SubtitleItem>.resolvedFor(selection: YouTubeSubtitleSelection, isLive: Boolean) =
+    firstOrNull { it.matchesYouTubeSubtitle(selection) }
+        ?.contentForYouTubeSubtitle(selection)
+        ?.let { ResolvedYouTubeSubtitle(content = it, isUrl = true, isLive = isLive) }
 
 fun SubtitleItem.matchesYouTubeSubtitle(selection: YouTubeSubtitleSelection): Boolean {
     val parsedUrl = url.toHttpUrlOrNull()

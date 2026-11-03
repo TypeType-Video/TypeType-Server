@@ -78,6 +78,8 @@ steps:
         from_secret: ghcr_username
       GHCR_TOKEN:
         from_secret: ghcr_token
+      LOCAL_REGISTRY_PASSWORD:
+        from_secret: local_registry_password
     commands:
       - |
         set -eu
@@ -87,6 +89,8 @@ steps:
         build_time="$$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         printf '%s' "$${GHCR_TOKEN}" |
           docker login ghcr.io -u "$${GHCR_USER}" --password-stdin
+        printf '%s' "$${LOCAL_REGISTRY_PASSWORD}" |
+          docker login registry:5000 -u ci --password-stdin
 
         docker build --pull --platform linux/amd64 \
           --provenance=false --sbom=false \
@@ -126,6 +130,8 @@ steps:
         from_secret: ghcr_username
       GHCR_TOKEN:
         from_secret: ghcr_token
+      LOCAL_REGISTRY_PASSWORD:
+        from_secret: local_registry_password
     commands:
       - |
         set -eu
@@ -135,6 +141,8 @@ steps:
         build_time="$$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         printf '%s' "$${GHCR_TOKEN}" |
           docker login ghcr.io -u "$${GHCR_USER}" --password-stdin
+        printf '%s' "$${LOCAL_REGISTRY_PASSWORD}" |
+          docker login registry:5000 -u ci --password-stdin
 
         docker build --pull --platform linux/arm64 \
           --provenance=false --sbom=false \
@@ -170,6 +178,8 @@ steps:
         from_secret: ghcr_username
       GHCR_TOKEN:
         from_secret: ghcr_token
+      LOCAL_REGISTRY_PASSWORD:
+        from_secret: local_registry_password
     commands:
       - |
         set -eu
@@ -178,6 +188,8 @@ steps:
         set +a
         printf '%s' "$${GHCR_TOKEN}" |
           docker login ghcr.io -u "$${GHCR_USER}" --password-stdin
+        printf '%s' "$${LOCAL_REGISTRY_PASSWORD}" |
+          docker login registry:5000 -u ci --password-stdin
 
         for tag in $${TAGS}; do
           docker manifest create --amend --insecure \

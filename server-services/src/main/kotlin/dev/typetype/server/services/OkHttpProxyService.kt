@@ -201,7 +201,7 @@ class OkHttpProxyService(
 
     companion object {
         private const val MAX_CONCURRENT_MIRROR_PROBES = 8
-        private const val MAX_ALTERNATE_URLS = 2
+        private const val MAX_ALTERNATE_URLS = 5
         private const val MIRROR_CONNECT_TIMEOUT_SECONDS = 2L
         private const val MIRROR_READ_TIMEOUT_SECONDS = 2L
         private const val BILIBILI_REFERER = "https://www.bilibili.com"

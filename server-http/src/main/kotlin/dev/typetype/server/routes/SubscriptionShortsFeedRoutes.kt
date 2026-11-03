@@ -1,14 +1,20 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.SubscriptionShortsFeedService
+import dev.typetype.server.services.filterBlocked
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 private const val MAX_SHORTS_FEED_PAGE = 10_000
 
-fun Route.subscriptionShortsFeedRoutes(feedService: SubscriptionShortsFeedService, authService: AuthService) {
+fun Route.subscriptionShortsFeedRoutes(
+    feedService: SubscriptionShortsFeedService,
+    authService: AuthService,
+    blockedService: BlockedService? = null,
+) {
     get("/subscriptions/shorts") {
         call.withJwtAuth(authService) { userId ->
             val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceIn(0, MAX_SHORTS_FEED_PAGE) ?: 0
@@ -20,7 +26,7 @@ fun Route.subscriptionShortsFeedRoutes(feedService: SubscriptionShortsFeedServic
             } else {
                 feedService.getFeed(userId, page, limit)
             }
-            call.respond(response)
+            call.respond(blockedService?.let { response.filterBlocked(it.profileFor(userId)) } ?: response)
         }
     }
 }

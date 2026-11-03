@@ -52,7 +52,10 @@ data class ResolvedYouTubeSubtitle(
 )
 
 sealed interface YouTubeSubtitleResolution {
-    data class Ready(val track: ResolvedYouTubeSubtitle) : YouTubeSubtitleResolution
+    data class Ready(
+        val track: ResolvedYouTubeSubtitle,
+        val fallback: ResolvedYouTubeSubtitle? = null,
+    ) : YouTubeSubtitleResolution
     data object NotFound : YouTubeSubtitleResolution
     data object Throttled : YouTubeSubtitleResolution
     data object Unavailable : YouTubeSubtitleResolution
