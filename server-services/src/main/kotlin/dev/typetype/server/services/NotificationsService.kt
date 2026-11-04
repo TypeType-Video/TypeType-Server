@@ -188,8 +188,6 @@ class NotificationsService(
             YOUTUBE_SERVICE_ID -> "YouTube"
             BILIBILI_SERVICE_ID -> "BiliBili"
             NICONICO_SERVICE_ID -> "NicoNico"
-            SOUNDCLOUD_SERVICE_ID -> "SoundCloud"
-            MEDIA_CCC_SERVICE_ID -> "MediaCCC"
             else -> "Video service"
         }
     }

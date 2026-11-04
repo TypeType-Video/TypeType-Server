@@ -77,7 +77,7 @@ class InstanceRoutesTest {
         val rss = root["rss"]?.jsonObject
         assertEquals(false, rss?.get("enabled")?.jsonPrimitive?.boolean)
         assertEquals(10, rss?.get("maxFeedsPerUser")?.jsonPrimitive?.int)
-        assertEquals(listOf(0, 3, 4, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
+        assertEquals(listOf(0, 5, 6), root["supportedServices"]?.jsonArray?.map { it.jsonPrimitive.int })
         assertEquals(null, root["androidPlayback"])
     }
 

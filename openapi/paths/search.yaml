@@ -10,7 +10,7 @@ Search:
       - name: service
         in: query
         required: true
-        schema: { type: integer, enum: [0, 3, 4, 5, 6] }
+        schema: { type: integer, enum: [0, 5, 6] }
       - name: nextpage
         in: query
         required: false
@@ -62,7 +62,7 @@ SearchFilters:
       - name: service
         in: query
         required: true
-        schema: { type: integer, enum: [0, 3, 4, 5, 6] }
+        schema: { type: integer, enum: [0, 5, 6] }
       - name: contentFilter
         in: query
         required: false

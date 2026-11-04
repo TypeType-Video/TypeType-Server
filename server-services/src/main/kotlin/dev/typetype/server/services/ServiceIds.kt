@@ -1,15 +1,11 @@
 package dev.typetype.server.services
 
 const val YOUTUBE_SERVICE_ID = 0
-const val SOUNDCLOUD_SERVICE_ID = 3
-const val MEDIA_CCC_SERVICE_ID = 4
 const val BILIBILI_SERVICE_ID = 5
 const val NICONICO_SERVICE_ID = 6
 
 val VALID_SERVICE_IDS: Set<Int> = setOf(
     YOUTUBE_SERVICE_ID,
-    SOUNDCLOUD_SERVICE_ID,
-    MEDIA_CCC_SERVICE_ID,
     BILIBILI_SERVICE_ID,
     NICONICO_SERVICE_ID,
 )
