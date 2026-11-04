@@ -8,7 +8,7 @@ clone:
 
 when:
   - event: push
-    branch: [dev, main]
+    branch: [dev, staging, main]
   - event: pull_request
   - event: manual
 
