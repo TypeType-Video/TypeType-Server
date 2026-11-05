@@ -101,7 +101,7 @@ class ProviderMediaHandleService(
     }
 
     suspend fun resolve(handle: String): ProviderMediaTarget? {
-        if (!HANDLE_PATTERN.matches(handle)) return null
+        if (!isProviderMediaHandle(handle)) return null
         return cache.get(cacheKey(handle))?.let { encoded ->
             runCatching { CacheJson.decodeFromString<ProviderMediaTarget>(encoded) }.getOrNull()
         }
@@ -188,7 +188,6 @@ class ProviderMediaHandleService(
         const val EXPIRY_SAFETY_SECONDS = 30L
         const val MAX_CONCURRENT_CACHE_WRITES = 32
         const val MAX_ALTERNATE_URLS = 2
-        val HANDLE_PATTERN = Regex("m1_[A-Za-z0-9_-]{24}")
         val EXPIRY_PATTERN = Regex("(?:^|[?&#=])(?:deadline|Expires|exp)=(\\d+)", RegexOption.IGNORE_CASE)
 
         fun cacheKey(handle: String): String = "provider-media:v1:$handle"
@@ -199,3 +198,7 @@ class ProviderMediaHandleService(
         }
     }
 }
+
+private val PROVIDER_MEDIA_HANDLE = Regex("m1_[A-Za-z0-9_-]{24}")
+
+fun isProviderMediaHandle(value: String): Boolean = PROVIDER_MEDIA_HANDLE.matches(value)

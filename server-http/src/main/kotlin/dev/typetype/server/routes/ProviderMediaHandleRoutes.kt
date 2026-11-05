@@ -1,8 +1,10 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
+import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.ProviderMediaAwareProxyService
+import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProxyService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -12,10 +14,18 @@ import io.ktor.server.routing.get
 internal fun Route.providerMediaHandleRoutes(
     handleService: ProviderMediaHandleService,
     proxyService: ProxyService,
+    startupCache: ProviderMediaStartupCache? = null,
 ) {
     get("/media/{handle}") {
         val handle = call.parameters["handle"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing media handle"))
+        val rangeHeader = call.request.headers["Range"]
+        if (startupCache != null) {
+            startupCache.awaitPending(handle)
+            startupCache.respond(handle, rangeHeader)?.let {
+                return@get call.respondProxyResult(ExtractionResult.Success(it))
+            }
+        }
         val target = runCatching { handleService.resolve(handle) }.getOrElse {
             return@get call.respond(
                 HttpStatusCode.ServiceUnavailable,
@@ -26,7 +36,6 @@ internal fun Route.providerMediaHandleRoutes(
             ErrorResponse("Media handle has expired or is unknown", "media_handle_not_found"),
         )
 
-        val rangeHeader = call.request.headers["Range"]
         val result = if (proxyService is ProviderMediaAwareProxyService) {
             proxyService.pipeProviderMediaWithAlternates(
                 target.url,

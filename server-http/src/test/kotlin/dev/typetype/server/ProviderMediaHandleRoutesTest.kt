@@ -4,6 +4,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.ProxyResponse
 import dev.typetype.server.routes.providerMediaHandleRoutes
 import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProxyService
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -46,6 +47,30 @@ class ProviderMediaHandleRoutesTest {
         }
 
         coVerify(exactly = 1) { proxyService.pipe(raw, "bytes=0-3", null) }
+    }
+
+    @Test
+    fun `media route serves warmed startup bytes without calling upstream`() = runTest {
+        val service = ProviderMediaHandleService(FakeCacheService())
+        val path = service.createPath("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=9999999999")
+        val startupCache = ProviderMediaStartupCache()
+        startupCache.put(
+            path.substringAfterLast('/'),
+            ProviderMediaStartupCache.Entry(byteArrayOf(1, 2, 3, 4, 5, 6), 9_000L, "video/mp4", complete = false),
+        )
+
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                routing { providerMediaHandleRoutes(service, proxyService, startupCache) }
+            }
+            val response = client.get(path) { header("Range", "bytes=2-4") }
+            assertEquals(HttpStatusCode.PartialContent, response.status)
+            assertEquals("bytes 2-4/9000", response.headers["Content-Range"])
+            assertEquals("\u0003\u0004\u0005", response.bodyAsText())
+        }
+
+        coVerify(exactly = 0) { proxyService.pipe(any(), any(), any()) }
     }
 
     @Test
