@@ -105,9 +105,11 @@ class ProviderMediaWarmup(
     private suspend fun warmHlsMedia(target: ProviderMediaTarget, startsPlayback: Boolean) {
         val playlist = prefetch(target, null, MAX_PLAYLIST_BYTES)?.toString(StandardCharsets.UTF_8) ?: return
         val media = HlsWarmupPlan.fromMediaPlaylist(playlist)
-        media.headers.forEach { header -> targetOf(header)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } }
-        if (startsPlayback) {
-            media.firstSegment?.let { targetOf(it) }?.let { prefetch(it, null, MAX_SEGMENT_BYTES) }
+        val files = media.headers + listOfNotNull(media.firstSegment.takeIf { startsPlayback })
+        coroutineScope {
+            files.map { file ->
+                async { targetOf(file)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } }
+            }.awaitAll()
         }
     }
 
