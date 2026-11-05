@@ -20,6 +20,7 @@ class CachedStreamService(
     private val pace: StreamOpenPace? = null,
     private val renewal: ProviderSessionRenewal? = null,
     private val failures: StreamFailureMemory = StreamFailureMemory(),
+    private val guard: ProviderExtractionGuard? = null,
 ) : StreamService {
 
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<ExtractionResult<StreamResponse>>>()
@@ -72,7 +73,7 @@ class CachedStreamService(
         if (pace != null && isYoutubeUrl(url) && !pace.turn(someoneWaits = !nobodyWaits)) {
             return paced("Too many videos are being opened at the provider right now")
         }
-        val result = delegate.getStreamInfo(url)
+        val result = guard?.run(nobodyWaits) { delegate.getStreamInfo(url) } ?: delegate.getStreamInfo(url)
         if (nobodyWaits && !counted) {
             withContext(StreamRequestWatch.AlreadyCounted.mark) { watch?.opened(result) }
         } else {

@@ -16,6 +16,7 @@ import dev.typetype.server.services.CachedManifestService
 import dev.typetype.server.services.CachedNativeManifestService
 import dev.typetype.server.services.CachedChannelPostsService
 import dev.typetype.server.services.CachedPodcastService
+import dev.typetype.server.services.ProviderExtractionGuard
 import dev.typetype.server.services.CachedPublicPlaylistService
 import dev.typetype.server.services.CachedSearchService
 import dev.typetype.server.services.CachedStreamService
@@ -194,8 +195,18 @@ internal class ExtractionServiceRegistry(
             SabrBootstrapCache(sabrSessionStore.sessionEpoch::current, sabrSessionStore::hasPreparedInfo),
         ),
     )
-    val nicoNicoStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-niconico:v1")
-    val bilibiliStreamService = CachedStreamService(directPipePipeStreamService, cache, "stream-bilibili:v4")
+    val nicoNicoStreamService = CachedStreamService(
+        directPipePipeStreamService,
+        cache,
+        "stream-niconico:v1",
+        guard = ProviderExtractionGuard("niconico"),
+    )
+    val bilibiliStreamService = CachedStreamService(
+        directPipePipeStreamService,
+        cache,
+        "stream-bilibili:v4",
+        guard = ProviderExtractionGuard("bilibili"),
+    )
     val streamService = youtubeStreamGuards.cached(publicStreamService, cache, "stream-direct:v1")
     val searchService = CachedSearchService(
         YoutubeScopedSearchService(
