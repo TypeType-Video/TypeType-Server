@@ -36,6 +36,10 @@ class SabrInfoFetcher(
         return singleFlight.run(key) { fetchInfoUncoalesced(videoId, startTimeMs, cachedFirst, isolatedPlayback = false) }
     }
 
+    suspend fun fetchAudioOnlyMediaInfo(videoId: String): SabrPreparedInfo? = withContext(Dispatchers.IO) {
+        fetchInfoOnce(videoId, 0L, isolatedPlayback = true, acceptAudioOnlyMedia = true)
+    }
+
     private suspend fun fetchInfoUncoalesced(
         videoId: String,
         startTimeMs: Long,
@@ -113,6 +117,7 @@ class SabrInfoFetcher(
         videoId: String,
         startTimeMs: Long,
         isolatedPlayback: Boolean = false,
+        acceptAudioOnlyMedia: Boolean = false,
     ): SabrPreparedInfo? =
         withTimeoutOrNull(infoTimeoutMs) {
             val tokenSession = sessionClient?.fetchPlaybackSession(videoId, isolatedPlayback)
@@ -130,12 +135,12 @@ class SabrInfoFetcher(
                 ?.let {
                     SabrPreparedInfo(it.info, token, it.isLive, it.isLiveContent)
                 }
-                ?.takeIf { it.hasAudioAndVideoFormats() }
+                ?.takeIf { it.hasAudioAndVideoFormats() || acceptAudioOnlyMedia && it.isAudioOnlyMedia() }
                 ?.let { return@withTimeoutOrNull it }
             val recovery = SabrPlayerContextRecovery(videoId, token, tokenClient, playerInfoProbe)
             CLIENT_PROFILES.firstNotNullOfOrNull { profile ->
                 runInterruptible { fetchInfoForProfile(videoId, startTimeMs, profile, recovery) }
-                    ?.takeIf { it.hasAudioAndVideoFormats() }
+                    ?.takeIf { it.hasAudioAndVideoFormats() || acceptAudioOnlyMedia && it.isAudioOnlyMedia() }
             }
         }
 

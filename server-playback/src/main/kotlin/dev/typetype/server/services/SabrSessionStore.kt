@@ -153,6 +153,7 @@ class SabrSessionStore(
         cachedFirst: Boolean = false,
         isolatedPlayback: Boolean = false,
     ): SabrPreparedInfo? = infoFetcher.fetchInfo(videoId, startTimeMs, cachedFirst, isolatedPlayback)
+    suspend fun fetchAudioOnlyMediaInfo(videoId: String): SabrPreparedInfo? = infoFetcher.fetchAudioOnlyMediaInfo(videoId)
     fun rememberExtractedInfoAsync(videoId: String, info: YoutubeSabrInfo): Unit {
         scope.launch { infoFetcher.rememberExtractedInfo(videoId, info) }
     }

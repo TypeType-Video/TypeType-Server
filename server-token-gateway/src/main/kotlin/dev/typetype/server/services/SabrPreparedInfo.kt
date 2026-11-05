@@ -12,3 +12,6 @@ class SabrPreparedInfo(
 
 fun SabrPreparedInfo.hasAudioAndVideoFormats(): Boolean =
     info.formats.any { it.isAudio } && info.formats.any { it.isVideo }
+
+fun SabrPreparedInfo.isAudioOnlyMedia(): Boolean =
+    info.formats.any { it.isAudio } && info.formats.none { it.isVideo }
