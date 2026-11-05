@@ -28,7 +28,13 @@ class ProviderMediaWarmup(
     private val scope: CoroutineScope,
     private val segments: ProviderMediaSegmentTable = ProviderMediaSegmentTable(),
 ) {
-    private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
+    private class Media(
+        val url: String,
+        val indexStart: Long,
+        val indexEnd: Long,
+        val bitrate: Int,
+        val startsPlayback: Boolean,
+    )
 
     private val permits = Semaphore(MAX_PARALLEL_FETCHES)
 
@@ -39,8 +45,8 @@ class ProviderMediaWarmup(
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
                 val starting = startingUrls(provider, video, audio)
-                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) } +
-                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) }
+                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.bitrate ?: 0, it.url in starting) } +
+                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.bitrate ?: 0, it.url in starting) }
                 coroutineScope {
                     media.map { item ->
                         async {
@@ -92,7 +98,7 @@ class ProviderMediaWarmup(
 
     private suspend fun warmDash(target: ProviderMediaTarget, media: Media) {
         if (media.indexEnd <= 0 || media.indexEnd >= MAX_DASH_HEADER_BYTES) return
-        val header = prefetch(target, "bytes=0-${media.indexEnd}", MAX_DASH_HEADER_BYTES) ?: return
+        val header = prefetch(target, "bytes=0-${headerEnd(media)}", MAX_SEGMENT_BYTES) ?: return
         val table = Mp4SegmentIndex.segments(header, media.indexStart) ?: return
         segments.remember(target.url, table)
         if (!media.startsPlayback) return
@@ -100,6 +106,13 @@ class ProviderMediaWarmup(
         if (end < header.size || end >= MAX_SEGMENT_BYTES) return
         val claim = cache.begin(target.url, extending = true) ?: return
         fetchClaimed(target, "bytes=0-$end", MAX_SEGMENT_BYTES, claim)
+    }
+
+    // Asking for the header and a guess of the first segment at once saves a round trip to the CDN.
+    private fun headerEnd(media: Media): Long {
+        if (!media.startsPlayback || media.bitrate <= 0) return media.indexEnd
+        val guess = media.bitrate.toLong() / 8 * FIRST_SEGMENT_GUESS_SECONDS
+        return media.indexEnd + guess.coerceAtMost(MAX_SEGMENT_BYTES / 2L)
     }
 
     private fun startingUrls(
@@ -193,5 +206,6 @@ class ProviderMediaWarmup(
         const val MAX_SEGMENT_BYTES = 4 * 1024 * 1024
         const val WARMUP_TIMEOUT_MILLIS = 20_000L
         const val BILIBILI_START_BITS_PER_SECOND = 1_000_000
+        const val FIRST_SEGMENT_GUESS_SECONDS = 7
     }
 }
