@@ -70,6 +70,41 @@ ChannelPlaylists:
         $ref: ../components/common.yaml#/RetryableError
       '504':
         $ref: ../components/common.yaml#/UpstreamTimeoutError
+ChannelPosts:
+  get:
+    tags: [extraction]
+    summary: Get YouTube channel community posts
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: nextpage
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Channel community posts page.
+        headers:
+          X-Request-ID:
+            $ref: ../components/common.yaml#/RequestIdHeader
+        content:
+          application/json:
+            schema:
+              $ref: ../components/media.yaml#/ChannelPostsResponse
+      '400':
+        $ref: ../components/common.yaml#/JsonError
+      '403':
+        $ref: ../components/common.yaml#/JsonError
+      '422':
+        $ref: ../components/common.yaml#/JsonError
+      '429':
+        $ref: ../components/common.yaml#/RetryableError
+      '503':
+        $ref: ../components/common.yaml#/RetryableError
+      '504':
+        $ref: ../components/common.yaml#/UpstreamTimeoutError
 ChannelPage:
   post:
     tags: [extraction]

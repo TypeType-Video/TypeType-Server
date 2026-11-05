@@ -115,6 +115,62 @@ PodcastItem:
     uploaderName: { type: string }
     streamCount: { type: integer, format: int64 }
     playlistType: { type: string }
+ChannelPostsResponse:
+  type: object
+  required: [channelName, channelUrl, posts, nextpage]
+  properties:
+    channelName: { type: string }
+    channelUrl: { type: string }
+    posts: { type: array, items: { $ref: '#/CommunityPostItem' } }
+    nextpage: { type: string, nullable: true }
+CommunityPostItem:
+  type: object
+  required: [id, url, type, text, authorName, authorUrl, authorAvatarUrl, publishedTime, textualLikeCount, textualCommentCount, images]
+  properties:
+    id: { type: string }
+    url: { type: string }
+    type: { type: string, enum: [text, image, poll, video, shared_post, unknown] }
+    text: { type: string, description: HTML content. }
+    authorName: { type: string }
+    authorUrl: { type: string }
+    authorAvatarUrl: { type: string }
+    publishedTime: { type: string }
+    publishedAt: { type: integer, format: int64, nullable: true }
+    likeCount: { type: integer, format: int64, nullable: true }
+    textualLikeCount: { type: string }
+    commentCount: { type: integer, format: int64, nullable: true }
+    textualCommentCount: { type: string }
+    images: { type: array, items: { type: string } }
+    poll:
+      nullable: true
+      allOf: [{ $ref: '#/CommunityPostPoll' }]
+    video:
+      nullable: true
+      allOf: [{ $ref: '#/CommunityPostVideo' }]
+    sharedPost:
+      nullable: true
+      allOf: [{ $ref: '#/CommunityPostItem' }]
+CommunityPostPoll:
+  type: object
+  required: [type, choices, textualVoteCount]
+  properties:
+    type: { type: string, enum: [text, image, quiz, unknown] }
+    choices: { type: array, items: { $ref: '#/CommunityPostPollChoice' } }
+    voteCount: { type: integer, format: int64, nullable: true }
+    textualVoteCount: { type: string }
+CommunityPostPollChoice:
+  type: object
+  required: [text]
+  properties:
+    text: { type: string }
+    imageUrl: { type: string, nullable: true }
+CommunityPostVideo:
+  type: object
+  required: [url, title, thumbnailUrl]
+  properties:
+    url: { type: string }
+    title: { type: string }
+    thumbnailUrl: { type: string }
 PodcastPageResponse:
   type: object
   required: [channelName, channelUrl, podcasts, episodes, nextpage]
@@ -185,6 +241,28 @@ CommentItem:
     uploaderVerified: { type: boolean }
     replyCount: { type: integer }
     repliesPage: { type: string, nullable: true }
+    image:
+      nullable: true
+      allOf: [{ $ref: '#/CommentImage' }]
+    voiceReply:
+      nullable: true
+      allOf: [{ $ref: '#/CommentVoiceReply' }]
+CommentImage:
+  type: object
+  required: [url, animated]
+  properties:
+    url: { type: string, nullable: true, description: Largest image variant. Null when YouTube explains why the image is missing. }
+    animated: { type: boolean, description: True for GIFs, often served as animated WebP. }
+    unavailableText: { type: string, nullable: true }
+CommentVoiceReply:
+  type: object
+  required: [url, durationMs, transcript, playable]
+  properties:
+    url: { type: string, description: Stable YouTube watch URL; resolve it through /streams to play it. }
+    durationMs: { type: integer, format: int64 }
+    transcript: { type: string }
+    playable: { type: boolean }
+    unavailableText: { type: string, nullable: true }
 CommentsPageResponse:
   type: object
   required: [comments, nextpage, commentsDisabled]

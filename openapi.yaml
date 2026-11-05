@@ -43,6 +43,7 @@ paths:
   /channel: { $ref: ./openapi/paths/channel.yaml#/Channel }
   /channel/page: { $ref: ./openapi/paths/channel.yaml#/ChannelPage }
   /channel/playlists: { $ref: ./openapi/paths/channel.yaml#/ChannelPlaylists }
+  /channel/posts: { $ref: ./openapi/paths/channel.yaml#/ChannelPosts }
   /podcasts: { $ref: ./openapi/paths/podcasts.yaml#/Podcasts }
   /podcasts/episodes: { $ref: ./openapi/paths/podcasts.yaml#/PodcastEpisodes }
   /favorites/status: { $ref: ./openapi/paths/favorites.yaml#/FavoriteStatus }
