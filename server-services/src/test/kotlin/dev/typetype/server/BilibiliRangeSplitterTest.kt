@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.services.BilibiliRangeSplitter
+import dev.typetype.server.services.ByteRange
 import dev.typetype.server.services.MAX_BILIBILI_SUBCHUNK_SIZE
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -84,6 +85,17 @@ class BilibiliRangeSplitterTest {
         ranges.forEach {
             assertTrue(it.length <= MAX_BILIBILI_SUBCHUNK_SIZE)
         }
+    }
+
+    @Test
+    fun `splitRange supports huge ranges lazily without heap exhaustion`() {
+        val start = 0L
+        val end = 100_000_000_000L - 1 // 100 GB
+        val ranges = BilibiliRangeSplitter.splitRange(start, end, MAX_BILIBILI_SUBCHUNK_SIZE)
+        assertEquals(100_000, ranges.size)
+        assertEquals(ByteRange(0, 999_999), ranges[0])
+        assertEquals(ByteRange(1_000_000, 1_999_999), ranges[1])
+        assertEquals(ByteRange(99_999_000_000L, 99_999_999_999L), ranges[99_999])
     }
 
     @Test

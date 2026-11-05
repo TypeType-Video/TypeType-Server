@@ -42,6 +42,7 @@ class BilibiliSubchunkInputStream(
     }
 
     private var currentIndex = 0
+    private var currentSubchunkBytesDelivered = 0L
     private var currentStream: InputStream? = RetryingProxyInputStream(
         execute = execute,
         request = baseRequest.newBuilder()
@@ -79,19 +80,33 @@ class BilibiliSubchunkInputStream(
 
         while (true) {
             checkActive()
-            val stream = currentStream ?: return -1
-            val readBytes = stream.read(bytes, offset, count)
+            val stream = currentStream ?: if (closed) throw IOException("Stream closed") else return -1
+            val readBytes = try {
+                stream.read(bytes, offset, count)
+            } catch (error: IOException) {
+                if (closed || Thread.currentThread().isInterrupted) throw error
+                recoverCurrentSubchunk(error)
+                continue
+            }
             if (readBytes > 0) {
+                currentSubchunkBytesDelivered += readBytes
                 return readBytes
             }
             if (readBytes == -1) {
                 stream.close()
                 currentStream = null
                 currentIndex++
+                currentSubchunkBytesDelivered = 0L
                 if (currentIndex >= subRanges.size) {
                     return -1
                 }
-                currentStream = obtainSubchunkStream(currentIndex)
+                currentStream = try {
+                    obtainSubchunkStream(currentIndex)
+                } catch (error: IOException) {
+                    if (closed || Thread.currentThread().isInterrupted) throw error
+                    recoverCurrentSubchunk(error)
+                    continue
+                }
                 if (enablePrefetch) {
                     triggerPrefetch(currentIndex + 1)
                 }
@@ -99,6 +114,26 @@ class BilibiliSubchunkInputStream(
             }
             return 0
         }
+    }
+
+    private fun recoverCurrentSubchunk(error: IOException) {
+        currentStream?.runCatching { close() }
+        currentStream = null
+        val fullRange = subRanges[currentIndex]
+        val remainingStart = fullRange.start + currentSubchunkBytesDelivered
+        if (remainingStart > fullRange.end) {
+            currentIndex++
+            currentSubchunkBytesDelivered = 0L
+            if (currentIndex < subRanges.size) {
+                currentStream = obtainSubchunkStream(currentIndex)
+                if (enablePrefetch) {
+                    triggerPrefetch(currentIndex + 1)
+                }
+            }
+            return
+        }
+        val remainingRange = ByteRange(remainingStart, fullRange.end)
+        currentStream = openRange(remainingRange, maxAttempts = 2)
     }
 
     private fun obtainSubchunkStream(index: Int): InputStream {
@@ -148,6 +183,7 @@ class BilibiliSubchunkInputStream(
                     }
                 } finally {
                     activePrefetchStream.compareAndSet(opened, null)
+                    releasePrefetchPermit()
                 }
                 ByteArrayInputStream(buffer.toByteArray())
             })
@@ -160,11 +196,19 @@ class BilibiliSubchunkInputStream(
     private fun openSubchunk(
         index: Int,
         trackForClose: AtomicReference<Closeable?>? = null,
+        maxAttempts: Int = attemptsPerChunk,
+    ): InputStream = openRange(subRanges[index], trackForClose, maxAttempts)
+
+    private fun openRange(
+        range: ByteRange,
+        trackForClose: AtomicReference<Closeable?>? = null,
+        maxAttempts: Int = attemptsPerChunk,
     ): InputStream {
-        val range = subRanges[index]
-        val mirrors = listOf(baseRequest.url.toString()) + alternateUrls
+        val mirrors = prioritizeUposMirrors(
+            (listOf(baseRequest.url.toString()) + alternateUrls).distinct()
+        )
         var lastError: IOException? = null
-        for (attempt in 1..attemptsPerChunk) {
+        for (attempt in 1..maxAttempts) {
             checkActive()
             if (closed || Thread.currentThread().isInterrupted) {
                 throw lastError ?: IOException("Interrupted while opening subchunk")
@@ -173,6 +217,7 @@ class BilibiliSubchunkInputStream(
             val currentRequest = baseRequest.newBuilder()
                 .url(currentUrl)
                 .header("Range", "bytes=${range.start}-${range.end}")
+                .removeHeader("If-Range")
                 .build()
             val openStarted = nanoTime()
             val response = try {
@@ -190,13 +235,12 @@ class BilibiliSubchunkInputStream(
                 continue
             }
             val openDurationNanos = (nanoTime() - openStarted).coerceAtLeast(0)
-            BilibiliMirrorSpeedTracker.recordSuccess(currentUrl, openDurationNanos / 1_000_000)
             val remainingMirrors = mirrors.filter { it != currentUrl }
             val stream = RetryingProxyInputStream(
                 execute = execute,
                 request = currentRequest,
                 initialResponse = response,
-                attemptsRemaining = attemptsPerChunk - attempt,
+                attemptsRemaining = maxAttempts - attempt,
                 checkActive = checkActive,
                 mirrorSwitcher = buildMirrorSwitcher(remainingMirrors),
                 initialOpenNanos = openDurationNanos,
@@ -213,7 +257,7 @@ class BilibiliSubchunkInputStream(
             }
             return stream
         }
-        throw lastError ?: IOException("Failed to open subchunk after $attemptsPerChunk attempts")
+        throw lastError ?: IOException("Failed to open subchunk after $maxAttempts attempts")
     }
 
     private fun buildMirrorSwitcher(otherMirrors: List<String>): BilibiliSlowMirrorSwitcher? =

@@ -173,6 +173,29 @@ class ProviderMediaHandleServiceTest {
 
         assertTrue(handled.videoOnlyStreams.single().url.startsWith("/media/m1_"))
     }
+
+    @Test
+    fun `bilibili media handles filter blacklisted akamai alternates and preserve up to 5 mirrors`() = runTest {
+        val service = ProviderMediaHandleService(
+            FakeCacheService(),
+            nowSeconds = { 1_000L },
+            isAkamaiBlacklisted = { true },
+            cdnRegion = { "overseas" },
+        )
+        val raw = "https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=9999999999"
+        val alternates = listOf(
+            "https://upos-hz-mirrorakam.akamaized.net/video.m4s?deadline=9999999999",
+            "https://upos-sz-mirroraliov.bilivideo.com/video.m4s?deadline=9999999999",
+        )
+
+        val path = service.createPath(raw, alternateUrls = alternates)
+        val target = service.resolve(path.removePrefix("/media/"))
+
+        assertTrue(target != null)
+        assertFalse(target!!.alternateUrls.any { it.contains("akamaized") })
+        assertTrue(target.alternateUrls.contains("https://upos-sz-mirroraliov.bilivideo.com/video.m4s?deadline=9999999999"))
+        assertTrue(target.alternateUrls.size in 2..5)
+    }
 }
 
 private class RecordingProviderCacheService : CacheService {

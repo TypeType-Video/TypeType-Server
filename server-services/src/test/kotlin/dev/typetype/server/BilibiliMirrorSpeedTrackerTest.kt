@@ -46,6 +46,25 @@ class BilibiliMirrorSpeedTrackerTest {
     }
 
     @Test
+    fun `unmeasured mirror is prioritized for exploration once primary mirror has a measurement`() {
+        val primary = "https://upos-sz-mirroraliov.bilivideo.com/v.m4s"
+        val runnerUp = "https://upos-sz-mirrorcosov.bilivideo.com/v.m4s"
+
+        // Initially before any probe, staticIndex tie-breaker orders primary ahead of runner-up
+        assertEquals(listOf(primary, runnerUp), BilibiliMirrorSpeedTracker.prioritize(listOf(primary, runnerUp), "overseas"))
+
+        // Primary completes first sample
+        BilibiliMirrorSpeedTracker.recordSuccess(primary, 250)
+
+        // Runner-up has 0 samples (score = 1.0 < 250.0), so runner-up is prioritized to be probed
+        assertEquals(listOf(runnerUp, primary), BilibiliMirrorSpeedTracker.prioritize(listOf(primary, runnerUp), "overseas"))
+
+        // Runner-up finishes measurement and is faster (180ms < 250ms)
+        BilibiliMirrorSpeedTracker.recordSuccess(runnerUp, 180)
+        assertEquals(listOf(runnerUp, primary), BilibiliMirrorSpeedTracker.prioritize(listOf(primary, runnerUp), "overseas"))
+    }
+
+    @Test
     fun `penalizes failing mirror so healthy mirrors take precedence`() {
         val failingMirror = "https://upos-sz-mirroraliov.bilivideo.com/video.m4s"
         val fallbackMirror = "https://upos-sz-mirrorcosov.bilivideo.com/video.m4s"
@@ -72,6 +91,14 @@ class BilibiliMirrorSpeedTrackerTest {
             ),
             alternates.map { it.substringAfter("://").substringBefore('/') },
         )
+    }
+
+    @Test
+    fun `prioritizes overseas mirrors ahead of edge staging upos host`() {
+        val estg = "https://upos-sz-estgcos.bilivideo.com/v.m4s"
+        val overseas = "https://upos-sz-mirroraliov.bilivideo.com/v.m4s"
+        val prioritized = BilibiliMirrorSpeedTracker.prioritize(listOf(estg, overseas), "overseas")
+        assertEquals(listOf(overseas, estg), prioritized)
     }
 
     @Test

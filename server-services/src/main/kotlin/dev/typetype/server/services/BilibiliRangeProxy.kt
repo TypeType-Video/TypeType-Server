@@ -61,7 +61,7 @@ fun readBilibiliRangeWithRetry(
         val parsedRange = BilibiliRangeSplitter.parseRange(request.header("Range"))
         val start = parsedRange?.first
         val end = parsedRange?.second
-        if (start != null && end != null && start <= end && (end - start + 1) > MAX_BILIBILI_SUBCHUNK_SIZE) {
+        if (start != null && (end == null || (start <= end && (end - start + 1) > MAX_BILIBILI_SUBCHUNK_SIZE))) {
             return readBilibiliSubchunkedRange(
                 execute = execute,
                 request = request,
@@ -94,7 +94,7 @@ private fun readBilibiliSubchunkedRange(
     execute: (Request) -> Response,
     request: Request,
     start: Long,
-    end: Long,
+    end: Long?,
     checkActive: () -> Unit,
     mirrors: List<String>,
     mirrorExecute: ((Request) -> Response)? = null,
@@ -103,8 +103,8 @@ private fun readBilibiliSubchunkedRange(
     nanoTime: () -> Long = System::nanoTime,
     enablePrefetch: Boolean = BilibiliCdnConfig.isPrefetchEnabled(),
 ): ExtractionResult<ProxyResponse> {
-    val subRanges = BilibiliRangeSplitter.splitRange(start, end, MAX_BILIBILI_SUBCHUNK_SIZE)
-    val firstRange = subRanges[0]
+    val firstEnd = if (end != null) minOf(end, start + MAX_BILIBILI_SUBCHUNK_SIZE - 1) else (start + MAX_BILIBILI_SUBCHUNK_SIZE - 1)
+    val firstRange = ByteRange(start, firstEnd)
 
     var lastMessage = "Proxy fetch failed"
     for (attempt in 1..BILIBILI_RANGE_ATTEMPTS) {
@@ -157,10 +157,12 @@ private fun readBilibiliSubchunkedRange(
         }
 
         val totalLength = BilibiliRangeSplitter.parseContentRangeTotal(response.header("Content-Range"))
-        val effectiveEnd = if (totalLength != null && totalLength > start) {
-            minOf(end, totalLength - 1)
-        } else {
-            end
+        val effectiveEnd = when {
+            totalLength != null && totalLength > start -> {
+                if (end != null) minOf(end, totalLength - 1) else (totalLength - 1)
+            }
+            end != null -> end
+            else -> firstEnd
         }
         val effectiveSubRanges = BilibiliRangeSplitter.splitRange(start, effectiveEnd, MAX_BILIBILI_SUBCHUNK_SIZE)
         val totalPart = totalLength?.toString() ?: "*"

@@ -16,9 +16,15 @@ import okio.buffer
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import dev.typetype.server.services.BilibiliMirrorSpeedTracker
 
 class BilibiliSlowMirrorSwitcherTest {
+    @BeforeEach
+    fun setUp() {
+        BilibiliMirrorSpeedTracker.reset()
+    }
     @Test
     fun slowRangeResumesFromAlternateWithoutDuplicatingBytes() {
         val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
@@ -101,6 +107,191 @@ class BilibiliSlowMirrorSwitcherTest {
         assertEquals(1, alternateRequests)
         assertTrue(alternateBody.closed)
         assertTrue(primaryBody.closed)
+    }
+
+    @Test
+    fun crossHostAlternateSwitchesWhenIfRangeIsRejectedWith200() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        var alternateRequests = 0
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                alternateRequests++
+                if (alternateRequest.header("If-Range") != null) {
+                    Response.Builder()
+                        .request(alternateRequest)
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .header("Content-Type", "video/mp4")
+                        .header("Content-Length", bytes.size.toString())
+                        .body(ByteArrayResponseBody(bytes))
+                        .build()
+                } else {
+                    partialResponse(
+                        alternateRequest,
+                        alternateBody,
+                        "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                        etag = "\"b135cc99b67a058ee5bfa7194793fcfb-1\"",
+                    )
+                }
+            },
+            nanoTime = clock::now,
+            etag = "\"f99c7a509476574e95a059a4cea95123\"",
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(2, alternateRequests)
+        assertTrue(primaryBody.closed)
+        assertTrue(alternateBody.closed)
+    }
+
+    @Test
+    fun caseInsensitiveValidatorMatchesAcrossMirrors() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        var alternateRequests = 0
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                alternateRequests++
+                partialResponse(
+                    alternateRequest,
+                    alternateBody,
+                    "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                    etag = "\"F99C7A509476574E95A059A4CEA95123\"",
+                )
+            },
+            nanoTime = clock::now,
+            etag = "\"f99c7a509476574e95a059a4cea95123\"",
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(1, alternateRequests)
+        assertTrue(primaryBody.closed)
+        assertTrue(alternateBody.closed)
+    }
+
+    @Test
+    fun multipartEtagMatchesAcrossDifferentMultipartMirrors() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        var alternateRequests = 0
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                alternateRequests++
+                partialResponse(
+                    alternateRequest,
+                    alternateBody,
+                    "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                    etag = "\"b135cc99b67a058ee5bfa7194793fcfb-2\"",
+                )
+            },
+            nanoTime = clock::now,
+            etag = "\"a246dd88c56b058ee5bfa7194793fcfa-4\"",
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(1, alternateRequests)
+        assertTrue(primaryBody.closed)
+        assertTrue(alternateBody.closed)
+    }
+
+    @Test
+    fun probesAlternateMirrorsInSequenceWhenFirstFails() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        val failedMirror = "https://upos-sz-mirrorfailed.bilivideo.com/video.m4s"
+        val requestedUrls = mutableListOf<String>()
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(failedMirror, ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                val url = alternateRequest.url.toString()
+                requestedUrls += url
+                if (url.contains("failed")) {
+                    throw java.io.IOException("failed mirror")
+                }
+                partialResponse(
+                    alternateRequest,
+                    alternateBody,
+                    "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                )
+            },
+            nanoTime = clock::now,
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(listOf(failedMirror, ALTERNATE_URL), requestedUrls)
     }
 
     @Test

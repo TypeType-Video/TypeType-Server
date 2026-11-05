@@ -34,6 +34,8 @@ data class ProviderMediaTarget(
 class ProviderMediaHandleService(
     private val cache: CacheService,
     private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1000 },
+    private val isAkamaiBlacklisted: () -> Boolean = { BilibiliAkamaiConfig.isAkamaiBlacklisted() },
+    private val cdnRegion: () -> String? = { BilibiliCdnConfig.defaultRegion() },
 ) {
     private val writeLimiter = Semaphore(MAX_CONCURRENT_CACHE_WRITES)
     private val inFlightWrites = ConcurrentHashMap<String, CompletableDeferred<String>>()
@@ -62,7 +64,14 @@ class ProviderMediaHandleService(
         val (target, resolvedBid) = normalizeUpstream(rawUrl, domandBid)
         val normalizedUrl = stripTrackingParams(target.url.toString())
         val normalizedAlternates = if (target.provider == ProxyProvider.BILIBILI) {
-            (alternateUrls + bilibiliUposMirrorAlternates(normalizedUrl)).asSequence().mapNotNull { alternate ->
+            val akamaiBlocked = isAkamaiBlacklisted()
+            val region = cdnRegion()
+            val rawCandidates = if (akamaiBlocked) {
+                alternateUrls.filterNot(BilibiliAkamaiConfig::isAkamaiUrl)
+            } else {
+                alternateUrls
+            } + bilibiliUposMirrorAlternates(normalizedUrl, akamaiBlocked, region)
+            rawCandidates.asSequence().mapNotNull { alternate ->
                 runCatching {
                     val candidate = requireProxyTarget(stripTrackingParams(alternate))
                     if (candidate.provider != ProxyProvider.BILIBILI ||
@@ -199,7 +208,7 @@ class ProviderMediaHandleService(
         const val MAX_TTL_SECONDS = 3_600L
         const val EXPIRY_SAFETY_SECONDS = 30L
         const val MAX_CONCURRENT_CACHE_WRITES = 32
-        const val MAX_ALTERNATE_URLS = 2
+        const val MAX_ALTERNATE_URLS = 5
         val EXPIRY_PATTERN = Regex("(?:^|[?&#=])(?:deadline|Expires|exp)=(\\d+)", RegexOption.IGNORE_CASE)
 
         fun cacheKey(handle: String): String = "provider-media:v1:$handle"

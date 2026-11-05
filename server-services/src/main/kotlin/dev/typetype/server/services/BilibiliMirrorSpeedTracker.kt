@@ -9,6 +9,7 @@ object BilibiliMirrorSpeedTracker {
         var sampleCount: Int = 0,
         var consecutiveFailures: Int = 0,
         var lastFailureEpochMs: Long = 0L,
+        var lastSampleEpochMs: Long = 0L,
         var bytesPerSecond: Double = 0.0,
         var lastThroughputEpochMs: Long = 0L,
         var lastLatencyEpochMs: Long = 0L,
@@ -17,6 +18,7 @@ object BilibiliMirrorSpeedTracker {
     private val stats = ConcurrentHashMap<String, HostStats>()
     private const val PENALTY_DURATION_MS = 120_000L
     private const val PENALTY_SCORE = 15_000.0
+    private const val STALE_SAMPLE_DURATION_MS = 90_000L
     private const val THROUGHPUT_LIFETIME_MS = 30 * 60_000L
     private const val TYPICAL_SEGMENT_BYTES = 512.0 * 1024
     private const val UNKNOWN_LATENCY_MS = 600.0
@@ -27,6 +29,7 @@ object BilibiliMirrorSpeedTracker {
         val current = stats.computeIfAbsent(host) { HostStats() }
         synchronized(current) {
             current.consecutiveFailures = 0
+            current.lastSampleEpochMs = nowMs
             current.lastLatencyEpochMs = nowMs
             val sample = latencyMs.toDouble().coerceAtLeast(1.0)
             current.smoothedLatencyMs = if (current.sampleCount == 0) {
@@ -70,12 +73,12 @@ object BilibiliMirrorSpeedTracker {
         }
     }
 
-    fun recordFailure(urlOrHost: String) {
+    fun recordFailure(urlOrHost: String, nowMs: Long = System.currentTimeMillis()) {
         val host = extractHost(urlOrHost) ?: return
         val current = stats.computeIfAbsent(host) { HostStats() }
         synchronized(current) {
             current.consecutiveFailures++
-            current.lastFailureEpochMs = System.currentTimeMillis()
+            current.lastFailureEpochMs = nowMs
         }
     }
 
@@ -94,18 +97,18 @@ object BilibiliMirrorSpeedTracker {
             else -> 0.0
         }
 
-    fun score(urlOrHost: String, region: String? = null): Double {
+    fun score(urlOrHost: String, region: String? = null, nowMs: Long = System.currentTimeMillis()): Double {
         val host = extractHost(urlOrHost) ?: return Double.MAX_VALUE
         val bucketOffset = regionBucketOffset(host, region)
         val current = stats[host]
-        val staticIndex = ALL_UPOS_MIRROR_HOSTS.indexOf(host).toDouble() * 100.0
+        val staticIndex = ALL_UPOS_MIRROR_HOSTS.indexOf(host).let { if (it >= 0) it.toDouble() * 1.0 else 5_000.0 }
         if (current == null) return bucketOffset + staticIndex
 
         synchronized(current) {
-            val now = System.currentTimeMillis()
-            val inPenalty = (now - current.lastFailureEpochMs) < PENALTY_DURATION_MS && current.consecutiveFailures > 0
+            val inPenalty = (nowMs - current.lastFailureEpochMs) < PENALTY_DURATION_MS && current.consecutiveFailures > 0
             val penalty = if (inPenalty) PENALTY_SCORE * current.consecutiveFailures else 0.0
-            return bucketOffset + if (current.sampleCount > 0) {
+            val isStale = (nowMs - current.lastSampleEpochMs) > STALE_SAMPLE_DURATION_MS
+            return bucketOffset + if (current.sampleCount > 0 && !isStale) {
                 current.smoothedLatencyMs + penalty
             } else {
                 staticIndex + penalty
@@ -124,6 +127,6 @@ object BilibiliMirrorSpeedTracker {
 
     private fun extractHost(urlOrHost: String): String? {
         val host = if (urlOrHost.contains("://")) urlOrHost.toHttpUrlOrNull()?.host else urlOrHost
-        return host?.lowercase()?.takeIf { it in ALL_UPOS_MIRROR_HOSTS }
+        return host?.lowercase()?.takeIf { isUposHost(it) }
     }
 }

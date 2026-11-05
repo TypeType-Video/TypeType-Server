@@ -1,5 +1,7 @@
 package dev.typetype.server.services
 
+import java.util.AbstractList
+
 const val MAX_BILIBILI_SUBCHUNK_SIZE = 1_000_000L
 
 data class ByteRange(val start: Long, val end: Long) {
@@ -32,14 +34,17 @@ object BilibiliRangeSplitter {
         require(start <= end) { "start ($start) must be <= end ($end)" }
         require(maxChunkSize > 0) { "maxChunkSize ($maxChunkSize) must be positive" }
 
-        val ranges = mutableListOf<ByteRange>()
-        var current = start
-        while (current <= end) {
-            val chunkEnd = minOf(current + maxChunkSize - 1, end)
-            ranges.add(ByteRange(current, chunkEnd))
-            current = chunkEnd + 1
+        val totalBytes = end - start + 1
+        val count = ((totalBytes + maxChunkSize - 1) / maxChunkSize).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        return object : AbstractList<ByteRange>() {
+            override val size: Int = count
+            override fun get(index: Int): ByteRange {
+                if (index !in 0 until count) throw IndexOutOfBoundsException("Index $index out of bounds $count")
+                val chunkStart = start + index.toLong() * maxChunkSize
+                val chunkEnd = minOf(chunkStart + maxChunkSize - 1, end)
+                return ByteRange(chunkStart, chunkEnd)
+            }
         }
-        return ranges
     }
 
     fun parseContentRangeTotal(contentRange: String?): Long? {
