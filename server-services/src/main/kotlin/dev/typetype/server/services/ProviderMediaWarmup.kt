@@ -65,6 +65,7 @@ class ProviderMediaWarmup(
     }
 
     fun prefetchSegment(target: ProviderMediaTarget, range: LongRange): Job? {
+        if (permits.availablePermits == 0) return null
         val key = ProviderMediaStartupCache.segmentKey(target.url, range.first)
         val claim = cache.begin(key) ?: return null
         return scope.launch {
