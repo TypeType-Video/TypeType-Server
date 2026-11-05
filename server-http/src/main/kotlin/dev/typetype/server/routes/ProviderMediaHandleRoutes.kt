@@ -33,10 +33,11 @@ internal fun Route.providerMediaHandleRoutes(
         )
         readAhead?.onServed(target, rangeHeader)
         if (startupCache != null) {
-            startupCache.awaitFor(target.url, rangeHeader)
-            startupCache.respond(target.url, rangeHeader)?.let {
-                return@get call.respondProxyResult(ExtractionResult.Success(it))
+            val cached = startupCache.respond(target.url, rangeHeader) ?: run {
+                startupCache.awaitFor(target.url, rangeHeader)
+                startupCache.respond(target.url, rangeHeader)
             }
+            cached?.let { return@get call.respondProxyResult(ExtractionResult.Success(it)) }
         }
 
         val result = if (proxyService is ProviderMediaAwareProxyService) {

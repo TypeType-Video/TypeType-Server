@@ -75,6 +75,30 @@ class ProviderMediaHandleRoutesTest {
     }
 
     @Test
+    fun `cached bytes are served at once while the entry is being extended`() = runTest {
+        val service = ProviderMediaHandleService(FakeCacheService())
+        val path = service.createPath("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=9999999999")
+        val target = requireNotNull(service.resolve(path.substringAfterLast('/')))
+        val startupCache = ProviderMediaStartupCache()
+        startupCache.put(
+            target.url,
+            ProviderMediaStartupCache.Entry(ByteArray(2_000), 9_000L, "video/mp4", complete = false),
+        )
+        requireNotNull(startupCache.begin(target.url, extending = true))
+
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                routing { providerMediaHandleRoutes(service, proxyService, startupCache) }
+            }
+            val started = System.nanoTime()
+            val response = client.get(path) { header("Range", "bytes=1000-1999") }
+            assertEquals(HttpStatusCode.PartialContent, response.status)
+            assertTrue(System.nanoTime() - started < 2_000_000_000L)
+        }
+    }
+
+    @Test
     fun `expired or unknown handles return not found`() = testApplication {
         val service = ProviderMediaHandleService(FakeCacheService())
         application {
