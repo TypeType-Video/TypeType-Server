@@ -3,9 +3,11 @@ package dev.typetype.server.services
 import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
+import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -39,6 +41,7 @@ class PipePipeStreamService(
     private val bilibiliRelatedService: BilibiliRelatedService,
     private val sabrInfoSink: ((String, YoutubeSabrInfo) -> Unit)? = null,
     private val fetchSupplementalSubtitles: Boolean = true,
+    private val earlyMediaWarmup: ((ProviderMediaType, List<VideoStreamItem>, List<AudioStreamItem>) -> Unit)? = null,
 ) : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
@@ -54,6 +57,7 @@ class PipePipeStreamService(
                     playbackTracePhase("extractor_fetch_page") {
                         withTimeout(30_000L) { runPipePipeCall { extractor.fetchPage() } }
                     }
+                    startEarlyMediaWarmup(service.serviceId, extractor)
                     coroutineScope {
                         val streamInfoDeferred = async {
                             playbackTracePhase("stream_info") {
@@ -108,6 +112,23 @@ class PipePipeStreamService(
                 onFailure = { StreamExtractionErrorMapper.map(it, sourceUrl = url) }
             )
         }
+
+    private fun startEarlyMediaWarmup(serviceId: Int, extractor: StreamExtractor) {
+        val warmup = earlyMediaWarmup ?: return
+        val provider = when (serviceId) {
+            BILIBILI_SERVICE_ID -> ProviderMediaType.BILIBILI
+            NICONICO_SERVICE_ID -> ProviderMediaType.NICONICO
+            else -> return
+        }
+        runCatching {
+            val id = extractor.id
+            warmup(
+                provider,
+                extractor.videoOnlyStreams.map { it.toVideoStreamItem(id, isVideoOnly = true) },
+                extractor.audioStreams.map { it.toAudioStreamItem(id) },
+            )
+        }
+    }
 
     private fun rememberSabrInfo(streamInfo: StreamInfo): Unit {
         val sink = sabrInfoSink ?: return

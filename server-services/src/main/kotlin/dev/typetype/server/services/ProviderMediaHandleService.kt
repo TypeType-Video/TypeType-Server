@@ -59,13 +59,7 @@ class ProviderMediaHandleService(
         domandBid: String? = null,
         alternateUrls: List<String> = emptyList(),
     ): String {
-        val (cleanUrl, fragment) = rawUrl.splitFragment()
-        val resolvedBid = domandBid?.takeIf { it.isNotBlank() }
-            ?: fragment.takeIf { it.isNotBlank() }?.let(::parseNicoCookie)
-        val target = requireProxyTarget(stripTrackingParams(cleanUrl))
-        require(target.provider == ProxyProvider.BILIBILI || target.provider == ProxyProvider.NICONICO) {
-            "Unsupported provider media URL"
-        }
+        val (target, resolvedBid) = normalizeUpstream(rawUrl, domandBid)
         val normalizedUrl = stripTrackingParams(target.url.toString())
         val normalizedAlternates = if (target.provider == ProxyProvider.BILIBILI) {
             (alternateUrls + bilibiliUposMirrorAlternates(normalizedUrl)).asSequence().mapNotNull { alternate ->
@@ -98,6 +92,24 @@ class ProviderMediaHandleService(
         } finally {
             inFlightWrites.remove(key, pending)
         }
+    }
+
+    fun upstreamTarget(rawUrl: String): ProviderMediaTarget? = runCatching {
+        val (target, bid) = normalizeUpstream(rawUrl, null)
+        val url = stripTrackingParams(target.url.toString())
+        val alternates = if (target.provider == ProxyProvider.BILIBILI) bilibiliUposMirrorAlternates(url) else emptyList()
+        ProviderMediaTarget(url, bid, alternates.filter { it != url }.take(MAX_ALTERNATE_URLS))
+    }.getOrNull()
+
+    private fun normalizeUpstream(rawUrl: String, domandBid: String?): Pair<ProxyTarget, String?> {
+        val (cleanUrl, fragment) = rawUrl.splitFragment()
+        val resolvedBid = domandBid?.takeIf { it.isNotBlank() }
+            ?: fragment.takeIf { it.isNotBlank() }?.let(::parseNicoCookie)
+        val target = requireProxyTarget(stripTrackingParams(cleanUrl))
+        require(target.provider == ProxyProvider.BILIBILI || target.provider == ProxyProvider.NICONICO) {
+            "Unsupported provider media URL"
+        }
+        return target to resolvedBid
     }
 
     suspend fun resolve(handle: String): ProviderMediaTarget? {

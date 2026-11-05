@@ -20,12 +20,6 @@ internal fun Route.providerMediaHandleRoutes(
         val handle = call.parameters["handle"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing media handle"))
         val rangeHeader = call.request.headers["Range"]
-        if (startupCache != null) {
-            startupCache.awaitPending(handle)
-            startupCache.respond(handle, rangeHeader)?.let {
-                return@get call.respondProxyResult(ExtractionResult.Success(it))
-            }
-        }
         val target = runCatching { handleService.resolve(handle) }.getOrElse {
             return@get call.respond(
                 HttpStatusCode.ServiceUnavailable,
@@ -35,6 +29,12 @@ internal fun Route.providerMediaHandleRoutes(
             HttpStatusCode.NotFound,
             ErrorResponse("Media handle has expired or is unknown", "media_handle_not_found"),
         )
+        if (startupCache != null) {
+            startupCache.awaitPending(target.url)
+            startupCache.respond(target.url, rangeHeader)?.let {
+                return@get call.respondProxyResult(ExtractionResult.Success(it))
+            }
+        }
 
         val result = if (proxyService is ProviderMediaAwareProxyService) {
             proxyService.pipeProviderMediaWithAlternates(

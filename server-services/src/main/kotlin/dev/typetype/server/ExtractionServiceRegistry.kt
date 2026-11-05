@@ -102,6 +102,7 @@ internal class ExtractionServiceRegistry(
         cache,
         youtubeSubtitleService,
         bilibiliRelatedService,
+        earlyMediaWarmup = { provider, video, audio -> providerMediaWarmup.warm(provider, video, audio) },
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,

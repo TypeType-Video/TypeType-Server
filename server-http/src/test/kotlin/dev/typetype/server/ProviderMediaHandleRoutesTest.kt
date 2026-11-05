@@ -54,8 +54,9 @@ class ProviderMediaHandleRoutesTest {
         val service = ProviderMediaHandleService(FakeCacheService())
         val path = service.createPath("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=9999999999")
         val startupCache = ProviderMediaStartupCache()
+        val target = requireNotNull(service.resolve(path.substringAfterLast('/')))
         startupCache.put(
-            path.substringAfterLast('/'),
+            target.url,
             ProviderMediaStartupCache.Entry(byteArrayOf(1, 2, 3, 4, 5, 6), 9_000L, "video/mp4", complete = false),
         )
 

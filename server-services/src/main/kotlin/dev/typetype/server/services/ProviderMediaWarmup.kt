@@ -1,7 +1,9 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
+import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.nio.charset.StandardCharsets
 
 class ProviderMediaWarmup(
@@ -23,37 +26,74 @@ class ProviderMediaWarmup(
     private val cache: ProviderMediaStartupCache,
     private val scope: CoroutineScope,
 ) {
+    private class Media(val url: String, val indexEnd: Long, val startsPlayback: Boolean)
+
     private val permits = Semaphore(MAX_PARALLEL_FETCHES)
 
     fun warm(response: StreamResponse, provider: ProviderMediaType): Job =
+        warm(provider, response.videoOnlyStreams + response.videoStreams, response.audioStreams)
+
+    fun warm(provider: ProviderMediaType, video: List<VideoStreamItem>, audio: List<AudioStreamItem>): Job =
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
-                when (provider) {
-                    ProviderMediaType.BILIBILI -> warmDash(response)
-                    ProviderMediaType.NICONICO -> handleOf(response.hlsUrl)?.let { warmHls(it) }
+                val lowest = video.minByOrNull { it.bitrate ?: Int.MAX_VALUE }?.url
+                val media = video.map { Media(it.url, it.indexEnd, it.url == lowest) } +
+                    audio.map { Media(it.url, it.indexEnd, startsPlayback = true) }
+                coroutineScope {
+                    media.map { item ->
+                        async {
+                            val target = targetOf(item.url) ?: return@async
+                            when (provider) {
+                                ProviderMediaType.BILIBILI -> warmDash(target, item.indexEnd)
+                                ProviderMediaType.NICONICO -> warmHlsMedia(target, item.startsPlayback)
+                            }
+                        }
+                    }.awaitAll()
                 }
             }
         }
 
-    suspend fun prefetch(handle: String, rangeHeader: String?, limit: Int): ByteArray? {
-        cache.get(handle)?.let { return it.bytes }
-        val claim = cache.begin(handle) ?: run {
-            cache.awaitPending(handle)
-            return cache.get(handle)?.bytes
+    suspend fun prefetch(target: ProviderMediaTarget, rangeHeader: String?, limit: Int): ByteArray? {
+        cache.get(target.url)?.let { return it.bytes }
+        val claim = cache.begin(target.url) ?: run {
+            cache.awaitPending(target.url)
+            return cache.get(target.url)?.bytes
         }
         return try {
-            permits.withPermit { fetch(handle, rangeHeader, limit) }
+            permits.withPermit { fetch(target, rangeHeader, limit) }
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
             null
         } finally {
-            cache.finish(handle, claim)
+            cache.finish(target.url, claim)
         }
     }
 
-    private suspend fun fetch(handle: String, rangeHeader: String?, limit: Int): ByteArray? {
-        val target = handleService.resolve(handle) ?: return null
+    private suspend fun warmDash(target: ProviderMediaTarget, indexEnd: Long) {
+        if (indexEnd <= 0 || indexEnd >= MAX_DASH_HEADER_BYTES) return
+        prefetch(target, "bytes=0-$indexEnd", MAX_DASH_HEADER_BYTES)
+    }
+
+    private suspend fun warmHlsMedia(target: ProviderMediaTarget, startsPlayback: Boolean) {
+        val playlist = prefetch(target, null, MAX_PLAYLIST_BYTES)?.toString(StandardCharsets.UTF_8) ?: return
+        val media = HlsWarmupPlan.fromMediaPlaylist(playlist)
+        media.headers.forEach { header -> targetOf(header)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } }
+        if (startsPlayback) {
+            media.firstSegment?.let { targetOf(it) }?.let { prefetch(it, null, MAX_SEGMENT_BYTES) }
+        }
+    }
+
+    private suspend fun targetOf(reference: String): ProviderMediaTarget? {
+        val handle = reference.substringBefore('?').substringAfterLast('/')
+        return if (isProviderMediaHandle(handle)) {
+            runCatching { handleService.resolve(handle) }.getOrNull()
+        } else {
+            handleService.upstreamTarget(reference)
+        }
+    }
+
+    private suspend fun fetch(target: ProviderMediaTarget, rangeHeader: String?, limit: Int): ByteArray? {
         val result = proxyService.pipeProviderMediaWithAlternates(
             target.url,
             rangeHeader,
@@ -68,43 +108,14 @@ class ProviderMediaWarmup(
             val total = proxy.contentRange?.substringAfterLast('/')?.toLongOrNull()
                 ?: proxy.contentLength.takeIf { rangeHeader == null }
             val complete = rangeHeader == null || (total != null && bytes.size.toLong() == total)
-            cache.put(handle, ProviderMediaStartupCache.Entry(bytes, total, proxy.contentType, complete))
+            cache.put(target.url, ProviderMediaStartupCache.Entry(bytes, total, proxy.contentType, complete))
             return bytes
         } finally {
             proxy.close()
         }
     }
 
-    private suspend fun warmDash(response: StreamResponse) = coroutineScope {
-        val ranges = response.videoOnlyStreams.map { it.url to it.indexEnd } +
-            response.videoStreams.map { it.url to it.indexEnd } +
-            response.audioStreams.map { it.url to it.indexEnd }
-        ranges.mapNotNull { (url, indexEnd) ->
-            val handle = handleOf(url) ?: return@mapNotNull null
-            if (indexEnd <= 0 || indexEnd >= MAX_DASH_HEADER_BYTES) return@mapNotNull null
-            async { prefetch(handle, "bytes=0-$indexEnd", MAX_DASH_HEADER_BYTES) }
-        }.awaitAll()
-    }
-
-    private suspend fun warmHls(masterHandle: String) {
-        val master = prefetch(masterHandle, null, MAX_PLAYLIST_BYTES)?.toString(StandardCharsets.UTF_8) ?: return
-        coroutineScope {
-            HlsWarmupPlan.fromMaster(master).map { child ->
-                async {
-                    val playlist = prefetch(child.handle, null, MAX_PLAYLIST_BYTES)
-                        ?.toString(StandardCharsets.UTF_8) ?: return@async
-                    val media = HlsWarmupPlan.fromMediaPlaylist(playlist)
-                    media.headers.forEach { prefetch(it, null, MAX_SEGMENT_BYTES) }
-                    if (child.startsPlayback) media.firstSegment?.let { prefetch(it, null, MAX_SEGMENT_BYTES) }
-                }
-            }.awaitAll()
-        }
-    }
-
-    private fun handleOf(url: String): String? =
-        url.substringAfterLast("/media/", "").takeIf(::isProviderMediaHandle)
-
-    private fun readAtMost(stream: java.io.InputStream, limit: Int): ByteArray? {
+    private fun readAtMost(stream: InputStream, limit: Int): ByteArray? {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(16 * 1024)
         while (true) {
