@@ -21,20 +21,18 @@ fun StreamResponse.streamCacheTtlSeconds(nowEpochSeconds: Long = System.currentT
 
 private fun StreamResponse.signedStreamTtlSeconds(nowEpochSeconds: Long): Long {
     val urls = signedMediaUrls().toList()
+    val providerSigned = urls.any { it.isSignedProviderUrl() }
+    val metadataTtl = stableMetadataTtlSeconds(providerSigned)
+    val providerCap = if (providerSigned) SIGNED_PROVIDER_STREAM_MAX_TTL_SECONDS else Long.MAX_VALUE
     val deadline = urls.mapNotNull { it.mediaExpiryEpochSeconds() }.minOrNull()
-        ?: return stableMetadataTtlSeconds()
+        ?: return minOf(metadataTtl, providerCap)
     val ttl = deadline - nowEpochSeconds - SIGNED_STREAM_DEADLINE_SAFETY_SECONDS
     if (ttl < MIN_CACHEABLE_STREAM_TTL_SECONDS) return 0L
-    val providerCap = if (urls.any { it.isSignedProviderUrl() }) {
-        SIGNED_PROVIDER_STREAM_MAX_TTL_SECONDS
-    } else {
-        Long.MAX_VALUE
-    }
-    return minOf(ttl, providerCap, stableMetadataTtlSeconds())
+    return minOf(ttl, providerCap, metadataTtl)
 }
 
-private fun StreamResponse.stableMetadataTtlSeconds(): Long =
-    if (dislikeCount < 0L) DISLIKE_UNAVAILABLE_STREAM_TTL_SECONDS else DEFAULT_STREAM_TTL_SECONDS
+private fun StreamResponse.stableMetadataTtlSeconds(providerSigned: Boolean): Long =
+    if (dislikeCount < 0L && !providerSigned) DISLIKE_UNAVAILABLE_STREAM_TTL_SECONDS else DEFAULT_STREAM_TTL_SECONDS
 
 private fun StreamResponse.signedMediaUrls(): Sequence<String> = sequence {
     yield(hlsUrl)

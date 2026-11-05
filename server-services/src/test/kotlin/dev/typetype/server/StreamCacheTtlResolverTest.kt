@@ -36,6 +36,14 @@ class StreamCacheTtlResolverTest {
     }
 
     @Test
+    fun `Bilibili and NicoNico keep their signed link lifetime without dislikes`() {
+        val bilibili = response("https://upos-sz-mirrorcos.bilivideo.com/v.m4s?deadline=4000", dislikeCount = -1L)
+        val niconico = response("https://delivery.domand.nicovideo.jp/v.m3u8?Expires=4000", dislikeCount = -1L)
+        assertEquals(2_700L, bilibili.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+        assertEquals(2_700L, niconico.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
     fun `live content urls are not cached across clients`() {
         val response = response(
             "https://example.com/video.mp4",
