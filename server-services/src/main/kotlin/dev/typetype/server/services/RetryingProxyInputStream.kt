@@ -38,6 +38,7 @@ class RetryingProxyInputStream(
     private var resumes = 0
     private val tail = DeliveredTail(RESUME_OVERLAP_BYTES)
     private var closed = false
+    private var eofReached = false
     private val singleByte = ByteArray(1)
 
     override fun read(): Int = if (read(singleByte, 0, 1) == -1) -1 else singleByte[0].toInt() and 0xff
@@ -46,7 +47,10 @@ class RetryingProxyInputStream(
         Objects.checkFromIndexSize(offset, count, bytes.size)
         checkOpen()
         if (count == 0) return 0
-        if (length >= 0 && delivered == length) return -1
+        if (length >= 0 && delivered == length) {
+            eofReached = true
+            return -1
+        }
         while (true) {
             mirrorSwitcher?.maybeSwitch(request, response, delivered, upstreamWaitNanos)?.let { switched ->
                 val previous = response
@@ -63,7 +67,11 @@ class RetryingProxyInputStream(
                     val elapsed = (nanoTime() - started).coerceAtLeast(0)
                     upstreamWaitNanos = (upstreamWaitNanos + elapsed).coerceAtLeast(upstreamWaitNanos)
                 }
-                if (read < 0 && length >= 0 && delivered < length) throw EOFException("Incomplete proxy body")
+                if (read < 0) {
+                    if (length >= 0 && delivered < length) throw EOFException("Incomplete proxy body")
+                    eofReached = true
+                    return -1
+                }
                 if (read > 0) {
                     digest?.update(bytes, offset, read)
                     tail.record(bytes, offset, read)
@@ -99,8 +107,11 @@ class RetryingProxyInputStream(
                     candidate = null
                     return
                 }
+                val sameHost = sent.url.host == request.url.host
+                val etagMatches = !sameHost || opened.header("ETag").equals(headers["ETag"], ignoreCase = true)
                 if (opened.code != status || opened.body.contentLength() != length ||
-                    headers.any { (name, value) -> opened.header(name) != value }
+                    !etagMatches ||
+                    headers.filterKeys { it != "ETag" }.any { (name, value) -> opened.header(name) != value }
                 ) throw ChangedProxyBodyException()
                 val nextSource = candidate.body.byteStream()
                 val nextDigest = expectedPrefix?.let { MessageDigest.getInstance("SHA-256") }
@@ -122,12 +133,14 @@ class RetryingProxyInputStream(
 
     private fun resumeRequest(index: Int): Request {
         val range = range ?: return request
-        if (delivered == 0L) return request
         val mirrors = listOf(request.url.toString()) + resumeUrls
         val builder = request.newBuilder()
             .url(mirrors[index % mirrors.size])
+            .removeHeader("If-Range")
+        if (delivered == 0L) return builder.build()
+        return builder
             .header("Range", "bytes=${resumeStart(range)}-${range.end}")
-        return builder.build()
+            .build()
     }
 
     private fun continuesBody(opened: Response, sent: Request): Boolean {
@@ -170,6 +183,11 @@ class RetryingProxyInputStream(
     override fun close() {
         if (closed) return
         closed = true
+        if (eofReached && delivered > 0) {
+            val totalWaitMs = upstreamWaitNanos / 1_000_000
+            val normalizedMs = (totalWaitMs * 1_000_000L / delivered).coerceAtLeast(1)
+            BilibiliMirrorSpeedTracker.recordSuccess(response.request.url.toString(), normalizedMs)
+        }
         response.close()
     }
 }
