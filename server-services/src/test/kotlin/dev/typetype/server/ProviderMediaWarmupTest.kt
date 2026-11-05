@@ -85,7 +85,7 @@ class ProviderMediaWarmupTest {
     }
 
     @Test
-    fun `fetches every NicoNico playlist and starts only the lowest variant and the audio`() = runBlocking {
+    fun `fetches every NicoNico playlist and the first segment of each`() = runBlocking {
         val handles = ProviderMediaHandleService(FakeCacheService())
         val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc"
         val paths = listOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "high1.cmfv", "audio1.cmfa")
@@ -110,7 +110,10 @@ class ProviderMediaWarmupTest {
         warmup.warm(response, ProviderMediaType.NICONICO).join()
 
         val fetched = proxy.requests.map { fileName(it.first) }.toSet()
-        assertEquals(setOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "audio1.cmfa"), fetched)
+        assertEquals(
+            setOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "high1.cmfv", "audio1.cmfa"),
+            fetched,
+        )
         val segment = requireNotNull(handles.resolve(paths.getValue("low1.cmfv")))
         assertNotNull(cache.respond(segment.url, null))
     }

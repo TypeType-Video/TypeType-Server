@@ -120,9 +120,8 @@ class ProviderMediaWarmup(
         video: List<VideoStreamItem>,
         audio: List<AudioStreamItem>,
     ): Set<String> = when (provider) {
-        ProviderMediaType.NICONICO -> setOfNotNull(
-            video.minByOrNull { it.height.takeIf { height -> height > 0 } ?: Int.MAX_VALUE }?.url,
-        ) + audio.map { it.url }
+        // hls.js picks the NicoNico start level from its own estimate, and the first segments are small.
+        ProviderMediaType.NICONICO -> (video.map { it.url } + audio.map { it.url }).toSet()
         ProviderMediaType.BILIBILI -> {
             val group = video.groupBy { webCodecRank(it.codec) }.minByOrNull { it.key }?.value.orEmpty()
             val start = group.filter { (it.bitrate ?: 0) in 1..BILIBILI_START_BITS_PER_SECOND }.maxByOrNull { it.bitrate ?: 0 }
@@ -200,7 +199,7 @@ class ProviderMediaWarmup(
     }
 
     companion object {
-        const val MAX_PARALLEL_FETCHES = 12
+        const val MAX_PARALLEL_FETCHES = 16
         const val MAX_DASH_HEADER_BYTES = 64 * 1024
         const val MAX_PLAYLIST_BYTES = 512 * 1024
         const val MAX_SEGMENT_BYTES = 4 * 1024 * 1024
