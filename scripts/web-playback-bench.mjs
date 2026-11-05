@@ -12,14 +12,15 @@ stream extraction, player start, first media response, first frame, seek time an
   --chromium <path>   Chromium executable (default: /usr/bin/chromium)
   --play <seconds>    Playback watched for stalls after the seek (default: 30)
   --warm              Open every video a second time to measure the warm path
-  --out <file>        Write every measurement as JSON lines`;
+  --out <file>        Write every measurement as JSON lines
+  --hover <ms>        Ask for the stream as a card hover does, then open the video after <ms>`;
 
 const options = { chromium: "/usr/bin/chromium", play: 30, warm: false };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const flag = argv[i];
   if (flag === "--warm") options.warm = true;
-  else if (["--base", "--videos", "--chromium", "--play", "--out"].includes(flag)) options[flag.slice(2)] = argv[++i];
+  else if (["--base", "--videos", "--chromium", "--play", "--out", "--hover"].includes(flag)) options[flag.slice(2)] = argv[++i];
   else {
     console.error(usage);
     process.exit(64);
@@ -104,6 +105,12 @@ async function measure(browser, id, pass) {
   await page.addInitScript(pageProbe);
   const result = { id, pass, base };
   try {
+    if (pass === "hover") {
+      const source = id.startsWith("BV") ? `https://www.bilibili.com/video/${id}` : `https://www.nicovideo.jp/watch/${id}`;
+      const path = id.startsWith("BV") ? "bilibili" : "niconico";
+      fetch(`${base}/api/streams/${path}?url=${encodeURIComponent(source)}&intent=preview`).catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, Number(options.hover)));
+    }
     await page.goto(`${base}/watch?v=${encodeURIComponent(id)}`, { waitUntil: "commit" });
     const origin = await page.evaluate(() => performance.timeOrigin);
     await page.waitForFunction(() => window.__bench?.marks.firstFrame, null, { timeout: 30000 });
@@ -140,7 +147,7 @@ const browser = await chromium.launch({
   args: ["--autoplay-policy=no-user-gesture-required"],
 });
 const results = [];
-for (const pass of options.warm ? ["cold", "warm"] : ["cold"]) {
+for (const pass of options.hover ? ["hover"] : options.warm ? ["cold", "warm"] : ["cold"]) {
   for (const id of videos) {
     const result = await measure(browser, id, pass);
     results.push(result);
@@ -151,7 +158,7 @@ await browser.close();
 if (options.out) writeFileSync(options.out, results.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
 const services = { bilibili: (id) => id.startsWith("BV"), niconico: (id) => /^(sm|so|nm)\d/.test(id) };
-for (const pass of options.warm ? ["cold", "warm"] : ["cold"]) {
+for (const pass of options.hover ? ["hover"] : options.warm ? ["cold", "warm"] : ["cold"]) {
   for (const [service, matches] of Object.entries(services)) {
     const rows = results.filter((r) => r.pass === pass && matches(r.id));
     if (!rows.length) continue;
