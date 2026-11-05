@@ -146,12 +146,12 @@ class BilibiliSlowMirrorSwitcherTest {
                         alternateRequest,
                         alternateBody,
                         "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
-                        etag = STRONG_ETAG,
+                        etag = "\"b135cc99b67a058ee5bfa7194793fcfb-1\"",
                     )
                 }
             },
             nanoTime = clock::now,
-            etag = STRONG_ETAG,
+            etag = "\"f99c7a509476574e95a059a4cea95123\"",
         )
 
         val prefix = ByteArray(PREFIX_SIZE)
@@ -160,6 +160,92 @@ class BilibiliSlowMirrorSwitcherTest {
 
         assertArrayEquals(bytes, prefix + remainder)
         assertEquals(2, alternateRequests)
+        assertTrue(primaryBody.closed)
+        assertTrue(alternateBody.closed)
+    }
+
+    @Test
+    fun caseInsensitiveValidatorMatchesAcrossMirrors() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        var alternateRequests = 0
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                alternateRequests++
+                partialResponse(
+                    alternateRequest,
+                    alternateBody,
+                    "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                    etag = "\"F99C7A509476574E95A059A4CEA95123\"",
+                )
+            },
+            nanoTime = clock::now,
+            etag = "\"f99c7a509476574e95a059a4cea95123\"",
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(1, alternateRequests)
+        assertTrue(primaryBody.closed)
+        assertTrue(alternateBody.closed)
+    }
+
+    @Test
+    fun multipartEtagMatchesAcrossDifferentMultipartMirrors() {
+        val bytes = ByteArray(RANGE_SIZE) { (it % 251).toByte() }
+        val clock = FakeClock()
+        var slowRead = true
+        val primaryBody = ByteArrayResponseBody(bytes) {
+            if (slowRead) {
+                slowRead = false
+                clock.advanceMillis(2_000)
+            }
+        }
+        val primaryRequest = request(PRIMARY_URL, "bytes=0-${bytes.lastIndex}")
+        val alternateBody = ByteArrayResponseBody(bytes.copyOfRange(PREFIX_SIZE, bytes.size)) {
+            clock.advanceMillis(10)
+        }
+        var alternateRequests = 0
+        val proxy = open(
+            primaryRequest,
+            primaryBody,
+            alternateUrls = listOf(ALTERNATE_URL),
+            mirrorExecute = { alternateRequest ->
+                alternateRequests++
+                partialResponse(
+                    alternateRequest,
+                    alternateBody,
+                    "bytes $PREFIX_SIZE-${bytes.lastIndex}/${bytes.size * 2}",
+                    etag = "\"b135cc99b67a058ee5bfa7194793fcfb-2\"",
+                )
+            },
+            nanoTime = clock::now,
+            etag = "\"a246dd88c56b058ee5bfa7194793fcfa-4\"",
+        )
+
+        val prefix = ByteArray(PREFIX_SIZE)
+        assertEquals(prefix.size, readFully(proxy.stream, prefix))
+        val remainder = proxy.stream.use { it.readBytes() }
+
+        assertArrayEquals(bytes, prefix + remainder)
+        assertEquals(1, alternateRequests)
         assertTrue(primaryBody.closed)
         assertTrue(alternateBody.closed)
     }

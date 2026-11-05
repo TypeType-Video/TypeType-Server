@@ -103,7 +103,7 @@ class BilibiliSlowMirrorSwitcher(
                     if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
                 }
                 val openedEtag = opened.header("ETag")?.takeIf(::isStrongEtag)
-                val etagMatches = openedEtag != null && openedEtag.equals(etag, ignoreCase = true)
+                val etagMatches = openedEtag != null && isCompatibleEtag(etag, openedEtag)
                 if (!opened.isSuccessful || opened.code != 206 ||
                     opened.request.url.encodedPath != primary.request.url.encodedPath ||
                     parseContentRange(opened.header("Content-Range")) != expectedRange ||
@@ -178,6 +178,20 @@ class BilibiliSlowMirrorSwitcher(
     private fun isStrongEtag(value: String): Boolean =
         value.length >= 2 && value.startsWith('"') && value.endsWith('"') && !value.startsWith("W/")
 
+    private fun isCompatibleEtag(primaryEtag: String, alternateEtag: String): Boolean {
+        if (alternateEtag.equals(primaryEtag, ignoreCase = true)) return true
+        val cleanPrimary = primaryEtag.trim('"')
+        val cleanAlternate = alternateEtag.trim('"')
+        val primaryIsMd5 = MD5_HEX_PATTERN.matches(cleanPrimary)
+        val alternateIsMd5 = MD5_HEX_PATTERN.matches(cleanAlternate)
+        if (primaryIsMd5 && alternateIsMd5) {
+            return false
+        }
+        val primaryIsMultipart = MULTIPART_ETAG_PATTERN.matches(cleanPrimary)
+        val alternateIsMultipart = MULTIPART_ETAG_PATTERN.matches(cleanAlternate)
+        return primaryIsMultipart || alternateIsMultipart
+    }
+
     private data class RequestedRange(val start: Long, val end: Long?)
     private data class ContentRange(val start: Long, val end: Long, val total: Long)
 
@@ -193,5 +207,7 @@ class BilibiliSlowMirrorSwitcher(
         const val NANOS_PER_SECOND = 1_000_000_000.0
         val RANGE_PATTERN = Regex("bytes=(\\d+)-(\\d*)")
         val CONTENT_RANGE_PATTERN = Regex("bytes (\\d+)-(\\d+)/(\\d+)")
+        val MD5_HEX_PATTERN = Regex("^[0-9a-fA-F]{32}$")
+        val MULTIPART_ETAG_PATTERN = Regex("^[0-9a-fA-F]{32}-\\d+$")
     }
 }
