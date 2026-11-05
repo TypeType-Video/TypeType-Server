@@ -14,6 +14,7 @@ import dev.typetype.server.services.CachedImageProxyService
 import dev.typetype.server.services.CachedCommentService
 import dev.typetype.server.services.CachedManifestService
 import dev.typetype.server.services.CachedNativeManifestService
+import dev.typetype.server.services.CachedChannelPostsService
 import dev.typetype.server.services.CachedPodcastService
 import dev.typetype.server.services.CachedPublicPlaylistService
 import dev.typetype.server.services.CachedSearchService
@@ -29,6 +30,7 @@ import dev.typetype.server.services.OkHttpProxyService
 import dev.typetype.server.services.PipePipeBulletCommentService
 import dev.typetype.server.services.PipePipeChannelService
 import dev.typetype.server.services.PipePipeCommentService
+import dev.typetype.server.services.PipePipeChannelPostsService
 import dev.typetype.server.services.PipePipePodcastService
 import dev.typetype.server.services.PipePipePublicPlaylistService
 import dev.typetype.server.services.PipePipeSearchService
@@ -215,6 +217,7 @@ internal class ExtractionServiceRegistry(
         cache,
     )
     val podcastService = CachedPodcastService(PipePipePodcastService(), cache)
+    val channelPostsService = CachedChannelPostsService(PipePipeChannelPostsService(), cache)
     val publicPlaylistService = CachedPublicPlaylistService(
         YoutubeScopedPublicPlaylistService(PipePipePublicPlaylistService()),
         cache,

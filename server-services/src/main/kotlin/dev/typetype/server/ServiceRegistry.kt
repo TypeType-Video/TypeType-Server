@@ -98,6 +98,7 @@ class ServiceRegistry(
     val youtubeLiveChatService = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(subtitleServiceUrl))
     val channelService = extraction.channelService
     val podcastService = extraction.podcastService
+    val channelPostsService = extraction.channelPostsService
     val publicPlaylistService = extraction.publicPlaylistService
     val proxyService = extraction.proxyService
     val providerMediaHandleService = extraction.providerMediaHandleService
