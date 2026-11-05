@@ -76,62 +76,83 @@ class BilibiliSlowMirrorSwitcher(
         offset: Long,
         primaryBytesPerSecond: Double,
     ): BilibiliMirrorSwitch? {
-        val alternateUrl = alternateUrls.first()
         val rangeEnd = range.end?.toString().orEmpty()
         val suffix = "bytes=$offset-$rangeEnd"
-        val candidateRequest = request.newBuilder()
-            .url(alternateUrl)
-            .header("Range", suffix)
-            .header("If-Range", etag)
-            .build()
-        var candidate: Response? = null
+        val expectedLength = media.end - offset + 1
+        val expectedRange = ContentRange(offset, media.end, media.total)
         val probeStarted = nanoTime()
-        try {
-            val opened = execute(candidateRequest)
-            candidate = opened
-            if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
-            val expectedLength = media.end - offset + 1
-            val expectedRange = ContentRange(offset, media.end, media.total)
-            if (!opened.isSuccessful || opened.code != 206 ||
-                opened.request.url.encodedPath != primary.request.url.encodedPath ||
-                parseContentRange(opened.header("Content-Range")) != expectedRange ||
-                opened.header("ETag") != etag ||
-                opened.header("Content-Type") != primary.header("Content-Type") ||
-                opened.header("Content-Encoding") != primary.header("Content-Encoding") ||
-                opened.body.contentLength() != expectedLength
-            ) return null
 
-            val input = opened.body.byteStream()
-            val sampleSize = minOf(SAMPLE_BYTES.toLong(), expectedLength).toInt()
-            val sample = ByteArray(sampleSize)
-            var copied = 0
-            val sampleStarted = nanoTime()
-            while (copied < sample.size) {
-                checkActive()
+        for (alternateUrl in alternateUrls) {
+            checkActive()
+            if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
+            var candidateRequest = request.newBuilder()
+                .url(alternateUrl)
+                .header("Range", suffix)
+                .header("If-Range", etag)
+                .build()
+            var candidate: Response? = null
+            try {
+                var opened = execute(candidateRequest)
+                candidate = opened
                 if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
-                val count = input.read(sample, copied, sample.size - copied)
-                if (count < 0) throw EOFException("Incomplete Bilibili mirror probe")
-                if (count > 0) copied += count
-            }
-            if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
-            val sampleNanos = elapsed(sampleStarted)
-            val alternateBytesPerSecond = sample.size.toDouble() * NANOS_PER_SECOND / sampleNanos
-            BilibiliMirrorSpeedTracker.recordThroughput(alternateUrl, alternateBytesPerSecond)
-            if (alternateBytesPerSecond < MIN_ALTERNATE_BYTES_PER_SECOND ||
-                alternateBytesPerSecond < primaryBytesPerSecond * MIN_SPEEDUP
-            ) return null
+                if (opened.code == 200) {
+                    opened.close()
+                    candidateRequest = candidateRequest.newBuilder().removeHeader("If-Range").build()
+                    opened = execute(candidateRequest)
+                    candidate = opened
+                    if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
+                }
+                val openedEtag = opened.header("ETag")?.takeIf(::isStrongEtag)
+                val etagMatches = openedEtag != null && openedEtag.equals(etag, ignoreCase = true)
+                if (!opened.isSuccessful || opened.code != 206 ||
+                    opened.request.url.encodedPath != primary.request.url.encodedPath ||
+                    parseContentRange(opened.header("Content-Range")) != expectedRange ||
+                    !etagMatches ||
+                    opened.header("Content-Type") != primary.header("Content-Type") ||
+                    opened.header("Content-Encoding") != primary.header("Content-Encoding") ||
+                    opened.body.contentLength() != expectedLength
+                ) {
+                    BilibiliMirrorSpeedTracker.recordFailure(alternateUrl)
+                    continue
+                }
 
-            opened.body.source().timeout().timeout(streamReadTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
-            val switchedSource = SequenceInputStream(ByteArrayInputStream(sample), input)
-            val switchedResponse = opened
-            candidate = null
-            return BilibiliMirrorSwitch(switchedResponse, switchedSource)
-        } catch (error: IOException) {
-            if (Thread.currentThread().isInterrupted) throw error
-            return null
-        } finally {
-            candidate?.close()
+                val input = opened.body.byteStream()
+                val sampleSize = minOf(SAMPLE_BYTES.toLong(), expectedLength).toInt()
+                val sample = ByteArray(sampleSize)
+                var copied = 0
+                val sampleStarted = nanoTime()
+                while (copied < sample.size) {
+                    checkActive()
+                    if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
+                    val count = input.read(sample, copied, sample.size - copied)
+                    if (count < 0) throw EOFException("Incomplete Bilibili mirror probe")
+                    if (count > 0) copied += count
+                }
+                if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
+                val sampleNanos = elapsed(sampleStarted)
+                val alternateBytesPerSecond = sample.size.toDouble() * NANOS_PER_SECOND / sampleNanos
+                BilibiliMirrorSpeedTracker.recordThroughput(alternateUrl, alternateBytesPerSecond)
+                if (alternateBytesPerSecond < MIN_ALTERNATE_BYTES_PER_SECOND ||
+                    alternateBytesPerSecond < primaryBytesPerSecond * MIN_SPEEDUP
+                ) {
+                    continue
+                }
+
+                BilibiliMirrorSpeedTracker.recordSuccess(alternateUrl, sampleNanos / 1_000_000)
+                opened.body.source().timeout().timeout(streamReadTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
+                val switchedSource = SequenceInputStream(ByteArrayInputStream(sample), input)
+                val switchedResponse = opened
+                candidate = null
+                return BilibiliMirrorSwitch(switchedResponse, switchedSource)
+            } catch (error: IOException) {
+                if (Thread.currentThread().isInterrupted) throw error
+                BilibiliMirrorSpeedTracker.recordFailure(alternateUrl)
+                continue
+            } finally {
+                candidate?.close()
+            }
         }
+        return null
     }
 
     private fun elapsed(started: Long): Long = (nanoTime() - started).coerceAtLeast(1L)
