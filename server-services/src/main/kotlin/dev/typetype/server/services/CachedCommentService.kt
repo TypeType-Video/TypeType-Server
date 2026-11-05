@@ -16,6 +16,6 @@ class CachedCommentService(
                 val empty = it.comments.isEmpty() && !it.commentsDisabled
                 PublicCacheAdmissions.firstPage(nextpage, empty, PublicCachePolicy.commentsTtl(url, nextpage))
             },
-            key = PublicCacheKey.of("comments", url, nextpage),
+            key = PublicCacheKey.of("comments-media", url, nextpage),
         ) { delegate.getComments(url, nextpage) }
 }

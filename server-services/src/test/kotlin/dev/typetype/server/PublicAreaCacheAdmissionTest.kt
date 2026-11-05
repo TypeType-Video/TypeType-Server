@@ -96,8 +96,8 @@ class PublicAreaCacheAdmissionTest {
         disabled = true
         service.getComments("https://youtube.com/watch?v=b", null)
 
-        assertEquals(30L, cache.ttls[PublicCacheKey.of("comments", "https://youtube.com/watch?v=a", null)])
-        assertEquals(180L, cache.ttls[PublicCacheKey.of("comments", "https://youtube.com/watch?v=b", null)])
+        assertEquals(30L, cache.ttls[PublicCacheKey.of("comments-media", "https://youtube.com/watch?v=a", null)])
+        assertEquals(180L, cache.ttls[PublicCacheKey.of("comments-media", "https://youtube.com/watch?v=b", null)])
     }
 
     @Test

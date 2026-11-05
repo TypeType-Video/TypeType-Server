@@ -67,5 +67,7 @@ class PipePipeCommentService : CommentService {
         uploaderVerified = isUploaderVerified,
         replyCount = replyCount,
         repliesPage = replies?.toCursor(),
+        image = toCommentImage(),
+        voiceReply = toVoiceReply(),
     )
 }

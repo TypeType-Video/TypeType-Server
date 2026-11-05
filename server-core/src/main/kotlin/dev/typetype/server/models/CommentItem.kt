@@ -18,4 +18,22 @@ data class CommentItem(
     val uploaderVerified: Boolean,
     val replyCount: Int,
     val repliesPage: String?,
+    val image: CommentImage? = null,
+    val voiceReply: CommentVoiceReply? = null,
+)
+
+@Serializable
+data class CommentImage(
+    val url: String?,
+    val animated: Boolean,
+    val unavailableText: String? = null,
+)
+
+@Serializable
+data class CommentVoiceReply(
+    val url: String,
+    val durationMs: Long,
+    val transcript: String,
+    val playable: Boolean,
+    val unavailableText: String? = null,
 )
