@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaReadAhead
 import dev.typetype.server.services.ProviderMediaAwareProxyService
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProxyService
@@ -15,6 +16,7 @@ internal fun Route.providerMediaHandleRoutes(
     handleService: ProviderMediaHandleService,
     proxyService: ProxyService,
     startupCache: ProviderMediaStartupCache? = null,
+    readAhead: ProviderMediaReadAhead? = null,
 ) {
     get("/media/{handle}") {
         val handle = call.parameters["handle"]
@@ -29,8 +31,9 @@ internal fun Route.providerMediaHandleRoutes(
             HttpStatusCode.NotFound,
             ErrorResponse("Media handle has expired or is unknown", "media_handle_not_found"),
         )
+        readAhead?.onServed(target, rangeHeader)
         if (startupCache != null) {
-            startupCache.awaitPending(target.url)
+            startupCache.awaitFor(target.url, rangeHeader)
             startupCache.respond(target.url, rangeHeader)?.let {
                 return@get call.respondProxyResult(ExtractionResult.Success(it))
             }

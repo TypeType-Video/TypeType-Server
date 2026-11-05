@@ -26,6 +26,7 @@ class ProviderMediaWarmup(
     private val proxyService: ProviderMediaAwareProxyService,
     private val cache: ProviderMediaStartupCache,
     private val scope: CoroutineScope,
+    private val segments: ProviderMediaSegmentTable = ProviderMediaSegmentTable(),
 ) {
     private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
 
@@ -63,26 +64,38 @@ class ProviderMediaWarmup(
         return fetchClaimed(target, rangeHeader, limit, claim)
     }
 
+    fun prefetchSegment(target: ProviderMediaTarget, range: LongRange): Job? {
+        val key = ProviderMediaStartupCache.segmentKey(target.url, range.first)
+        val claim = cache.begin(key) ?: return null
+        return scope.launch {
+            fetchClaimed(target, "bytes=${range.first}-${range.last}", MAX_SEGMENT_BYTES, claim, key, range.first)
+        }.also { job -> job.invokeOnCompletion { cache.finish(key, claim) } }
+    }
+
     private suspend fun fetchClaimed(
         target: ProviderMediaTarget,
         rangeHeader: String?,
         limit: Int,
         claim: CompletableDeferred<Unit>,
+        key: String = target.url,
+        offset: Long = 0,
     ): ByteArray? = try {
-        permits.withPermit { fetch(target, rangeHeader, limit) }
+        permits.withPermit { fetch(target, rangeHeader, limit, key, offset) }
     } catch (error: CancellationException) {
         throw error
     } catch (_: Exception) {
         null
     } finally {
-        cache.finish(target.url, claim)
+        cache.finish(key, claim)
     }
 
     private suspend fun warmDash(target: ProviderMediaTarget, media: Media) {
         if (media.indexEnd <= 0 || media.indexEnd >= MAX_DASH_HEADER_BYTES) return
         val header = prefetch(target, "bytes=0-${media.indexEnd}", MAX_DASH_HEADER_BYTES) ?: return
+        val table = Mp4SegmentIndex.segments(header, media.indexStart) ?: return
+        segments.remember(target.url, table)
         if (!media.startsPlayback) return
-        val end = Mp4SegmentIndex.firstSegmentEnd(header, media.indexStart) ?: return
+        val end = table.first().last
         if (end < header.size || end >= MAX_SEGMENT_BYTES) return
         val claim = cache.begin(target.url, extending = true) ?: return
         fetchClaimed(target, "bytes=0-$end", MAX_SEGMENT_BYTES, claim)
@@ -122,7 +135,13 @@ class ProviderMediaWarmup(
         }
     }
 
-    private suspend fun fetch(target: ProviderMediaTarget, rangeHeader: String?, limit: Int): ByteArray? {
+    private suspend fun fetch(
+        target: ProviderMediaTarget,
+        rangeHeader: String?,
+        limit: Int,
+        key: String = target.url,
+        offset: Long = 0,
+    ): ByteArray? {
         val result = proxyService.pipeProviderMediaWithAlternates(
             target.url,
             rangeHeader,
@@ -136,8 +155,8 @@ class ProviderMediaWarmup(
             val bytes = runInterruptible(Dispatchers.IO) { readAtMost(proxy.stream, limit) } ?: return null
             val total = proxy.contentRange?.substringAfterLast('/')?.toLongOrNull()
                 ?: proxy.contentLength.takeIf { rangeHeader == null }
-            val complete = rangeHeader == null || (total != null && bytes.size.toLong() == total)
-            cache.put(target.url, ProviderMediaStartupCache.Entry(bytes, total, proxy.contentType, complete))
+            val complete = offset == 0L && (rangeHeader == null || (total != null && bytes.size.toLong() == total))
+            cache.put(key, ProviderMediaStartupCache.Entry(bytes, total, proxy.contentType, complete, offset))
             return bytes
         } finally {
             proxy.close()

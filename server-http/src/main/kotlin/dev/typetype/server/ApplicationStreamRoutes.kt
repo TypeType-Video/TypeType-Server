@@ -68,7 +68,12 @@ internal fun Route.installStreamRoutes(
 internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
     rateLimit(PROXY_ZONE) {
         proxyRoutes(svc.proxyService, svc.youtubeSubtitleDeliveryService)
-        providerMediaHandleRoutes(svc.providerMediaHandleService, svc.proxyService, svc.providerMediaStartupCache)
+        providerMediaHandleRoutes(
+            svc.providerMediaHandleService,
+            svc.proxyService,
+            svc.providerMediaStartupCache,
+            svc.providerMediaReadAhead,
+        )
         youtubeSubtitleRoutes(svc.youtubeSubtitleDeliveryService)
         audioOnlySourceRoutes(
             streamService = svc.streamService,

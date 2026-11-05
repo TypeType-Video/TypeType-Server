@@ -103,6 +103,7 @@ class ServiceRegistry(
     val providerMediaHandleService = extraction.providerMediaHandleService
     val providerMediaStartupCache = extraction.providerMediaStartupCache
     val providerMediaWarmup = extraction.providerMediaWarmup
+    val providerMediaReadAhead = extraction.providerMediaReadAhead
     val youtubeSubtitleDeliveryService = extraction.youtubeSubtitleDeliveryService
     val nicoVideoProxyService = extraction.nicoVideoProxyService
     val manifestService = extraction.manifestService
