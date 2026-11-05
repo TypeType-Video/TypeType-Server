@@ -31,4 +31,5 @@ data class AdminSettingsItem(
     val recommenderTimeoutMs: Int = 0,
     val recommenderStreamRequestsPerMinute: Int = 0,
     val deviceLoginEnabled: Boolean = true,
+    val bilibiliMirrorProbingEnabled: Boolean = false,
 )

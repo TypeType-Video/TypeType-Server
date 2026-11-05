@@ -36,7 +36,7 @@ class BilibiliMirrorProber(
         val start = if (totalLength != null && totalLength > PROBE_BYTES * 8) {
             random.nextLong(totalLength / 4, totalLength / 2)
         } else {
-            0L
+            UNKNOWN_LENGTH_OFFSET
         }
         val request = Request.Builder()
             .url(url)
@@ -49,7 +49,9 @@ class BilibiliMirrorProber(
         try {
             client.newCall(request).execute().use { response ->
                 if (response.code != 206) {
-                    if (!response.isSuccessful) BilibiliMirrorSpeedTracker.recordFailure(url)
+                    if (!response.isSuccessful && response.code != RANGE_NOT_SATISFIABLE) {
+                        BilibiliMirrorSpeedTracker.recordFailure(url)
+                    }
                     return
                 }
                 val opened = System.nanoTime()
@@ -69,5 +71,7 @@ class BilibiliMirrorProber(
         const val PROBE_INTERVAL_MS = 180_000L
         const val PROBE_BYTES = 128L * 1024
         const val MIN_MEASURED_BYTES = 64 * 1024
+        private const val UNKNOWN_LENGTH_OFFSET = 512L * 1024
+        private const val RANGE_NOT_SATISFIABLE = 416
     }
 }

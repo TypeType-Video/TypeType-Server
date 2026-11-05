@@ -98,7 +98,7 @@ class BilibiliMirrorSpeedTrackerTest {
         assertEquals(urls, BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 2_000))
 
         BilibiliMirrorSpeedTracker.recordThroughput(urls[1], 1_600_000.0, nowMs = 1_000)
-        assertEquals(urls, BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 1_000 + 600_000))
+        assertEquals(urls, BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 1_000 + 30 * 60_000))
 
         BilibiliMirrorSpeedTracker.recordFailure(urls[0])
         assertEquals(urls.reversed(), BilibiliMirrorSpeedTracker.rankByExpectedTime(urls))

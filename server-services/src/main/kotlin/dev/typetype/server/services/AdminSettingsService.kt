@@ -34,6 +34,7 @@ class AdminSettingsService(
                     oidcAutoRedirect = it[AdminSettingsTable.oidcAutoRedirect],
                     youtubeRemoteLoginEnabled = it[AdminSettingsTable.youtubeRemoteLoginEnabled],
                     deviceLoginEnabled = it[AdminSettingsTable.deviceLoginEnabled],
+                    bilibiliMirrorProbingEnabled = it[AdminSettingsTable.bilibiliMirrorProbingEnabled],
                     accessMode = it[AdminSettingsTable.accessMode].toAccessMode(),
                     rssEnabled = it[AdminSettingsTable.rssEnabled],
                     rssPublicBaseUrl = it[AdminSettingsTable.rssPublicBaseUrl],
@@ -73,6 +74,7 @@ class AdminSettingsService(
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                     it[deviceLoginEnabled] = settings.deviceLoginEnabled
+                    it[bilibiliMirrorProbingEnabled] = settings.bilibiliMirrorProbingEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
                     it[rssEnabled] = settings.rssEnabled
                     it[rssPublicBaseUrl] = settings.rssPublicBaseUrl
@@ -103,6 +105,7 @@ class AdminSettingsService(
                     it[oidcAutoRedirect] = settings.oidcAutoRedirect
                     it[youtubeRemoteLoginEnabled] = settings.youtubeRemoteLoginEnabled
                     it[deviceLoginEnabled] = settings.deviceLoginEnabled
+                    it[bilibiliMirrorProbingEnabled] = settings.bilibiliMirrorProbingEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
                     it[rssEnabled] = settings.rssEnabled
                     it[rssPublicBaseUrl] = settings.rssPublicBaseUrl

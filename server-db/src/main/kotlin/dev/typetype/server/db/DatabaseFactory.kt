@@ -172,6 +172,7 @@ object DatabaseFactory {
             DatabaseProfileAccountsMigration.apply()
             DatabaseYoutubeRemoteLoginMigration.apply()
             DatabaseDeviceLoginMigration.apply()
+            DatabaseBilibiliMirrorProbingMigration.apply()
             exec("CREATE UNIQUE INDEX IF NOT EXISTS users_public_username_unique ON users (public_username)")
             DatabasePrimaryKeyMigrations.apply()
             DatabaseIndexMigrations.apply()

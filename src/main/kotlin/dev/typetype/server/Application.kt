@@ -87,10 +87,12 @@ fun Application.module() {
     bilibiliSessionRefreshScheduler.start()
     val youtubeSessionRefreshScheduler = YoutubeSessionRefreshScheduler(svc.youtubeSessionRefreshService)
     youtubeSessionRefreshScheduler.start()
+    svc.bilibiliMirrorWatch.start { adminSettingsService.get().bilibiliMirrorProbingEnabled }
     monitor.subscribe(ApplicationStopped) { pushNotificationScheduler.close() }
     monitor.subscribe(ApplicationStopped) { subscriptionFeedRefreshScheduler.close() }
     monitor.subscribe(ApplicationStopped) { bilibiliSessionRefreshScheduler.close() }
     monitor.subscribe(ApplicationStopped) { youtubeSessionRefreshScheduler.close() }
+    monitor.subscribe(ApplicationStopped) { svc.bilibiliMirrorWatch.close() }
     monitor.subscribe(ApplicationStopped) { svc.subscriptionFeedService.close() }
     monitor.subscribe(ApplicationStopped) { svc.youtubeTakeoutImportService.close() }
     monitor.subscribe(ApplicationStopped) { svc.homeRecommendationServices.close() }

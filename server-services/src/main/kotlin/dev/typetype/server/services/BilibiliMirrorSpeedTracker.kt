@@ -17,7 +17,7 @@ object BilibiliMirrorSpeedTracker {
     private val stats = ConcurrentHashMap<String, HostStats>()
     private const val PENALTY_DURATION_MS = 120_000L
     private const val PENALTY_SCORE = 15_000.0
-    private const val THROUGHPUT_LIFETIME_MS = 600_000L
+    private const val THROUGHPUT_LIFETIME_MS = 30 * 60_000L
     private const val TYPICAL_SEGMENT_BYTES = 512.0 * 1024
     private const val UNKNOWN_LATENCY_MS = 600.0
     private const val UNKNOWN_BYTES_PER_SECOND = 400.0 * 1024

@@ -3,6 +3,8 @@ package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliAggregatedSearchService
 import dev.typetype.server.services.BilibiliMirrorProber
+import dev.typetype.server.services.BilibiliMirrorSampleSource
+import dev.typetype.server.services.BilibiliMirrorWatch
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
@@ -222,13 +224,22 @@ internal class ExtractionServiceRegistry(
     val providerMediaStartupCache = ProviderMediaStartupCache()
     private val providerMediaScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val providerMediaSegments = ProviderMediaSegmentTable()
-    val providerMediaWarmup = ProviderMediaWarmup(
+    private val bilibiliMirrorProber = BilibiliMirrorProber(proxyHttpClient, providerMediaScope)
+    val bilibiliMirrorWatch: BilibiliMirrorWatch = BilibiliMirrorWatch(
+        bilibiliMirrorProber::probe,
+        cache,
+        BilibiliMirrorSampleSource(BilibiliTrendingService(), streamService)::fetch,
+    )
+    val providerMediaWarmup: ProviderMediaWarmup = ProviderMediaWarmup(
         providerMediaHandleService,
         proxyService,
         providerMediaStartupCache,
         providerMediaScope,
         providerMediaSegments,
-        BilibiliMirrorProber(proxyHttpClient, providerMediaScope)::probe,
+        { urls, totalLength ->
+            bilibiliMirrorProber.probe(urls, totalLength)
+            bilibiliMirrorWatch.remember(urls, totalLength)
+        },
     )
     val providerMediaReadAhead = ProviderMediaReadAhead(providerMediaWarmup, providerMediaSegments)
     val nicoVideoProxyService = NicoVideoProxyService(mediaHandleService = providerMediaHandleService)

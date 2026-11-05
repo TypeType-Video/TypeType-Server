@@ -102,6 +102,7 @@ AdminSettingsItem:
     oidcAutoRedirect: { type: boolean, default: false }
     youtubeRemoteLoginEnabled: { type: boolean, default: false }
     deviceLoginEnabled: { type: boolean, default: true, description: Lets TVs sign in by QR code approved from a signed-in phone. }
+    bilibiliMirrorProbingEnabled: { type: boolean, default: false, description: Measures BiliBili mirrors in the background so playback starts on the fastest one. }
     recommenderEnabled:
       type: boolean
       default: false
