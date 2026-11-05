@@ -16,6 +16,7 @@ class ProviderMediaStartupCache(
         val totalLength: Long?,
         val contentType: String,
         val complete: Boolean,
+        val offset: Long = 0,
     )
 
     private class Stored(val entry: Entry, val storedAt: Long)
@@ -63,18 +64,31 @@ class ProviderMediaStartupCache(
         return stored.entry
     }
 
-    fun respond(handle: String, rangeHeader: String?): ProxyResponse? {
-        val entry = get(handle) ?: return null
+    suspend fun awaitFor(url: String, rangeHeader: String?) {
+        awaitPending(url)
+        rangeStart(rangeHeader)?.let { awaitPending(segmentKey(url, it)) }
+    }
+
+    fun respond(url: String, rangeHeader: String?): ProxyResponse? {
+        get(url)?.let { entry -> respondFrom(entry, rangeHeader)?.let { return it } }
+        val start = rangeStart(rangeHeader) ?: return null
+        return get(segmentKey(url, start))?.let { respondFrom(it, rangeHeader) }
+    }
+
+    private fun respondFrom(entry: Entry, rangeHeader: String?): ProxyResponse? {
         if (rangeHeader == null) {
-            return if (entry.complete) response(entry, 200, entry.bytes, null) else null
+            return if (entry.complete && entry.offset == 0L) response(entry, 200, entry.bytes, null) else null
         }
         val range = parseRange(rangeHeader) ?: return null
-        val last = range.last ?: (if (entry.complete) entry.bytes.size - 1L else return null)
-        if (range.first > last || last >= entry.bytes.size) return null
+        val end = entry.offset + entry.bytes.size - 1
+        val last = range.last ?: (if (entry.complete) end else return null)
+        if (range.first < entry.offset || range.first > last || last > end) return null
         val total = entry.totalLength?.toString() ?: "*"
-        val slice = entry.bytes.copyOfRange(range.first.toInt(), last.toInt() + 1)
+        val slice = entry.bytes.copyOfRange((range.first - entry.offset).toInt(), (last - entry.offset).toInt() + 1)
         return response(entry, 206, slice, "bytes ${range.first}-$last/$total")
     }
+
+    private fun rangeStart(rangeHeader: String?): Long? = rangeHeader?.let(::parseRange)?.first
 
     private fun response(entry: Entry, status: Int, body: ByteArray, contentRange: String?) = ProxyResponse(
         status = status,
@@ -96,6 +110,8 @@ class ProviderMediaStartupCache(
     }
 
     companion object {
+        fun segmentKey(url: String, start: Long): String = "$url#$start"
+
         const val DEFAULT_MAX_BYTES = 48L * 1024 * 1024
         const val DEFAULT_TTL_MILLIS = 120_000L
         const val PENDING_WAIT_MILLIS = 4_000L

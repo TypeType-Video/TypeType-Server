@@ -3,7 +3,9 @@ package dev.typetype.server.services
 import java.nio.ByteBuffer
 
 internal object Mp4SegmentIndex {
-    fun firstSegmentEnd(header: ByteArray, indexStart: Long): Long? {
+    fun firstSegmentEnd(header: ByteArray, indexStart: Long): Long? = segments(header, indexStart)?.first()?.last
+
+    fun segments(header: ByteArray, indexStart: Long): List<LongRange>? {
         if (indexStart < 0 || indexStart + BOX_HEADER > header.size) return null
         val box = ByteBuffer.wrap(header, indexStart.toInt(), header.size - indexStart.toInt())
         val boxSize = box.int.toLong() and 0xffffffffL
@@ -20,13 +22,22 @@ internal object Mp4SegmentIndex {
         }
         box.short
         val referenceCount = box.short.toInt() and 0xffff
-        if (referenceCount == 0 || firstOffset < 0) return null
-        val referencedSize = box.int.toLong() and 0x7fffffffL
-        if (referencedSize == 0L) return null
-        val firstStart = indexStart + boxSize + firstOffset
-        return firstStart + referencedSize - 1
+        if (referenceCount == 0 || firstOffset < 0 || box.remaining() < referenceCount * REFERENCE_BYTES) return null
+        var start = indexStart + boxSize + firstOffset
+        val segments = ArrayList<LongRange>(referenceCount)
+        repeat(referenceCount) {
+            val reference = box.int
+            if (reference < 0) return null
+            val size = reference.toLong()
+            if (size == 0L) return null
+            segments += start until start + size
+            start += size
+            box.position(box.position() + 8)
+        }
+        return segments
     }
 
     private const val BOX_HEADER = 8
+    private const val REFERENCE_BYTES = 12
     private const val SIDX = 0x73696478
 }

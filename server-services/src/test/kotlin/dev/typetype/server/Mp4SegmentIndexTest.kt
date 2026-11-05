@@ -24,6 +24,17 @@ class Mp4SegmentIndexTest {
     }
 
     @Test
+    fun `lists every segment one after the other`() {
+        val sidx = sidx(version = 0, firstOffset = 0, sizes = listOf(100, 200, 300))
+        val start = sidx.size.toLong()
+
+        assertEquals(
+            listOf(start until start + 100, start + 100 until start + 300, start + 300 until start + 600),
+            Mp4SegmentIndex.segments(sidx, 0),
+        )
+    }
+
+    @Test
     fun `ignores anything that is not a complete sidx`() {
         val sidx = sidx(version = 0, firstOffset = 0, sizes = listOf(500_000))
 
