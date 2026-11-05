@@ -8,7 +8,8 @@ ENV BUILD_TIME=$BUILD_TIME
 WORKDIR /app
 COPY gradlew ./
 COPY gradle/ ./gradle/
-RUN ./gradlew --version --no-daemon -q
+RUN --mount=type=cache,target=/root/.gradle/wrapper \
+    for attempt in 1 2 3; do ./gradlew --version --no-daemon -q && exit 0; sleep 15; done; exit 1
 COPY build.gradle.kts gradle.properties settings.gradle.kts* ./
 COPY src/ ./src/
 COPY server-admin/ ./server-admin/
@@ -26,6 +27,7 @@ COPY server-test-support/ ./server-test-support/
 COPY server-services/ ./server-services/
 COPY server-token-gateway/ ./server-token-gateway/
 RUN --mount=type=cache,target=/root/.gradle/caches \
+    --mount=type=cache,target=/root/.gradle/wrapper \
     ./gradlew shadowJar --no-daemon --build-cache --parallel --max-workers="$GRADLE_MAX_WORKERS" -q -PappVersion="$APP_VERSION"
 
 FROM eclipse-temurin:25.0.4.1_1-jre-alpine-3.23 AS runner
