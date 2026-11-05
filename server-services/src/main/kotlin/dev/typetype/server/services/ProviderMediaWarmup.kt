@@ -110,10 +110,21 @@ class ProviderMediaWarmup(
         ProviderMediaType.NICONICO -> setOfNotNull(
             video.minByOrNull { it.height.takeIf { height -> height > 0 } ?: Int.MAX_VALUE }?.url,
         ) + audio.map { it.url }
-        ProviderMediaType.BILIBILI -> video.groupBy { it.codec?.substringBefore('.') }.values.mapNotNull { group ->
-            group.filter { (it.bitrate ?: 0) in 1..BILIBILI_START_BITS_PER_SECOND }.maxByOrNull { it.bitrate ?: 0 }
+        ProviderMediaType.BILIBILI -> {
+            val group = video.groupBy { webCodecRank(it.codec) }.minByOrNull { it.key }?.value.orEmpty()
+            val start = group.filter { (it.bitrate ?: 0) in 1..BILIBILI_START_BITS_PER_SECOND }.maxByOrNull { it.bitrate ?: 0 }
                 ?: group.minByOrNull { it.bitrate ?: Int.MAX_VALUE }
-        }.map { it.url }.toSet() + setOfNotNull(audio.maxByOrNull { it.bitrate ?: 0 }?.url)
+            setOfNotNull(start?.url, audio.maxByOrNull { it.bitrate ?: 0 }?.url)
+        }
+    }
+
+    // The web player starts on the first codec family it supports in this order.
+    private fun webCodecRank(codec: String?): Int = when {
+        codec == null -> 3
+        codec.startsWith("avc1") -> 0
+        codec.startsWith("av01") -> 1
+        codec.startsWith("hev1") || codec.startsWith("hvc1") -> 2
+        else -> 3
     }
 
     private suspend fun warmHlsMedia(target: ProviderMediaTarget, startsPlayback: Boolean) {
