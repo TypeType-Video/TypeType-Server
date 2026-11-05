@@ -2,7 +2,9 @@ package dev.typetype.server.services
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-private val UPOS_MIRROR_HOST = Regex("""upos-[a-z]+-mirror[a-z0-9]+\.(bilivideo\.com|akamaized\.net)""")
+val UPOS_MIRROR_HOST = Regex("""upos-[a-z0-9-]+\.(bilivideo\.com|akamaized\.net)""")
+
+fun isUposHost(host: String): Boolean = UPOS_MIRROR_HOST.matches(host)
 
 val DEFAULT_UPOS_MIRROR_HOSTS = listOf(
     "upos-sz-mirrorcos.bilivideo.com",
@@ -46,7 +48,7 @@ fun bilibiliUposMirrorAlternates(
     cdnRegion: String? = null,
 ): List<String> {
     val parsed = url.toHttpUrlOrNull() ?: return emptyList()
-    if (!UPOS_MIRROR_HOST.matches(parsed.host)) return emptyList()
+    if (!isUposHost(parsed.host)) return emptyList()
     val effectiveRegion = BilibiliCdnConfig.resolveRegion(cdnRegion)
     val hostOrder = when (effectiveRegion) {
         "domestic" -> DOMESTIC_UPOS_MIRROR_HOSTS + OVERSEAS_UPOS_MIRROR_HOSTS + listOf("upos-hz-mirrorakam.akamaized.net")
