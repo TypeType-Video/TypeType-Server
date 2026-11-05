@@ -36,7 +36,7 @@ class ProviderMediaWarmup(
     fun warm(provider: ProviderMediaType, video: List<VideoStreamItem>, audio: List<AudioStreamItem>): Job =
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
-                val lowest = video.minByOrNull { it.bitrate ?: Int.MAX_VALUE }?.url
+                val lowest = video.minByOrNull { it.height.takeIf { height -> height > 0 } ?: it.bitrate ?: Int.MAX_VALUE }?.url
                 val media = video.map { Media(it.url, it.indexEnd, it.url == lowest) } +
                     audio.map { Media(it.url, it.indexEnd, startsPlayback = true) }
                 coroutineScope {

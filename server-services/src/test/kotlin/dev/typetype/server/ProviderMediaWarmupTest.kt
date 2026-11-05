@@ -76,25 +76,18 @@ class ProviderMediaWarmupTest {
             proxy.requests.toSet(),
         )
         assertEquals(2, proxy.requests.size)
-        val served = requireNotNull(cache.respond(video.substringAfterLast('/'), "bytes=996-1807"))
+        val target = requireNotNull(handles.resolve(video.substringAfterLast('/')))
+        val served = requireNotNull(cache.respond(target.url, "bytes=996-1807"))
         assertEquals("bytes 996-1807/2000", served.contentRange)
     }
 
     @Test
-    fun `follows the NicoNico playlists down to the first segment of the lowest variant`() = runBlocking {
+    fun `fetches every NicoNico playlist and starts only the lowest variant and the audio`() = runBlocking {
         val handles = ProviderMediaHandleService(FakeCacheService())
         val base = "https://delivery.domand.nicovideo.jp/hlsbid/abc"
-        val paths = listOf("master.m3u8", "high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "high1.cmfv", "audio1.cmfa")
+        val paths = listOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "high1.cmfv", "audio1.cmfa")
             .associateWith { handles.createPath("$base/$it?Expires=4000000000").substringAfterLast('/') }
         val bodies = mapOf(
-            "master.m3u8" to """
-                #EXTM3U
-                #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",URI="../media/${paths.getValue("audio.m3u8")}"
-                #EXT-X-STREAM-INF:BANDWIDTH=3000000,AUDIO="a"
-                ../media/${paths.getValue("high.m3u8")}
-                #EXT-X-STREAM-INF:BANDWIDTH=500000,AUDIO="a"
-                ../media/${paths.getValue("low.m3u8")}
-            """.trimIndent(),
             "low.m3u8" to mediaPlaylist(paths.getValue("init.cmfv"), paths.getValue("key"), paths.getValue("low1.cmfv")),
             "high.m3u8" to mediaPlaylist(paths.getValue("init.cmfv"), paths.getValue("key"), paths.getValue("high1.cmfv")),
             "audio.m3u8" to mediaPlaylist(paths.getValue("init.cmfv"), paths.getValue("key"), paths.getValue("audio1.cmfa")),
@@ -103,17 +96,20 @@ class ProviderMediaWarmupTest {
         val cache = ProviderMediaStartupCache()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val warmup = ProviderMediaWarmup(handles, proxy, cache, scope)
-
         val response = testStreamResponse(
-            videoOnlyStreams = emptyList(),
-            audioStreams = emptyList(),
-            hlsUrl = "/media/${paths.getValue("master.m3u8")}",
+            videoOnlyStreams = listOf(
+                testVideoStream(url = "/media/${paths.getValue("high.m3u8")}").copy(height = 720, bitrate = null),
+                testVideoStream(url = "/media/${paths.getValue("low.m3u8")}").copy(height = 144, bitrate = null),
+            ),
+            audioStreams = listOf(testAudioStream(url = "/media/${paths.getValue("audio.m3u8")}")),
         )
+
         warmup.warm(response, ProviderMediaType.NICONICO).join()
 
         val fetched = proxy.requests.map { fileName(it.first) }.toSet()
-        assertEquals(setOf("master.m3u8", "high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "audio1.cmfa"), fetched)
-        assertNotNull(cache.respond(paths.getValue("low1.cmfv"), null))
+        assertEquals(setOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "audio1.cmfa"), fetched)
+        val segment = requireNotNull(handles.resolve(paths.getValue("low1.cmfv")))
+        assertNotNull(cache.respond(segment.url, null))
     }
 
     private companion object {
