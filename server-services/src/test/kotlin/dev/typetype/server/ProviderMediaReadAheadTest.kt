@@ -65,7 +65,7 @@ class ProviderMediaReadAheadTest {
         val warmup = ProviderMediaWarmup(handles, proxy, cache, scope, segments)
         segments.remember(target.url, listOf(1_000L..1_999L, 2_000L..2_999L))
 
-        ProviderMediaReadAhead(warmup, segments).onServed(target, "bytes=1000-1999")
+        ProviderMediaReadAhead(warmup, segments).onServed("m1_x", target, "bytes=1000-1999")
         withTimeout(5_000) {
             while (cache.respond(target.url, "bytes=2000-2999") == null) delay(10)
         }
@@ -89,9 +89,9 @@ class ProviderMediaReadAheadTest {
         segments.remember(target.url, listOf(1_000L..1_999L, 2_000L..2_999L))
 
         val readAhead = ProviderMediaReadAhead(warmup, segments)
-        readAhead.onServed(target, "bytes=1500-1999")
-        readAhead.onServed(target, "bytes=2000-2999")
-        readAhead.onServed(target, null)
+        readAhead.onServed("m1_x", target, "bytes=1500-1999")
+        readAhead.onServed("m1_x", target, "bytes=2000-2999")
+        readAhead.onServed("m1_x", target, null)
 
         assertEquals(emptyList<String?>(), proxy.ranges.toList())
     }

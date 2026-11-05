@@ -31,7 +31,7 @@ internal fun Route.providerMediaHandleRoutes(
             HttpStatusCode.NotFound,
             ErrorResponse("Media handle has expired or is unknown", "media_handle_not_found"),
         )
-        readAhead?.onServed(target, rangeHeader)
+        readAhead?.onServed(handle, target, rangeHeader)
         if (startupCache != null) {
             val cached = startupCache.respond(target.url, rangeHeader) ?: run {
                 startupCache.awaitPending(target.url)

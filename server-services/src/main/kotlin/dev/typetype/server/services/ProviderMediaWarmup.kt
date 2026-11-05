@@ -28,6 +28,7 @@ class ProviderMediaWarmup(
     private val scope: CoroutineScope,
     private val segments: ProviderMediaSegmentTable = ProviderMediaSegmentTable(),
     private val probeMirrors: (urls: List<String>, totalLength: Long?) -> Unit = { _, _ -> },
+    private val hlsChain: HlsSegmentChain = HlsSegmentChain(),
 ) {
     private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
 
@@ -42,16 +43,11 @@ class ProviderMediaWarmup(
                 val starting = startingUrls(provider, video, audio)
                 val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) } +
                     audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) }
-                coroutineScope {
-                    media.map { item ->
-                        async {
-                            val target = targetOf(item.url) ?: return@async
-                            when (provider) {
-                                ProviderMediaType.BILIBILI -> warmDash(target, item)
-                                ProviderMediaType.NICONICO -> warmHlsMedia(target, item.startsPlayback)
-                            }
-                        }
-                    }.awaitAll()
+                when (provider) {
+                    ProviderMediaType.BILIBILI -> coroutineScope {
+                        media.map { item -> async { targetOf(item.url)?.let { warmDash(it, item) } } }.awaitAll()
+                    }
+                    ProviderMediaType.NICONICO -> warmHls(media, video.size)
                 }
             }
         }
@@ -128,15 +124,31 @@ class ProviderMediaWarmup(
         else -> 3
     }
 
-    private suspend fun warmHlsMedia(target: ProviderMediaTarget, startsPlayback: Boolean) {
-        val playlist = prefetch(target, null, MAX_PLAYLIST_BYTES)?.toString(StandardCharsets.UTF_8) ?: return
-        val media = HlsWarmupPlan.fromMediaPlaylist(playlist)
-        val files = media.headers + listOfNotNull(media.firstSegment.takeIf { startsPlayback })
-        coroutineScope {
-            files.map { file ->
-                async { targetOf(file)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } }
-            }.awaitAll()
+    fun prefetchFollowing(handle: String): Job? {
+        val following = hlsChain.following(handle).takeIf { it.isNotEmpty() } ?: return null
+        if (permits.availablePermits == 0) return null
+        return scope.launch {
+            following.map { file -> async { targetOf(file)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } } }.awaitAll()
         }
+    }
+
+    private suspend fun warmHls(media: List<Media>, videoCount: Int) = coroutineScope {
+        val playlists = media.map { item ->
+            async {
+                val target = targetOf(item.url) ?: return@async null
+                prefetch(target, null, MAX_PLAYLIST_BYTES)?.toString(StandardCharsets.UTF_8)
+                    ?.let(HlsWarmupPlan::fromMediaPlaylist)
+                    ?.let { it to item.startsPlayback }
+            }
+        }.awaitAll()
+        hlsChain.remember(
+            playlists.take(videoCount).mapNotNull { it?.first?.segments },
+            playlists.getOrNull(videoCount)?.first?.segments,
+        )
+        val files = playlists.filterNotNull().flatMap { (playlist, startsPlayback) ->
+            playlist.headers + listOfNotNull(playlist.firstSegment.takeIf { startsPlayback })
+        }.distinct()
+        files.map { file -> async { targetOf(file)?.let { prefetch(it, null, MAX_SEGMENT_BYTES) } } }.awaitAll()
     }
 
     private suspend fun targetOf(reference: String): ProviderMediaTarget? {

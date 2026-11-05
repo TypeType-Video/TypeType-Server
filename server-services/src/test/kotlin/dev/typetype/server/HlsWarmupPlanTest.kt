@@ -21,5 +21,7 @@ class HlsWarmupPlanTest {
 
         assertEquals(listOf("m1_KEYKEYKEYKEYKEYKEYKEYKEY", "m1_INITINITINITINITINITINIT"), media.headers)
         assertEquals("m1_SEGMENTONESEGMENTONESEGM", media.firstSegment)
+        assertEquals(listOf(0L, 6_000L), media.segments.map { it.startMs })
+        assertEquals("m1_SEGMENTTWOSEGMENTTWOSEGM", media.segments[1].handle)
     }
 }
