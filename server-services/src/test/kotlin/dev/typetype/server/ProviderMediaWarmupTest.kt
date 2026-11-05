@@ -37,7 +37,7 @@ class ProviderMediaWarmupTest {
         private fun respond(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> {
             requests += url to rangeHeader
             val body = binary[fileName(url)] ?: (bodies[fileName(url)] ?: "x".repeat(2_000)).toByteArray()
-            val ranged = rangeHeader?.let { body.copyOfRange(0, minOf(body.size, it.substringAfter('-').toInt() + 1)) }
+            val ranged = rangeHeader?.let { body.copyOfRange(0, it.substringAfter('-').toInt() + 1) }
             return ExtractionResult.Success(
                 ProxyResponse(
                     status = if (ranged != null) 206 else 200,
@@ -62,8 +62,8 @@ class ProviderMediaWarmupTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val warmup = ProviderMediaWarmup(handles, proxy, cache, scope)
         val response = testStreamResponse(
-            videoOnlyStreams = listOf(testVideoStream(url = video).copy(indexEnd = 1807, bitrate = null)),
-            audioStreams = listOf(testAudioStream(url = audio).copy(indexEnd = 1731, bitrate = null)),
+            videoOnlyStreams = listOf(testVideoStream(url = video).copy(indexEnd = 1807)),
+            audioStreams = listOf(testAudioStream(url = audio).copy(indexEnd = 1731)),
         )
 
         val first = warmup.warm(response, ProviderMediaType.BILIBILI)
@@ -142,7 +142,7 @@ class ProviderMediaWarmupTest {
 
         val segmentEnd = indexEnd + 50_000
         assertEquals(
-            setOf("low.m4s" to "bytes=0-${indexEnd + 700_000}", "high.m4s" to "bytes=0-$indexEnd"),
+            setOf("low.m4s" to "bytes=0-$indexEnd", "high.m4s" to "bytes=0-$indexEnd", "low.m4s" to "bytes=0-$segmentEnd"),
             proxy.requests.map { fileName(it.first) to it.second }.toSet(),
         )
         val target = requireNotNull(handles.resolve(low.substringAfterLast('/')))
