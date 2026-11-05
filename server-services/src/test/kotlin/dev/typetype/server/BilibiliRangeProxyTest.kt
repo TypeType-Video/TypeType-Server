@@ -143,6 +143,83 @@ class BilibiliRangeProxyTest {
     }
 
     @Test
+    fun `open-ended range request from zero seamlessly splits into subchunks`() {
+        val totalFileSize = 1_500_000L
+        val fullData = ByteArray(totalFileSize.toInt()) { (it % 251).toByte() }
+        val requestedRanges = mutableListOf<String>()
+
+        val req = Request.Builder()
+            .url("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s")
+            .header("Range", "bytes=0-")
+            .build()
+
+        val result = readBilibiliRangeWithRetry(
+            execute = { r ->
+                val rangeHeader = r.header("Range").orEmpty()
+                requestedRanges += rangeHeader
+                val (s, e) = rangeHeader.removePrefix("bytes=").split('-').map(String::toInt)
+                val actualEnd = minOf(e, totalFileSize.toInt() - 1)
+                Response.Builder()
+                    .request(r)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(206)
+                    .message("Partial Content")
+                    .header("Content-Range", "bytes $s-$actualEnd/$totalFileSize")
+                    .body(fullData.copyOfRange(s, actualEnd + 1).toResponseBody())
+                    .build()
+            },
+            request = req,
+            enableSubchunks = true,
+            enablePrefetch = false,
+        )
+
+        require(result is ExtractionResult.Success)
+        assertEquals("bytes 0-1499999/1500000", result.data.contentRange)
+        assertEquals(totalFileSize, result.data.contentLength)
+        result.data.stream.use { assertArrayEquals(fullData, it.readBytes()) }
+        assertEquals(listOf("bytes=0-999999", "bytes=1000000-1499999"), requestedRanges)
+    }
+
+    @Test
+    fun `open-ended range request from seek position seamlessly splits into subchunks`() {
+        val totalFileSize = 2_500_000L
+        val fullData = ByteArray(totalFileSize.toInt()) { (it % 251).toByte() }
+        val requestedRanges = mutableListOf<String>()
+
+        val req = Request.Builder()
+            .url("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s")
+            .header("Range", "bytes=1200000-")
+            .build()
+
+        val result = readBilibiliRangeWithRetry(
+            execute = { r ->
+                val rangeHeader = r.header("Range").orEmpty()
+                requestedRanges += rangeHeader
+                val (s, e) = rangeHeader.removePrefix("bytes=").split('-').map(String::toInt)
+                val actualEnd = minOf(e, totalFileSize.toInt() - 1)
+                Response.Builder()
+                    .request(r)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(206)
+                    .message("Partial Content")
+                    .header("Content-Range", "bytes $s-$actualEnd/$totalFileSize")
+                    .body(fullData.copyOfRange(s, actualEnd + 1).toResponseBody())
+                    .build()
+            },
+            request = req,
+            enableSubchunks = true,
+            enablePrefetch = false,
+        )
+
+        require(result is ExtractionResult.Success)
+        assertEquals("bytes 1200000-2499999/2500000", result.data.contentRange)
+        assertEquals(1_300_000L, result.data.contentLength)
+        val expectedData = fullData.copyOfRange(1200000, 2500000)
+        result.data.stream.use { assertArrayEquals(expectedData, it.readBytes()) }
+        assertEquals(listOf("bytes=1200000-2199999", "bytes=2200000-2499999"), requestedRanges)
+    }
+
+    @Test
     fun `falls back to primary URL when Akamai is blacklisted and no other mirrors exist`() {
         System.setProperty("BILIBILI_BLACKLIST_AKAMAI_CDN", "true")
         try {
