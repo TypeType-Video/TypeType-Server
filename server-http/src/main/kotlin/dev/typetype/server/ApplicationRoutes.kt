@@ -22,6 +22,7 @@ import dev.typetype.server.routes.internalObservabilityRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.presenceRoutes
 import dev.typetype.server.routes.podcastRoutes
+import dev.typetype.server.routes.channelPostsRoutes
 import dev.typetype.server.routes.publicMetadataRoutes
 import dev.typetype.server.routes.publicPlaylistRoutes
 import dev.typetype.server.routes.pushNotificationRoutes
@@ -102,6 +103,13 @@ fun Application.installApplicationRoutes(
         rateLimit(CHANNEL_ZONE) {
             channelRoutes(
                 svc.channelService,
+                authService,
+                svc.accessControlService,
+                adminSettingsService,
+                svc.blockedService,
+            )
+            channelPostsRoutes(
+                svc.channelPostsService,
                 authService,
                 svc.accessControlService,
                 adminSettingsService,
