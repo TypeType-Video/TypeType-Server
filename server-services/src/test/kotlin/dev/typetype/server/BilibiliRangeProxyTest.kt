@@ -251,4 +251,38 @@ class BilibiliRangeProxyTest {
         result.data.close()
         assertTrue(prefetchClosed.get())
     }
+
+    @Test
+    fun `starts on the mirror measured faster than the listed one`() {
+        val slow = "https://upos-hz-mirrorakam.akamaized.net/upgcxcode/v.m4s"
+        val fast = "https://upos-sz-mirrorcosov.bilivideo.com/upgcxcode/v.m4s"
+        BilibiliMirrorSpeedTracker.recordThroughput(slow, 117_000.0)
+        BilibiliMirrorSpeedTracker.recordThroughput(fast, 1_600_000.0)
+        val hosts = mutableListOf<String>()
+        val execute: (Request) -> Response = { request ->
+            hosts += request.url.host
+            Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(206)
+                .message("Partial Content")
+                .header("Content-Type", "video/mp4")
+                .header("Content-Range", "bytes 0-3/100")
+                .body(byteArrayOf(1, 2, 3, 4).toResponseBody())
+                .build()
+        }
+        val request = Request.Builder().url(slow).header("Range", "bytes=0-3").build()
+
+        val result = readBilibiliRangeWithRetry(
+            execute,
+            request,
+            alternateUrls = listOf(fast),
+            cdnRegion = null,
+            enableSubchunks = false,
+            enablePrefetch = false,
+        )
+
+        assertTrue(result is ExtractionResult.Success)
+        assertEquals(listOf("upos-sz-mirrorcosov.bilivideo.com"), hosts)
+    }
 }

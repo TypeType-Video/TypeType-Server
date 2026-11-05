@@ -50,6 +50,7 @@ class BilibiliSlowMirrorSwitcher(
         }
         val primaryBytesPerSecond = delivered.toDouble() * NANOS_PER_SECOND / upstreamWaitNanos
         if (primaryBytesPerSecond >= MAX_PRIMARY_BYTES_PER_SECOND) return null
+        BilibiliMirrorSpeedTracker.recordThroughput(primary.request.url.toString(), primaryBytesPerSecond)
         val offset = media.start + delivered
         if (offset > media.end || media.end - offset + 1 < MIN_REMAINING_BYTES) {
             attempted = true
@@ -115,6 +116,7 @@ class BilibiliSlowMirrorSwitcher(
             if (elapsed(probeStarted) > MAX_PROBE_NANOS) return null
             val sampleNanos = elapsed(sampleStarted)
             val alternateBytesPerSecond = sample.size.toDouble() * NANOS_PER_SECOND / sampleNanos
+            BilibiliMirrorSpeedTracker.recordThroughput(alternateUrl, alternateBytesPerSecond)
             if (alternateBytesPerSecond < MIN_ALTERNATE_BYTES_PER_SECOND ||
                 alternateBytesPerSecond < primaryBytesPerSecond * MIN_SPEEDUP
             ) return null

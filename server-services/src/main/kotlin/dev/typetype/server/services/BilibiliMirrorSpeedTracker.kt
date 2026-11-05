@@ -9,11 +9,15 @@ object BilibiliMirrorSpeedTracker {
         var sampleCount: Int = 0,
         var consecutiveFailures: Int = 0,
         var lastFailureEpochMs: Long = 0L,
+        var bytesPerSecond: Double = 0.0,
+        var lastThroughputEpochMs: Long = 0L,
     )
 
     private val stats = ConcurrentHashMap<String, HostStats>()
     private const val PENALTY_DURATION_MS = 120_000L
     private const val PENALTY_SCORE = 15_000.0
+    private const val THROUGHPUT_LIFETIME_MS = 600_000L
+    private const val MIN_PREFERRED_SPEEDUP = 2.0
 
     fun recordSuccess(urlOrHost: String, latencyMs: Long) {
         val host = extractHost(urlOrHost) ?: return
@@ -27,6 +31,34 @@ object BilibiliMirrorSpeedTracker {
                 current.smoothedLatencyMs * 0.7 + sample * 0.3
             }
             current.sampleCount++
+        }
+    }
+
+    fun recordThroughput(urlOrHost: String, bytesPerSecond: Double, nowMs: Long = System.currentTimeMillis()) {
+        val host = extractHost(urlOrHost) ?: return
+        if (bytesPerSecond <= 0.0) return
+        val current = stats.computeIfAbsent(host) { HostStats() }
+        synchronized(current) {
+            val fresh = nowMs - current.lastThroughputEpochMs < THROUGHPUT_LIFETIME_MS && current.bytesPerSecond > 0.0
+            current.bytesPerSecond = if (fresh) current.bytesPerSecond * 0.5 + bytesPerSecond * 0.5 else bytesPerSecond
+            current.lastThroughputEpochMs = nowMs
+        }
+    }
+
+    fun preferMeasuredFaster(urls: List<String>, nowMs: Long = System.currentTimeMillis()): List<String> {
+        val first = urls.firstOrNull() ?: return urls
+        val firstRate = recentThroughput(first, nowMs) ?: return urls
+        val best = urls.drop(1).maxByOrNull { recentThroughput(it, nowMs) ?: 0.0 } ?: return urls
+        val bestRate = recentThroughput(best, nowMs) ?: return urls
+        if (bestRate < firstRate * MIN_PREFERRED_SPEEDUP) return urls
+        return listOf(best) + urls.filter { it != best }
+    }
+
+    private fun recentThroughput(urlOrHost: String, nowMs: Long): Double? {
+        val current = stats[extractHost(urlOrHost) ?: return null] ?: return null
+        synchronized(current) {
+            if (current.bytesPerSecond <= 0.0 || nowMs - current.lastThroughputEpochMs >= THROUGHPUT_LIFETIME_MS) return null
+            return current.bytesPerSecond
         }
     }
 
