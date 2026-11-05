@@ -64,11 +64,6 @@ class ProviderMediaStartupCache(
         return stored.entry
     }
 
-    suspend fun awaitFor(url: String, rangeHeader: String?) {
-        awaitPending(url)
-        rangeStart(rangeHeader)?.let { awaitPending(segmentKey(url, it)) }
-    }
-
     fun respond(url: String, rangeHeader: String?): ProxyResponse? {
         get(url)?.let { entry -> respondFrom(entry, rangeHeader)?.let { return it } }
         val start = rangeStart(rangeHeader) ?: return null

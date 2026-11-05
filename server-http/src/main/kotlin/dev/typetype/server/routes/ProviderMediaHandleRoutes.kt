@@ -34,7 +34,7 @@ internal fun Route.providerMediaHandleRoutes(
         readAhead?.onServed(target, rangeHeader)
         if (startupCache != null) {
             val cached = startupCache.respond(target.url, rangeHeader) ?: run {
-                startupCache.awaitFor(target.url, rangeHeader)
+                startupCache.awaitPending(target.url)
                 startupCache.respond(target.url, rangeHeader)
             }
             cached?.let { return@get call.respondProxyResult(ExtractionResult.Success(it)) }

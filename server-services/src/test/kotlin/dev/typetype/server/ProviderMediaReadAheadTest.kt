@@ -11,6 +11,7 @@ import dev.typetype.server.services.ProviderMediaWarmup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -65,7 +66,9 @@ class ProviderMediaReadAheadTest {
         segments.remember(target.url, listOf(1_000L..1_999L, 2_000L..2_999L))
 
         ProviderMediaReadAhead(warmup, segments).onServed(target, "bytes=1000-1999")
-        withTimeout(5_000) { cache.awaitFor(target.url, "bytes=2000-2999") }
+        withTimeout(5_000) {
+            while (cache.respond(target.url, "bytes=2000-2999") == null) delay(10)
+        }
 
         assertEquals(listOf<String?>("bytes=2000-2999"), proxy.ranges.toList())
         val served = requireNotNull(cache.respond(target.url, "bytes=2000-2999"))
