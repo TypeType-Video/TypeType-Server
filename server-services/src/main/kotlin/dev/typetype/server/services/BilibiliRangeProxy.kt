@@ -49,7 +49,7 @@ fun readBilibiliRangeWithRetry(
         (nonAkamai + remaining).distinct().ifEmpty { listOf(request.url.toString()) }
     } else {
         val listed = listOf(request.url.toString()) + sortedAlternates.filter { it != request.url.toString() }
-        val base = if (effectiveRegion == null) BilibiliMirrorSpeedTracker.preferMeasuredFaster(listed) else listed
+        val base = if (effectiveRegion == null) BilibiliMirrorSpeedTracker.rankByExpectedTime(listed) else listed
         if (isAkamaiBlacklisted) {
             base.filter { !BilibiliAkamaiConfig.isAkamaiUrl(it) }.ifEmpty { base }
         } else {

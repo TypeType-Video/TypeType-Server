@@ -27,6 +27,7 @@ class ProviderMediaWarmup(
     private val cache: ProviderMediaStartupCache,
     private val scope: CoroutineScope,
     private val segments: ProviderMediaSegmentTable = ProviderMediaSegmentTable(),
+    private val probeMirrors: (urls: List<String>, totalLength: Long?) -> Unit = { _, _ -> },
 ) {
     private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
 
@@ -96,6 +97,7 @@ class ProviderMediaWarmup(
         val table = Mp4SegmentIndex.segments(header, media.indexStart) ?: return
         segments.remember(target.url, table)
         if (!media.startsPlayback) return
+        probeMirrors(listOf(target.url) + target.alternateUrls, cache.get(target.url)?.totalLength)
         val end = table.first().last
         if (end < header.size || end >= MAX_SEGMENT_BYTES) return
         val claim = cache.begin(target.url, extending = true) ?: return

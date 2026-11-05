@@ -11,19 +11,23 @@ object BilibiliMirrorSpeedTracker {
         var lastFailureEpochMs: Long = 0L,
         var bytesPerSecond: Double = 0.0,
         var lastThroughputEpochMs: Long = 0L,
+        var lastLatencyEpochMs: Long = 0L,
     )
 
     private val stats = ConcurrentHashMap<String, HostStats>()
     private const val PENALTY_DURATION_MS = 120_000L
     private const val PENALTY_SCORE = 15_000.0
     private const val THROUGHPUT_LIFETIME_MS = 600_000L
-    private const val MIN_PREFERRED_SPEEDUP = 2.0
+    private const val TYPICAL_SEGMENT_BYTES = 512.0 * 1024
+    private const val UNKNOWN_LATENCY_MS = 600.0
+    private const val UNKNOWN_BYTES_PER_SECOND = 400.0 * 1024
 
-    fun recordSuccess(urlOrHost: String, latencyMs: Long) {
+    fun recordSuccess(urlOrHost: String, latencyMs: Long, nowMs: Long = System.currentTimeMillis()) {
         val host = extractHost(urlOrHost) ?: return
         val current = stats.computeIfAbsent(host) { HostStats() }
         synchronized(current) {
             current.consecutiveFailures = 0
+            current.lastLatencyEpochMs = nowMs
             val sample = latencyMs.toDouble().coerceAtLeast(1.0)
             current.smoothedLatencyMs = if (current.sampleCount == 0) {
                 sample
@@ -45,20 +49,24 @@ object BilibiliMirrorSpeedTracker {
         }
     }
 
-    fun preferMeasuredFaster(urls: List<String>, nowMs: Long = System.currentTimeMillis()): List<String> {
-        val first = urls.firstOrNull() ?: return urls
-        val firstRate = recentThroughput(first, nowMs) ?: return urls
-        val best = urls.drop(1).maxByOrNull { recentThroughput(it, nowMs) ?: 0.0 } ?: return urls
-        val bestRate = recentThroughput(best, nowMs) ?: return urls
-        if (bestRate < firstRate * MIN_PREFERRED_SPEEDUP) return urls
-        return listOf(best) + urls.filter { it != best }
-    }
+    fun rankByExpectedTime(urls: List<String>, nowMs: Long = System.currentTimeMillis()): List<String> =
+        urls.withIndex()
+            .sortedWith(compareBy({ expectedSegmentMillis(it.value, nowMs) }, { it.index }))
+            .map { it.value }
 
-    private fun recentThroughput(urlOrHost: String, nowMs: Long): Double? {
-        val current = stats[extractHost(urlOrHost) ?: return null] ?: return null
+    fun expectedSegmentMillis(urlOrHost: String, nowMs: Long = System.currentTimeMillis()): Double {
+        val host = extractHost(urlOrHost) ?: return Double.MAX_VALUE
+        val current = stats[host] ?: return UNKNOWN_LATENCY_MS + TYPICAL_SEGMENT_BYTES * 1000 / UNKNOWN_BYTES_PER_SECOND
         synchronized(current) {
-            if (current.bytesPerSecond <= 0.0 || nowMs - current.lastThroughputEpochMs >= THROUGHPUT_LIFETIME_MS) return null
-            return current.bytesPerSecond
+            val latency = current.smoothedLatencyMs
+                .takeIf { current.sampleCount > 0 && nowMs - current.lastLatencyEpochMs < THROUGHPUT_LIFETIME_MS }
+                ?: UNKNOWN_LATENCY_MS
+            val rate = current.bytesPerSecond
+                .takeIf { it > 0.0 && nowMs - current.lastThroughputEpochMs < THROUGHPUT_LIFETIME_MS }
+                ?: UNKNOWN_BYTES_PER_SECOND
+            val inPenalty = current.consecutiveFailures > 0 && nowMs - current.lastFailureEpochMs < PENALTY_DURATION_MS
+            val penalty = if (inPenalty) PENALTY_SCORE * current.consecutiveFailures else 0.0
+            return latency + TYPICAL_SEGMENT_BYTES * 1000 / rate + penalty
         }
     }
 

@@ -75,34 +75,32 @@ class BilibiliMirrorSpeedTrackerTest {
     }
 
     @Test
-    fun `moves a mirror measured twice as fast to the front`() {
+    fun `ranks mirrors by the time a typical segment is expected to take`() {
         val urls = listOf(
             "https://upos-hz-mirrorakam.akamaized.net/v.m4s",
             "https://upos-sz-mirrorcosov.bilivideo.com/v.m4s",
             "https://upos-sz-mirrorcos.bilivideo.com/v.m4s",
         )
+        BilibiliMirrorSpeedTracker.recordSuccess(urls[0], 1_300, nowMs = 1_000)
         BilibiliMirrorSpeedTracker.recordThroughput(urls[0], 117_000.0, nowMs = 1_000)
+        BilibiliMirrorSpeedTracker.recordSuccess(urls[1], 200, nowMs = 1_000)
         BilibiliMirrorSpeedTracker.recordThroughput(urls[1], 1_600_000.0, nowMs = 1_000)
 
-        assertEquals(
-            listOf(urls[1], urls[0], urls[2]),
-            BilibiliMirrorSpeedTracker.preferMeasuredFaster(urls, nowMs = 2_000),
-        )
+        assertEquals(listOf(urls[1], urls[2], urls[0]), BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 2_000))
     }
 
     @Test
-    fun `keeps the order when the gap is small, stale or unknown`() {
+    fun `keeps the listed order for unknown or stale mirrors and demotes failing ones`() {
         val urls = listOf(
             "https://upos-hz-mirrorakam.akamaized.net/v.m4s",
             "https://upos-sz-mirrorcosov.bilivideo.com/v.m4s",
         )
+        assertEquals(urls, BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 2_000))
+
         BilibiliMirrorSpeedTracker.recordThroughput(urls[1], 1_600_000.0, nowMs = 1_000)
-        assertEquals(urls, BilibiliMirrorSpeedTracker.preferMeasuredFaster(urls, nowMs = 2_000))
+        assertEquals(urls, BilibiliMirrorSpeedTracker.rankByExpectedTime(urls, nowMs = 1_000 + 600_000))
 
-        BilibiliMirrorSpeedTracker.recordThroughput(urls[0], 1_000_000.0, nowMs = 1_000)
-        assertEquals(urls, BilibiliMirrorSpeedTracker.preferMeasuredFaster(urls, nowMs = 2_000))
-
-        BilibiliMirrorSpeedTracker.recordThroughput(urls[0], 100_000.0, nowMs = 1_000)
-        assertEquals(urls, BilibiliMirrorSpeedTracker.preferMeasuredFaster(urls, nowMs = 1_000 + 600_000))
+        BilibiliMirrorSpeedTracker.recordFailure(urls[0])
+        assertEquals(urls.reversed(), BilibiliMirrorSpeedTracker.rankByExpectedTime(urls))
     }
 }

@@ -2,6 +2,7 @@ package dev.typetype.server
 
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliAggregatedSearchService
+import dev.typetype.server.services.BilibiliMirrorProber
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
@@ -227,6 +228,7 @@ internal class ExtractionServiceRegistry(
         providerMediaStartupCache,
         providerMediaScope,
         providerMediaSegments,
+        BilibiliMirrorProber(proxyHttpClient, providerMediaScope)::probe,
     )
     val providerMediaReadAhead = ProviderMediaReadAhead(providerMediaWarmup, providerMediaSegments)
     val nicoVideoProxyService = NicoVideoProxyService(mediaHandleService = providerMediaHandleService)
