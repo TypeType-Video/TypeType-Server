@@ -197,6 +197,8 @@ private fun readBilibiliSubchunkedRange(
     return ExtractionResult.Failure(lastMessage)
 }
 
+private val hedgedOpen = BilibiliHedgedOpen()
+
 private fun readBilibiliDirectRange(
     execute: (Request) -> Response,
     request: Request,
@@ -210,16 +212,22 @@ private fun readBilibiliDirectRange(
     var lastMessage = "Proxy fetch failed"
     for (attempt in 1..BILIBILI_RANGE_ATTEMPTS) {
         checkActive()
-        val mirror = mirrors[(attempt - 1) % mirrors.size]
-        val opening = if (mirror == request.url.toString()) request else request.newBuilder().url(mirror).build()
+        val listed = mirrors[(attempt - 1) % mirrors.size]
+        val primary = if (listed == request.url.toString()) request else request.newBuilder().url(listed).build()
+        val hedge = mirrors.firstOrNull { it != listed }
+            ?.takeIf { attempt == 1 }
+            ?.let { request.newBuilder().url(it).build() }
         val openStarted = nanoTime()
-        val response = try {
-            execute(opening)
+        val opened = try {
+            hedgedOpen.open(execute, primary, hedge)
         } catch (error: IOException) {
-            BilibiliMirrorSpeedTracker.recordFailure(mirror)
+            BilibiliMirrorSpeedTracker.recordFailure(listed)
             lastMessage = error.message ?: "Proxy fetch failed"
             continue
         }
+        val opening = opened.request
+        val mirror = opening.url.toString()
+        val response = opened.response
         if (!response.isSuccessful) {
             BilibiliMirrorSpeedTracker.recordFailure(mirror)
             lastMessage = "Upstream returned ${response.code}"
