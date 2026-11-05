@@ -24,8 +24,8 @@ class ProviderMediaStartupCache(
     private val pending = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
     private var storedBytes = 0L
 
-    fun begin(handle: String): CompletableDeferred<Unit>? {
-        if (get(handle) != null) return null
+    fun begin(handle: String, extending: Boolean = false): CompletableDeferred<Unit>? {
+        if (!extending && get(handle) != null) return null
         val claim = CompletableDeferred<Unit>()
         return if (pending.putIfAbsent(handle, claim) == null) claim else null
     }

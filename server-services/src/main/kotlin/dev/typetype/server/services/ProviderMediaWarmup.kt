@@ -5,6 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,7 +27,7 @@ class ProviderMediaWarmup(
     private val cache: ProviderMediaStartupCache,
     private val scope: CoroutineScope,
 ) {
-    private class Media(val url: String, val indexEnd: Long, val startsPlayback: Boolean)
+    private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
 
     private val permits = Semaphore(MAX_PARALLEL_FETCHES)
 
@@ -36,15 +37,15 @@ class ProviderMediaWarmup(
     fun warm(provider: ProviderMediaType, video: List<VideoStreamItem>, audio: List<AudioStreamItem>): Job =
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
-                val lowest = video.minByOrNull { it.height.takeIf { height -> height > 0 } ?: it.bitrate ?: Int.MAX_VALUE }?.url
-                val media = video.map { Media(it.url, it.indexEnd, it.url == lowest) } +
-                    audio.map { Media(it.url, it.indexEnd, startsPlayback = true) }
+                val starting = startingUrls(provider, video, audio)
+                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) } +
+                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) }
                 coroutineScope {
                     media.map { item ->
                         async {
                             val target = targetOf(item.url) ?: return@async
                             when (provider) {
-                                ProviderMediaType.BILIBILI -> warmDash(target, item.indexEnd)
+                                ProviderMediaType.BILIBILI -> warmDash(target, item)
                                 ProviderMediaType.NICONICO -> warmHlsMedia(target, item.startsPlayback)
                             }
                         }
@@ -59,20 +60,46 @@ class ProviderMediaWarmup(
             cache.awaitPending(target.url)
             return cache.get(target.url)?.bytes
         }
-        return try {
-            permits.withPermit { fetch(target, rangeHeader, limit) }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            null
-        } finally {
-            cache.finish(target.url, claim)
-        }
+        return fetchClaimed(target, rangeHeader, limit, claim)
     }
 
-    private suspend fun warmDash(target: ProviderMediaTarget, indexEnd: Long) {
-        if (indexEnd <= 0 || indexEnd >= MAX_DASH_HEADER_BYTES) return
-        prefetch(target, "bytes=0-$indexEnd", MAX_DASH_HEADER_BYTES)
+    private suspend fun fetchClaimed(
+        target: ProviderMediaTarget,
+        rangeHeader: String?,
+        limit: Int,
+        claim: CompletableDeferred<Unit>,
+    ): ByteArray? = try {
+        permits.withPermit { fetch(target, rangeHeader, limit) }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        null
+    } finally {
+        cache.finish(target.url, claim)
+    }
+
+    private suspend fun warmDash(target: ProviderMediaTarget, media: Media) {
+        if (media.indexEnd <= 0 || media.indexEnd >= MAX_DASH_HEADER_BYTES) return
+        val header = prefetch(target, "bytes=0-${media.indexEnd}", MAX_DASH_HEADER_BYTES) ?: return
+        if (!media.startsPlayback) return
+        val end = Mp4SegmentIndex.firstSegmentEnd(header, media.indexStart) ?: return
+        if (end < header.size || end >= MAX_SEGMENT_BYTES) return
+        val claim = cache.begin(target.url, extending = true) ?: return
+        fetchClaimed(target, "bytes=0-$end", MAX_SEGMENT_BYTES, claim)
+    }
+
+    private fun startingUrls(
+        provider: ProviderMediaType,
+        video: List<VideoStreamItem>,
+        audio: List<AudioStreamItem>,
+    ): Set<String> = when (provider) {
+        ProviderMediaType.NICONICO -> setOfNotNull(
+            video.minByOrNull { it.height.takeIf { height -> height > 0 } ?: Int.MAX_VALUE }?.url,
+        ) + audio.map { it.url }
+        ProviderMediaType.BILIBILI -> video.groupBy { it.codec?.substringBefore('.') }.values.mapNotNull { group ->
+            group.filter { (it.bitrate ?: 0) in 1..BILIBILI_START_BITS_PER_SECOND }.maxByOrNull { it.bitrate ?: 0 }
+                ?: group.minByOrNull { it.bitrate ?: Int.MAX_VALUE }
+        }.map { it.url }.toSet() + setOfNotNull(audio.maxByOrNull { it.bitrate ?: 0 }?.url)
     }
 
     private suspend fun warmHlsMedia(target: ProviderMediaTarget, startsPlayback: Boolean) {
@@ -132,5 +159,6 @@ class ProviderMediaWarmup(
         const val MAX_PLAYLIST_BYTES = 512 * 1024
         const val MAX_SEGMENT_BYTES = 4 * 1024 * 1024
         const val WARMUP_TIMEOUT_MILLIS = 20_000L
+        const val BILIBILI_START_BITS_PER_SECOND = 1_000_000
     }
 }

@@ -18,7 +18,10 @@ import java.io.ByteArrayInputStream
 import java.util.Collections
 
 class ProviderMediaWarmupTest {
-    private class RecordingProxy(private val bodies: Map<String, String>) : ProviderMediaAwareProxyService {
+    private class RecordingProxy(
+        private val bodies: Map<String, String>,
+        private val binary: Map<String, ByteArray> = emptyMap(),
+    ) : ProviderMediaAwareProxyService {
         val requests: MutableList<Pair<String, String?>> = Collections.synchronizedList(mutableListOf())
 
         override suspend fun pipeProviderMedia(url: String, rangeHeader: String?, domandBid: String?) =
@@ -33,7 +36,7 @@ class ProviderMediaWarmupTest {
 
         private fun respond(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> {
             requests += url to rangeHeader
-            val body = (bodies[fileName(url)] ?: "x".repeat(2_000)).toByteArray()
+            val body = binary[fileName(url)] ?: (bodies[fileName(url)] ?: "x".repeat(2_000)).toByteArray()
             val ranged = rangeHeader?.let { body.copyOfRange(0, it.substringAfter('-').toInt() + 1) }
             return ExtractionResult.Success(
                 ProxyResponse(
@@ -110,6 +113,46 @@ class ProviderMediaWarmupTest {
         assertEquals(setOf("high.m3u8", "low.m3u8", "audio.m3u8", "init.cmfv", "key", "low1.cmfv", "audio1.cmfa"), fetched)
         val segment = requireNotNull(handles.resolve(paths.getValue("low1.cmfv")))
         assertNotNull(cache.respond(segment.url, null))
+    }
+
+    @Test
+    fun `fetches the first Bilibili segment of the starting quality only`() = runBlocking {
+        val handles = ProviderMediaHandleService(FakeCacheService())
+        val base = "https://upos-sz-mirrorcosov.bilivideo.com"
+        val low = handles.createPath("$base/low.m4s?deadline=4000000000")
+        val high = handles.createPath("$base/high.m4s?deadline=4000000000")
+        val sidx = sidx(firstSegmentSize = 50_000)
+        val file = ByteArray(1_000) + sidx + ByteArray(120_000)
+        val proxy = RecordingProxy(emptyMap(), mapOf("low.m4s" to file, "high.m4s" to file))
+        val cache = ProviderMediaStartupCache()
+        val warmup = ProviderMediaWarmup(handles, proxy, cache, CoroutineScope(SupervisorJob() + Dispatchers.IO))
+        val indexEnd = 1_000L + sidx.size - 1
+        val response = testStreamResponse(
+            videoOnlyStreams = listOf(
+                testVideoStream(url = high).copy(bitrate = 1_800_000, codec = "avc1.640028", indexStart = 1_000, indexEnd = indexEnd),
+                testVideoStream(url = low).copy(bitrate = 800_000, codec = "avc1.64001F", indexStart = 1_000, indexEnd = indexEnd),
+            ),
+            audioStreams = emptyList(),
+        )
+
+        warmup.warm(response, ProviderMediaType.BILIBILI).join()
+
+        val segmentEnd = indexEnd + 50_000
+        assertEquals(
+            setOf("low.m4s" to "bytes=0-$indexEnd", "high.m4s" to "bytes=0-$indexEnd", "low.m4s" to "bytes=0-$segmentEnd"),
+            proxy.requests.map { fileName(it.first) to it.second }.toSet(),
+        )
+        val target = requireNotNull(handles.resolve(low.substringAfterLast('/')))
+        assertNotNull(cache.respond(target.url, "bytes=${indexEnd + 1}-$segmentEnd"))
+    }
+
+    private fun sidx(firstSegmentSize: Int): ByteArray {
+        val size = 8 + 4 + 8 + 8 + 4 + 12
+        val buffer = java.nio.ByteBuffer.allocate(size)
+        buffer.putInt(size).put("sidx".toByteArray()).putInt(0).putInt(1).putInt(1000)
+        buffer.putInt(0).putInt(0).putShort(0).putShort(1)
+        buffer.putInt(firstSegmentSize).putInt(5000).putInt(0)
+        return buffer.array()
     }
 
     private companion object {
