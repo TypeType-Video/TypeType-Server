@@ -34,6 +34,8 @@ data class SabrDownloadRange(
         boundaryPart: Int,
     ): Int {
         if (parts == 1 || boundaryPart == 0) return 1
+        val endSegment = state.getEndSegment(format)
+        if (endSegment in parts until Int.MAX_VALUE) return (1 + endSegment * boundaryPart / parts).toInt()
         val durationMs = format.approxDurationMs.coerceAtLeast(0L)
         require(durationMs > 0L) { "SABR duration is required for multipart downloads" }
         val boundaryMs = durationMs * boundaryPart / parts

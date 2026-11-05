@@ -14,6 +14,7 @@ class SabrDownloadRangeTest {
     fun `adjacent parts share an exclusive segment boundary`() {
         val state = mockk<YoutubeSabrStreamState>()
         val format = format(durationMs = 1_000L)
+        every { state.getEndSegment(format) } returns 0L
         every { state.getSegmentNumberAtOrAfterTimeMs(format, 250L) } returns 26
         every { state.getSegmentNumberAtOrAfterTimeMs(format, 500L) } returns 51
 
@@ -24,6 +25,19 @@ class SabrDownloadRangeTest {
         assertEquals(26, first.endSequenceExclusive(state, format))
         assertEquals(26, second.startSequence(state, format))
         assertEquals(51, second.endSequenceExclusive(state, format))
+    }
+
+    @Test
+    fun `parts split the known segments evenly even when the time index is wrong`() {
+        val state = mockk<YoutubeSabrStreamState>()
+        val format = format(durationMs = 300_000L)
+        every { state.getEndSegment(format) } returns 30L
+        every { state.getSegmentNumberAtOrAfterTimeMs(format, any()) } returns 1
+
+        val ranges = (0 until 4).map { SabrDownloadRange(part = it, parts = 4) }
+        val bounds = ranges.map { it.startSequence(state, format) to it.endSequenceExclusive(state, format) }
+
+        assertEquals(listOf(1 to 8, 8 to 16, 16 to 23, 23 to 31), bounds)
     }
 
     @Test

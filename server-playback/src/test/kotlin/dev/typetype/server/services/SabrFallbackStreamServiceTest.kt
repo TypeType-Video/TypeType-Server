@@ -93,7 +93,8 @@ class SabrDownloadStreamerTest {
         every { session.streamState } returns state
         every { state.poToken } returns null
         every { state.getSegmentNumberAtOrAfterTimeMs(audio, 50) } returns 5
-        every { state.getEndSegment(audio) } returns 5
+        every { state.getEndSegment(audio) } returns 8
+        every { state.isComplete(audio) } returns true
         every { session.isBeyondEnd(any()) } returns false
         every { session.cachedBytes } returns 0
         every { session.totalResponseBytes } returns 2
@@ -142,7 +143,7 @@ class SabrDownloadStreamerTest {
         every { state.poToken } returns null
         every { state.getSegmentNumberAtOrAfterTimeMs(audio, 50) } returns 5
         every { state.getSegmentStartMs(audio, 5) } returns 50
-        every { state.getEndSegment(audio) } returns 5
+        every { state.getEndSegment(audio) } returns 8
         every { state.isComplete(audio) } answers { complete }
         every { session.isBeyondEnd(any()) } returns false
         every { session.cachedBytes } returns 0
