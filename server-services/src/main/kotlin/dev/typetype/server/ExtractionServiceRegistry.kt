@@ -34,6 +34,8 @@ import dev.typetype.server.services.PipePipeLiveHlsStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
 import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaStartupCache
+import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.SabrBootstrapCache
 import dev.typetype.server.services.SabrBootstrapStreamService
@@ -67,6 +69,9 @@ import dev.typetype.server.services.YoutubeSessionService
 import dev.typetype.server.services.YoutubeSessionStore
 import dev.typetype.server.services.YoutubeSessionStreamService
 import dev.typetype.server.services.YoutubeSessionSabrStreamService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import java.net.ProxySelector
 
@@ -210,6 +215,13 @@ internal class ExtractionServiceRegistry(
     )
     val providerMediaHandleService = ProviderMediaHandleService(cache)
     val proxyService = CachedImageProxyService(OkHttpProxyService(proxyHttpClient, providerMediaHandleService), cache)
+    val providerMediaStartupCache = ProviderMediaStartupCache()
+    val providerMediaWarmup = ProviderMediaWarmup(
+        providerMediaHandleService,
+        proxyService,
+        providerMediaStartupCache,
+        CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    )
     val nicoVideoProxyService = NicoVideoProxyService(mediaHandleService = providerMediaHandleService)
     val manifestService = CachedManifestService(ManifestService(streamService, providerMediaHandleService), cache)
     val nativeManifestService = CachedNativeManifestService(NativeManifestService(), cache)

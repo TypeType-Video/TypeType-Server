@@ -12,6 +12,7 @@ import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.filterAllowed
 import dev.typetype.server.services.filterBlocked
@@ -31,6 +32,7 @@ fun Route.streamRoutes(
     blockedService: BlockedService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     providerMediaHandleService: ProviderMediaHandleService? = null,
+    providerMediaWarmup: ProviderMediaWarmup? = null,
     nicoNicoStreamService: StreamService = streamService,
     bilibiliStreamService: StreamService = streamService,
     sabrBootstrapStreamService: StreamService = streamService,
@@ -48,6 +50,7 @@ fun Route.streamRoutes(
         blockedService = blockedService,
         publicHlsManifestTokenService = publicHlsManifestTokenService,
         providerMediaHandleService = providerMediaHandleService,
+        providerMediaWarmup = providerMediaWarmup,
         sabrStreamContractFilter = sabrStreamContractFilter,
         youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
         bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
@@ -177,6 +180,9 @@ private fun Route.streamRoute(
                     throw error
                 } catch (error: Exception) {
                     return@get call.respondMediaHandleFailure(error)
+                }
+                if (!selected.isLive) {
+                    providerMediaType(deliveryMode)?.let { dependencies.providerMediaWarmup?.warm(publicData, it) }
                 }
                 call.response.headers.append(
                     HttpHeaders.CacheControl,

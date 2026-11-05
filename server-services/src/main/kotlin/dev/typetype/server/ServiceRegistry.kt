@@ -101,6 +101,8 @@ class ServiceRegistry(
     val publicPlaylistService = extraction.publicPlaylistService
     val proxyService = extraction.proxyService
     val providerMediaHandleService = extraction.providerMediaHandleService
+    val providerMediaStartupCache = extraction.providerMediaStartupCache
+    val providerMediaWarmup = extraction.providerMediaWarmup
     val youtubeSubtitleDeliveryService = extraction.youtubeSubtitleDeliveryService
     val nicoVideoProxyService = extraction.nicoVideoProxyService
     val manifestService = extraction.manifestService

@@ -9,6 +9,7 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaHandleService
+import dev.typetype.server.services.ProviderMediaWarmup
 
 internal data class StreamRouteDependencies(
     val authService: AuthService?,
@@ -17,6 +18,7 @@ internal data class StreamRouteDependencies(
     val blockedService: BlockedService?,
     val publicHlsManifestTokenService: PublicHlsManifestTokenService?,
     val providerMediaHandleService: ProviderMediaHandleService?,
+    val providerMediaWarmup: ProviderMediaWarmup? = null,
     val sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse?)?,
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,

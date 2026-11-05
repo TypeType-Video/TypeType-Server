@@ -33,6 +33,7 @@ internal fun Route.installStreamRoutes(
             blockedService = svc.blockedService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             providerMediaHandleService = svc.providerMediaHandleService,
+            providerMediaWarmup = svc.providerMediaWarmup,
             sabrStreamContractFilter = { url, data -> data.withPreparedSabrStreams(url, svc.sabrSessionStore) },
             bilibiliSessionStreamInfo = { userId, url -> svc.bilibiliSessionStreamService.getStreamInfo(userId, url) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
@@ -67,7 +68,7 @@ internal fun Route.installStreamRoutes(
 internal fun Route.installProxyRoutes(svc: ServiceRegistry) {
     rateLimit(PROXY_ZONE) {
         proxyRoutes(svc.proxyService, svc.youtubeSubtitleDeliveryService)
-        providerMediaHandleRoutes(svc.providerMediaHandleService, svc.proxyService)
+        providerMediaHandleRoutes(svc.providerMediaHandleService, svc.proxyService, svc.providerMediaStartupCache)
         youtubeSubtitleRoutes(svc.youtubeSubtitleDeliveryService)
         audioOnlySourceRoutes(
             streamService = svc.streamService,
