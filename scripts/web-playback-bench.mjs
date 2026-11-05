@@ -45,9 +45,15 @@ const pageProbe = () => {
     if (video.__bench) return;
     video.__bench = true;
     marks.loadstart ??= now();
+    const nearEnd = () => video.ended || video.duration - video.currentTime < 1;
+    const closeStall = () => {
+      const open = stalls.at(-1);
+      if (open && open.end === null) open.end = now();
+    };
     video.addEventListener("waiting", () => {
-      if (marks.firstFrame && !video.seeking) stalls.push({ start: now(), end: null });
+      if (marks.firstFrame && !video.seeking && !nearEnd()) stalls.push({ start: now(), end: null });
     });
+    video.addEventListener("ended", closeStall);
     video.addEventListener("playing", () => {
       const open = stalls.at(-1);
       if (open && open.end === null) open.end = now();
