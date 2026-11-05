@@ -258,7 +258,7 @@ CommentVoiceReply:
   type: object
   required: [url, durationMs, transcript, playable]
   properties:
-    url: { type: string, description: Stable YouTube watch URL; resolve it through /streams to play it. }
+    url: { type: string, description: Stable YouTube watch URL; play it through /comments/voice. }
     durationMs: { type: integer, format: int64 }
     transcript: { type: string }
     playable: { type: boolean }

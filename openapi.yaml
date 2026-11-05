@@ -130,6 +130,8 @@ paths:
     $ref: ./openapi/paths/comments.yaml#/Comments
   /comments/replies:
     $ref: ./openapi/paths/comments.yaml#/Replies
+  /comments/voice:
+    $ref: ./openapi/paths/comments.yaml#/Voice
   /downloader/health:
     $ref: ./openapi/paths/downloader.yaml#/Health
   /downloader/health/deep:

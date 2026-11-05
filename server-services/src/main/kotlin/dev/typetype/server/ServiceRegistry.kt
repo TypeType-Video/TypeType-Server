@@ -1,5 +1,6 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.CommentVoiceAudioService
 import dev.typetype.server.services.YoutubeRelatedVideosService
 import dev.typetype.server.services.CachedRelatedVideosService
 import dev.typetype.server.services.AccessControlService
@@ -115,6 +116,7 @@ class ServiceRegistry(
     val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
     val sabrSessionStore = extraction.sabrSessionStore
+    val commentVoiceAudioService = CommentVoiceAudioService(sabrSessionStore, cache)
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)

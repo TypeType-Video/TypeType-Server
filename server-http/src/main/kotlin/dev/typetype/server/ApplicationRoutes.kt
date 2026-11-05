@@ -16,6 +16,7 @@ import dev.typetype.server.routes.bulletCommentRoutes
 import dev.typetype.server.routes.youtubeLiveChatRoutes
 import dev.typetype.server.routes.channelRoutes
 import dev.typetype.server.routes.commentRoutes
+import dev.typetype.server.routes.commentVoiceRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.deArrowRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
@@ -97,6 +98,7 @@ fun Application.installApplicationRoutes(
                 svc.blockedService,
             )
             commentRoutes(svc.commentService, authService, adminSettingsService)
+            commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
             bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
             youtubeLiveChatRoutes(svc.youtubeLiveChatService, authService, adminSettingsService)
         }
