@@ -30,9 +30,16 @@ class ProviderMediaWarmup(
     private val probeMirrors: (urls: List<String>, totalLength: Long?) -> Unit = { _, _ -> },
     private val hlsChain: HlsSegmentChain = HlsSegmentChain(),
 ) {
-    private class Media(val url: String, val indexStart: Long, val indexEnd: Long, val startsPlayback: Boolean)
+    private class Media(
+        val url: String,
+        val indexStart: Long,
+        val indexEnd: Long,
+        val startsPlayback: Boolean,
+        val bitrate: Int?,
+    )
 
     private val permits = Semaphore(MAX_PARALLEL_FETCHES)
+    private val start = DashStartFetch(proxyService, cache)
 
     fun warm(response: StreamResponse, provider: ProviderMediaType): Job =
         warm(provider, response.videoOnlyStreams + response.videoStreams, response.audioStreams)
@@ -40,9 +47,9 @@ class ProviderMediaWarmup(
     fun warm(provider: ProviderMediaType, video: List<VideoStreamItem>, audio: List<AudioStreamItem>): Job =
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
-                val starting = startingUrls(provider, video, audio)
-                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) } +
-                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting) }
+                val starting = ProviderMediaStartTracks.urls(provider, video, audio)
+                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate) } +
+                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate) }
                 when (provider) {
                     ProviderMediaType.BILIBILI -> coroutineScope {
                         media.map { item -> async { targetOf(item.url)?.let { warmDash(it, item) } } }.awaitAll()
@@ -89,6 +96,7 @@ class ProviderMediaWarmup(
 
     private suspend fun warmDash(target: ProviderMediaTarget, media: Media) {
         if (media.indexEnd <= 0 || media.indexEnd >= MAX_DASH_HEADER_BYTES) return
+        if (media.startsPlayback && warmDashStart(target, media)) return
         val header = prefetch(target, "bytes=0-${media.indexEnd}", MAX_DASH_HEADER_BYTES) ?: return
         val table = Mp4SegmentIndex.segments(header, media.indexStart) ?: return
         segments.remember(target.url, table)
@@ -100,28 +108,11 @@ class ProviderMediaWarmup(
         fetchClaimed(target, "bytes=0-$end", MAX_SEGMENT_BYTES, claim)
     }
 
-    private fun startingUrls(
-        provider: ProviderMediaType,
-        video: List<VideoStreamItem>,
-        audio: List<AudioStreamItem>,
-    ): Set<String> = when (provider) {
-        // hls.js picks the NicoNico start level from its own estimate, and the first segments are small.
-        ProviderMediaType.NICONICO -> (video.map { it.url } + audio.map { it.url }).toSet()
-        ProviderMediaType.BILIBILI -> {
-            val group = video.groupBy { webCodecRank(it.codec) }.minByOrNull { it.key }?.value.orEmpty()
-            val start = group.filter { (it.bitrate ?: 0) in 1..BILIBILI_START_BITS_PER_SECOND }.maxByOrNull { it.bitrate ?: 0 }
-                ?: group.minByOrNull { it.bitrate ?: Int.MAX_VALUE }
-            setOfNotNull(start?.url, audio.maxByOrNull { it.bitrate ?: 0 }?.url)
+    private suspend fun warmDashStart(target: ProviderMediaTarget, media: Media): Boolean = permits.withPermit {
+        start.fetch(target, media.indexStart, media.indexEnd, media.bitrate) { header ->
+            header.segments?.let { segments.remember(target.url, it) }
+            probeMirrors(listOf(target.url) + target.alternateUrls, header.totalLength)
         }
-    }
-
-    // The web player starts on the first codec family it supports in this order.
-    private fun webCodecRank(codec: String?): Int = when {
-        codec == null -> 3
-        codec.startsWith("avc1") -> 0
-        codec.startsWith("av01") -> 1
-        codec.startsWith("hev1") || codec.startsWith("hvc1") -> 2
-        else -> 3
     }
 
     fun prefetchFollowing(handle: String): Job? {
@@ -205,6 +196,5 @@ class ProviderMediaWarmup(
         const val MAX_PLAYLIST_BYTES = 512 * 1024
         const val MAX_SEGMENT_BYTES = 4 * 1024 * 1024
         const val WARMUP_TIMEOUT_MILLIS = 20_000L
-        const val BILIBILI_START_BITS_PER_SECOND = 1_000_000
     }
 }

@@ -37,7 +37,7 @@ class ProviderMediaWarmupTest {
         private fun respond(url: String, rangeHeader: String?): ExtractionResult<ProxyResponse> {
             requests += url to rangeHeader
             val body = binary[fileName(url)] ?: (bodies[fileName(url)] ?: "x".repeat(2_000)).toByteArray()
-            val ranged = rangeHeader?.let { body.copyOfRange(0, it.substringAfter('-').toInt() + 1) }
+            val ranged = rangeHeader?.let { body.copyOfRange(0, minOf(it.substringAfter('-').toInt() + 1, body.size)) }
             return ExtractionResult.Success(
                 ProxyResponse(
                     status = if (ranged != null) 206 else 200,
@@ -53,7 +53,7 @@ class ProviderMediaWarmupTest {
     }
 
     @Test
-    fun `fetches the init and index of every Bilibili stream once`() = runBlocking {
+    fun `fetches the header of every Bilibili stream once`() = runBlocking {
         val handles = ProviderMediaHandleService(FakeCacheService())
         val video = handles.createPath("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=4000000000")
         val audio = handles.createPath("https://upos-sz-mirrorcosov.bilivideo.com/audio.m4s?deadline=4000000000")
@@ -73,8 +73,8 @@ class ProviderMediaWarmupTest {
 
         assertEquals(
             setOf(
-                "https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=4000000000" to "bytes=0-1807",
-                "https://upos-sz-mirrorcosov.bilivideo.com/audio.m4s?deadline=4000000000" to "bytes=0-1731",
+                "https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=4000000000" to "bytes=0-${1807 + 2_500_000}",
+                "https://upos-sz-mirrorcosov.bilivideo.com/audio.m4s?deadline=4000000000" to "bytes=0-${1731 + 512 * 1024}",
             ),
             proxy.requests.toSet(),
         )
@@ -119,7 +119,7 @@ class ProviderMediaWarmupTest {
     }
 
     @Test
-    fun `fetches the first Bilibili segment of the starting quality only`() = runBlocking {
+    fun `fetches the header and first segment of the starting quality in one request`() = runBlocking {
         val handles = ProviderMediaHandleService(FakeCacheService())
         val base = "https://upos-sz-mirrorcosov.bilivideo.com"
         val low = handles.createPath("$base/low.m4s?deadline=4000000000")
@@ -142,10 +142,38 @@ class ProviderMediaWarmupTest {
 
         val segmentEnd = indexEnd + 50_000
         assertEquals(
-            setOf("low.m4s" to "bytes=0-$indexEnd", "high.m4s" to "bytes=0-$indexEnd", "low.m4s" to "bytes=0-$segmentEnd"),
+            setOf("low.m4s" to "bytes=0-${indexEnd + 1_000_000}", "high.m4s" to "bytes=0-$indexEnd"),
             proxy.requests.map { fileName(it.first) to it.second }.toSet(),
         )
         val target = requireNotNull(handles.resolve(low.substringAfterLast('/')))
+        assertNotNull(cache.respond(target.url, "bytes=${indexEnd + 1}-$segmentEnd"))
+    }
+
+    @Test
+    fun `fetches the first segment again when it ends past the guess`() = runBlocking {
+        val handles = ProviderMediaHandleService(FakeCacheService())
+        val video = handles.createPath("https://upos-sz-mirrorcosov.bilivideo.com/long.m4s?deadline=4000000000")
+        val sidx = sidx(firstSegmentSize = 900_000)
+        val file = ByteArray(1_000) + sidx + ByteArray(1_000_000)
+        val proxy = RecordingProxy(emptyMap(), mapOf("long.m4s" to file))
+        val cache = ProviderMediaStartupCache()
+        val warmup = ProviderMediaWarmup(handles, proxy, cache, CoroutineScope(SupervisorJob() + Dispatchers.IO))
+        val indexEnd = 1_000L + sidx.size - 1
+        val response = testStreamResponse(
+            videoOnlyStreams = listOf(
+                testVideoStream(url = video).copy(bitrate = 100_000, indexStart = 1_000, indexEnd = indexEnd),
+            ),
+            audioStreams = emptyList(),
+        )
+
+        warmup.warm(response, ProviderMediaType.BILIBILI).join()
+
+        val segmentEnd = indexEnd + 900_000
+        assertEquals(
+            listOf("bytes=0-${indexEnd + 512 * 1024}", "bytes=0-$segmentEnd"),
+            proxy.requests.map { it.second },
+        )
+        val target = requireNotNull(handles.resolve(video.substringAfterLast('/')))
         assertNotNull(cache.respond(target.url, "bytes=${indexEnd + 1}-$segmentEnd"))
     }
 
