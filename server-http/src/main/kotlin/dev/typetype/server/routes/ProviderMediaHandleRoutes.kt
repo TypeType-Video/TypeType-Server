@@ -2,12 +2,14 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.ProxyResponse
 import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.ProviderMediaReadAhead
 import dev.typetype.server.services.ProviderMediaAwareProxyService
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProxyService
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.application
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -32,23 +34,22 @@ internal fun Route.providerMediaHandleRoutes(
             ErrorResponse("Media handle has expired or is unknown", "media_handle_not_found"),
         )
         readAhead?.onServed(handle, target, rangeHeader)
-        if (startupCache != null) {
-            val cached = startupCache.respond(target.url, rangeHeader) ?: run {
-                startupCache.awaitPending(target.url)
-                startupCache.respond(target.url, rangeHeader)
+        val upstream: suspend () -> ExtractionResult<ProxyResponse> = {
+            if (proxyService is ProviderMediaAwareProxyService) {
+                proxyService.pipeProviderMediaWithAlternates(
+                    target.url,
+                    rangeHeader,
+                    target.domandBid,
+                    target.alternateUrls,
+                )
+            } else {
+                proxyService.pipe(target.url, rangeHeader, target.domandBid)
             }
-            cached?.let { return@get call.respondProxyResult(ExtractionResult.Success(it)) }
         }
-
-        val result = if (proxyService is ProviderMediaAwareProxyService) {
-            proxyService.pipeProviderMediaWithAlternates(
-                target.url,
-                rangeHeader,
-                target.domandBid,
-                target.alternateUrls,
-            )
+        val result = if (startupCache != null) {
+            startupCacheOrUpstream(call.application, startupCache, target.url, rangeHeader, upstream = upstream)
         } else {
-            proxyService.pipe(target.url, rangeHeader, target.domandBid)
+            upstream()
         }
         call.respondProxyResult(result)
     }

@@ -36,6 +36,8 @@ class ProviderMediaStartupCache(
         claim.complete(Unit)
     }
 
+    fun isPending(handle: String): Boolean = pending.containsKey(handle)
+
     suspend fun awaitPending(handle: String, timeoutMillis: Long = PENDING_WAIT_MILLIS) {
         pending[handle]?.let { withTimeoutOrNull(timeoutMillis) { it.await() } }
     }
