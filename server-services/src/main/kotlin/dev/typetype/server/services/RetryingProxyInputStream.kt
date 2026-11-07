@@ -183,10 +183,9 @@ class RetryingProxyInputStream(
     override fun close() {
         if (closed) return
         closed = true
-        if (eofReached && delivered > 0) {
-            val totalWaitMs = upstreamWaitNanos / 1_000_000
-            val normalizedMs = (totalWaitMs * 1_000_000L / delivered).coerceAtLeast(1)
-            BilibiliMirrorSpeedTracker.recordSuccess(response.request.url.toString(), normalizedMs)
+        if (eofReached && delivered >= MIN_THROUGHPUT_SAMPLE_BYTES && upstreamWaitNanos > 0) {
+            val bytesPerSecond = delivered.toDouble() * 1_000_000_000.0 / upstreamWaitNanos
+            BilibiliMirrorSpeedTracker.recordThroughput(response.request.url.toString(), bytesPerSecond)
         }
         response.close()
     }
@@ -205,3 +204,4 @@ private fun parseContentRange(value: String): ContentRange? {
 private val CONTENT_RANGE = Regex("""bytes (\d+)-(\d+)/(\d+|\*)""")
 private const val PARTIAL_CONTENT = 206
 private const val RESUME_OVERLAP_BYTES = 16 * 1024
+private const val MIN_THROUGHPUT_SAMPLE_BYTES = 256 * 1024L
