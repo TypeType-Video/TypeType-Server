@@ -47,4 +47,6 @@ data class SettingsItem(
     val deArrowThumbnailMode: String = "dearrow_or_random",
     val deArrowTrustMode: String = "accepted",
     val accessMode: String = "unrestricted",
+    val seekbarIcon: String = "typetype",
+    val seekbarIconUrl: String = "",
 )

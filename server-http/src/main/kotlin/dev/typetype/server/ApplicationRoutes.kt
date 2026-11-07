@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.routes.seekbarIconFileRoutes
 import dev.typetype.server.routes.deviceAuthRoutes
 import dev.typetype.server.services.device.DeviceAuthorizationService
 import dev.typetype.server.routes.adminBugReportRoutes
@@ -156,6 +157,7 @@ fun Application.installApplicationRoutes(
         rateLimit(USER_DATA_ZONE) { presenceRoutes(authService, presenceKeyService, presenceService) }
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
+        seekbarIconFileRoutes(svc.seekbarIconService)
         rateLimit(USER_DATA_ZONE) {
             userDataRoutes(
                 svc,

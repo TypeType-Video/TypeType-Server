@@ -40,6 +40,7 @@ import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
@@ -141,6 +142,7 @@ object TestDatabase {
         SessionsTable.deleteAll()
         PasswordResetTable.deleteAll()
         UserAvatarsTable.deleteAll()
+        UserSeekbarIconsTable.deleteAll()
         UsersTable.deleteAll()
         AdminSettingsTable.deleteAll()
         AllowedChannelsTable.deleteAll()

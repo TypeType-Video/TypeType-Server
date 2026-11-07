@@ -49,5 +49,7 @@ object SettingsTable : Table("settings") {
     val accessMode = text("access_mode").default("unrestricted")
     val accessModeAdminManaged = bool("access_mode_admin_managed").default(false)
     val accessModeAdminManagedAt = long("access_mode_admin_managed_at").default(0)
+    val seekbarIcon = text("seekbar_icon").default("typetype")
+    val seekbarIconUrl = text("seekbar_icon_url").default("")
     override val primaryKey = PrimaryKey(userId)
 }

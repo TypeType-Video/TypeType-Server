@@ -53,6 +53,7 @@ internal fun Route.userDataRoutes(
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, svc.customAvatarService, authService)
     customAvatarRoutes(svc.customAvatarService, authService)
+    seekbarIconRoutes(svc.seekbarIconService, authService)
     accountIdentityRoutes(svc.accountIdentityService, authService)
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)

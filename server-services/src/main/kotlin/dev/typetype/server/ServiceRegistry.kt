@@ -16,6 +16,7 @@ import dev.typetype.server.services.BiliBiliSessionService
 import dev.typetype.server.services.BiliBiliSessionStreamService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.CustomAvatarService
+import dev.typetype.server.services.SeekbarIconService
 import dev.typetype.server.services.DeArrowService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
@@ -64,6 +65,7 @@ class ServiceRegistry(
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
     val accountIdentityService = AccountIdentityService(profileAccountService)
     val customAvatarService = CustomAvatarService()
+    val seekbarIconService = SeekbarIconService()
     val deArrowService = DeArrowService(cache)
     private val extraction = ExtractionServiceRegistry(
         cache,

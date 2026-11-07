@@ -47,6 +47,8 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_title_mode TEXT NOT NULL DEFAULT 'dearrow'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_thumbnail_mode TEXT NOT NULL DEFAULT 'dearrow_or_random'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_trust_mode TEXT NOT NULL DEFAULT 'accepted'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon TEXT NOT NULL DEFAULT 'typetype'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon_url TEXT NOT NULL DEFAULT ''")
     }
 
     private fun settingsColumnExists(column: String): Boolean =

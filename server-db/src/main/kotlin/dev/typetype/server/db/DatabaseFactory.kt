@@ -20,6 +20,7 @@ import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
@@ -77,6 +78,7 @@ object DatabaseFactory {
                 ProfileAccountsTable,
                 PresenceKeysTable,
                 UserAvatarsTable,
+                UserSeekbarIconsTable,
                 SessionsTable,
                 AdminSettingsTable,
                 HistoryTable,

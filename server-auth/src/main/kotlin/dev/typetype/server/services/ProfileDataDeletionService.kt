@@ -38,6 +38,7 @@ import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.WatchLaterTable
@@ -100,6 +101,7 @@ internal object ProfileDataDeletionService {
             { PasswordResetTable.deleteWhere { PasswordResetTable.userId eq userId } },
             { SessionsTable.deleteWhere { SessionsTable.userId eq userId } },
             { UserAvatarsTable.deleteWhere { UserAvatarsTable.userId eq userId } },
+            { UserSeekbarIconsTable.deleteWhere { UserSeekbarIconsTable.userId eq userId } },
             { UserChannelInterestTable.deleteWhere { UserChannelInterestTable.userId eq userId } },
             { UserTopicInterestTable.deleteWhere { UserTopicInterestTable.userId eq userId } },
             { YoutubeSessionsTable.deleteWhere { YoutubeSessionsTable.userId eq userId } },
