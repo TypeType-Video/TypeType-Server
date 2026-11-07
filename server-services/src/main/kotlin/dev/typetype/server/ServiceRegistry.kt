@@ -1,5 +1,6 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.CommentSearchService
 import dev.typetype.server.services.CommentVoiceAudioService
 import dev.typetype.server.services.YoutubeRelatedVideosService
 import dev.typetype.server.services.CachedRelatedVideosService
@@ -97,6 +98,7 @@ class ServiceRegistry(
     val searchService = extraction.searchService
     val trendingService = extraction.trendingService
     val commentService = extraction.commentService
+    val commentSearchService = CommentSearchService(commentService)
     val bulletCommentService = extraction.bulletCommentService
     val youtubeLiveChatService = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(subtitleServiceUrl))
     val channelService = extraction.channelService

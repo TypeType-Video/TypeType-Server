@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.CommentItem
 import dev.typetype.server.models.CommentsPageResponse
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.routes.commentRoutes
@@ -29,6 +30,30 @@ class CommentRoutesTest {
             routing { commentRoutes(commentService) }
         }
         block()
+    }
+
+    @Test
+    fun `GET comment search without a usable query returns 400`() = withApp {
+        assertEquals(HttpStatusCode.BadRequest, client.get("/comments/search?url=https://youtube.com/watch?v=test").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/comments/search?url=https://youtube.com/watch?v=test&q=%20").status)
+    }
+
+    @Test
+    fun `GET comment search returns only the matching comments`() = withApp {
+        val hello = CommentItem(
+            id = "1", text = "hello there", author = "a", authorUrl = "", authorAvatarUrl = "", likeCount = 0,
+            textualLikeCount = "0", publishedTime = "", isHeartedByUploader = false, isPinned = false,
+            uploaderVerified = false, replyCount = 0, repliesPage = null,
+        )
+        coEvery { commentService.getComments(any(), any()) } returns ExtractionResult.Success(
+            CommentsPageResponse(listOf(hello, hello.copy(id = "2", text = "bye")), nextpage = null, commentsDisabled = false),
+        )
+        val response = client.get("/comments/search?url=https://youtube.com/watch?v=test&q=HELLO")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"id\":\"1\""))
+        assertTrue(!body.contains("\"id\":\"2\""))
+        assertTrue(body.contains("\"scannedPages\":1"))
     }
 
     @Test

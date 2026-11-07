@@ -98,7 +98,7 @@ fun Application.installApplicationRoutes(
                 adminSettingsService,
                 svc.blockedService,
             )
-            commentRoutes(svc.commentService, authService, adminSettingsService)
+            commentRoutes(svc.commentService, authService, adminSettingsService, svc.commentSearchService)
             commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
             bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
             youtubeLiveChatRoutes(svc.youtubeLiveChatService, authService, adminSettingsService)
