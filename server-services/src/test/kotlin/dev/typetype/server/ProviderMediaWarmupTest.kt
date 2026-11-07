@@ -13,6 +13,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.util.Collections
@@ -82,6 +83,31 @@ class ProviderMediaWarmupTest {
         val target = requireNotNull(handles.resolve(video.substringAfterLast('/')))
         val served = requireNotNull(cache.respond(target.url, "bytes=996-1807"))
         assertEquals("bytes 996-1807/2000", served.contentRange)
+    }
+
+    @Test
+    fun `probes mirrors only for video streams and never for audio streams`() = runBlocking {
+        val handles = ProviderMediaHandleService(FakeCacheService())
+        val video = handles.createPath("https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=4000000000")
+        val audio = handles.createPath("https://upos-sz-mirrorcosov.bilivideo.com/audio.m4s?deadline=4000000000")
+        val proxy = RecordingProxy(emptyMap())
+        val cache = ProviderMediaStartupCache()
+        val probed = mutableListOf<String>()
+        val warmup = ProviderMediaWarmup(
+            handles, proxy, cache, CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            probeMirrors = { urls, _ -> probed += urls },
+        )
+        val response = testStreamResponse(
+            videoOnlyStreams = listOf(testVideoStream(url = video).copy(indexEnd = 1807)),
+            audioStreams = listOf(testAudioStream(url = audio).copy(indexEnd = 1731)),
+        )
+
+        warmup.warm(response, ProviderMediaType.BILIBILI).join()
+
+        val expectedVideoUrl = "https://upos-sz-mirrorcosov.bilivideo.com/video.m4s?deadline=4000000000"
+        val expectedAudioUrl = "https://upos-sz-mirrorcosov.bilivideo.com/audio.m4s?deadline=4000000000"
+        assertTrue(probed.any { it.contains(expectedVideoUrl) })
+        assertTrue(probed.none { it.contains(expectedAudioUrl) })
     }
 
     @Test
