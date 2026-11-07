@@ -130,4 +130,30 @@ class BilibiliMirrorSpeedTrackerTest {
         BilibiliMirrorSpeedTracker.recordFailure(urls[0])
         assertEquals(urls.reversed(), BilibiliMirrorSpeedTracker.rankByExpectedTime(urls))
     }
+
+    @Test
+    fun `exponentially increases penalty duration on repeated consecutive failures`() {
+        assertEquals(0L, BilibiliMirrorSpeedTracker.penaltyDuration(0))
+        assertEquals(120_000L, BilibiliMirrorSpeedTracker.penaltyDuration(1))
+        assertEquals(240_000L, BilibiliMirrorSpeedTracker.penaltyDuration(2))
+        assertEquals(480_000L, BilibiliMirrorSpeedTracker.penaltyDuration(3))
+        assertEquals(960_000L, BilibiliMirrorSpeedTracker.penaltyDuration(4))
+        assertEquals(1920_000L, BilibiliMirrorSpeedTracker.penaltyDuration(5))
+    }
+
+    @Test
+    fun `detects fast host and finds probe candidates when candidate has no recent measurement`() {
+        val active = "https://upos-sz-mirroraliov.bilivideo.com/v.m4s"
+        val knownSlow = "https://upos-sz-mirrorcosov.bilivideo.com/v.m4s"
+        val unmeasured = "https://upos-sz-mirrorhw.bilivideo.com/v.m4s"
+
+        BilibiliMirrorSpeedTracker.recordThroughput(active, 3_000_000.0)
+        assertTrue(BilibiliMirrorSpeedTracker.isFastHost(active))
+        assertTrue(BilibiliMirrorSpeedTracker.hasFreshMeasurement(active))
+
+        BilibiliMirrorSpeedTracker.recordThroughput(knownSlow, 500_000.0)
+
+        val candidate = BilibiliMirrorSpeedTracker.findProbeCandidate(listOf(active, knownSlow, unmeasured), active)
+        assertEquals(unmeasured, candidate)
+    }
 }

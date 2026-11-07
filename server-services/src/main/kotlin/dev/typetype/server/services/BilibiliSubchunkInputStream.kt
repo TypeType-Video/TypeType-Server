@@ -36,11 +36,13 @@ class BilibiliSubchunkInputStream(
     private val nanoTime: () -> Long = System::nanoTime,
     firstOpenDurationNanos: Long = 0L,
     private val enablePrefetch: Boolean = BilibiliCdnConfig.isPrefetchEnabled(),
+
 ) : InputStream() {
     init {
         require(subRanges.isNotEmpty()) { "subRanges must not be empty" }
     }
 
+    private val hedgedOpen = SHARED_HEDGED_OPEN
     private var currentIndex = 0
     private var currentSubchunkBytesDelivered = 0L
     private var currentStream: InputStream? = RetryingProxyInputStream(
@@ -167,7 +169,7 @@ class BilibiliSubchunkInputStream(
                     throw IOException("Stream closed before prefetch")
                 }
                 checkActive()
-                val opened = openSubchunk(targetIndex, activePrefetchStream)
+                val opened = openSubchunk(targetIndex, activePrefetchStream, isPrefetch = true)
                 val buffer = ByteArrayOutputStream()
                 val temp = ByteArray(32 * 1024)
                 try {
@@ -197,16 +199,70 @@ class BilibiliSubchunkInputStream(
         index: Int,
         trackForClose: AtomicReference<Closeable?>? = null,
         maxAttempts: Int = attemptsPerChunk,
-    ): InputStream = openRange(subRanges[index], trackForClose, maxAttempts)
+        isPrefetch: Boolean = false,
+    ): InputStream = openRange(subRanges[index], trackForClose, maxAttempts, isPrefetch)
 
     private fun openRange(
         range: ByteRange,
         trackForClose: AtomicReference<Closeable?>? = null,
         maxAttempts: Int = attemptsPerChunk,
+        isPrefetch: Boolean = false,
     ): InputStream {
         val mirrors = prioritizeUposMirrors(
             (listOf(baseRequest.url.toString()) + alternateUrls).distinct()
         )
+        val bestUrl = mirrors.first()
+        val probeCandidate = if (isPrefetch && !BilibiliMirrorSpeedTracker.isFastHost(bestUrl)) {
+            BilibiliMirrorSpeedTracker.findProbeCandidate(mirrors, bestUrl)
+        } else {
+            null
+        }
+        if (probeCandidate != null) {
+            val candidateRequest = baseRequest.newBuilder()
+                .url(probeCandidate)
+                .header("Range", "bytes=${range.start}-${range.end}")
+                .removeHeader("If-Range")
+                .build()
+            val fallbackRequest = baseRequest.newBuilder()
+                .url(bestUrl)
+                .header("Range", "bytes=${range.start}-${range.end}")
+                .removeHeader("If-Range")
+                .build()
+            val openStarted = nanoTime()
+            val opened = runCatching { hedgedOpen.open(execute, candidateRequest, fallbackRequest) }.getOrNull()
+            if (opened != null && opened.response.isSuccessful) {
+                val winningUrl = opened.request.url.toString()
+                if (winningUrl != candidateRequest.url.toString()) {
+                    BilibiliMirrorSpeedTracker.recordFailure(probeCandidate)
+                }
+                val openDurationNanos = opened.durationNanos.takeIf { it > 0 } ?: (nanoTime() - openStarted).coerceAtLeast(0)
+                BilibiliMirrorSpeedTracker.recordSuccess(winningUrl, openDurationNanos / 1_000_000)
+                val remainingMirrors = mirrors.filter { it != winningUrl }
+                val stream = RetryingProxyInputStream(
+                    execute = execute,
+                    request = opened.request,
+                    initialResponse = opened.response,
+                    attemptsRemaining = maxAttempts - 1,
+                    checkActive = checkActive,
+                    mirrorSwitcher = buildMirrorSwitcher(remainingMirrors),
+                    initialOpenNanos = openDurationNanos,
+                    nanoTime = nanoTime,
+                    resumeUrls = remainingMirrors,
+                )
+                if (trackForClose != null) {
+                    trackForClose.set(stream)
+                    if (closed) {
+                        trackForClose.compareAndSet(stream, null)
+                        stream.close()
+                        throw IOException("Stream closed")
+                    }
+                }
+                return stream
+            } else {
+                opened?.response?.close()
+                BilibiliMirrorSpeedTracker.recordFailure(probeCandidate)
+            }
+        }
         var lastError: IOException? = null
         for (attempt in 1..maxAttempts) {
             checkActive()
@@ -287,6 +343,7 @@ class BilibiliSubchunkInputStream(
     }
 
     companion object {
+        private val SHARED_HEDGED_OPEN = BilibiliHedgedOpen()
         private const val MAX_CONCURRENT_PREFETCHES = 4
         private val prefetchPermits = JavaSemaphore(MAX_CONCURRENT_PREFETCHES)
         private val prefetchExecutor: ExecutorService = ThreadPoolExecutor(

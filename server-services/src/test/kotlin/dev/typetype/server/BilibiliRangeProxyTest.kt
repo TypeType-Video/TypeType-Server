@@ -432,4 +432,107 @@ class BilibiliRangeProxyTest {
         assertTrue(result is ExtractionResult.Success)
         assertEquals(listOf("upos-sz-mirrorcosov.bilivideo.com"), hosts)
     }
+
+    @Test
+    fun `opportunistically probes unmeasured alternate mirror during subchunk prefetch when primary is not fast`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val primary = "https://upos-sz-mirrorcos.bilivideo.com/video.m4s"
+        val alternate = "https://upos-sz-mirrorali.bilivideo.com/video.m4s"
+        val requestedHosts = java.util.Collections.synchronizedList(mutableListOf<String>())
+
+        val req = Request.Builder()
+            .url(primary)
+            .header("Range", "bytes=0-1999999")
+            .build()
+
+        val result = readBilibiliRangeWithRetry(
+            execute = { r ->
+                requestedHosts += r.url.host
+                val range = r.header("Range").orEmpty()
+                val total = 2_000_000L
+                val (start, end) = range.removePrefix("bytes=").split('-').map(String::toLong)
+                val len = (end - start + 1).toInt()
+                Response.Builder()
+                    .request(r)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(206)
+                    .message("Partial Content")
+                    .header("Content-Range", "bytes $start-$end/$total")
+                    .body(ByteArray(len) { 42 }.toResponseBody())
+                    .build()
+            },
+            request = req,
+            alternateUrls = listOf(alternate),
+            cdnRegion = null,
+            enableSubchunks = true,
+            enablePrefetch = true,
+        )
+
+        assertTrue(result is ExtractionResult.Success)
+        val data = (result as ExtractionResult.Success).data
+        val buf = ByteArray(1024 * 1024)
+        var totalRead = 0
+        data.stream.use { s ->
+            while (true) {
+                val n = s.read(buf)
+                if (n == -1) break
+                totalRead += n
+            }
+        }
+        assertEquals(2_000_000, totalRead)
+        assertTrue(requestedHosts.contains("upos-sz-mirrorcos.bilivideo.com"))
+        assertTrue(requestedHosts.contains("upos-sz-mirrorali.bilivideo.com"))
+    }
+
+    @Test
+    fun `opportunistically probes alternate mirror but penalizes candidate when alternate fails or times out`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val primary = "https://upos-sz-mirrorcos.bilivideo.com/video.m4s"
+        val alternate = "https://upos-sz-mirrorali.bilivideo.com/video.m4s"
+
+        val req = Request.Builder()
+            .url(primary)
+            .header("Range", "bytes=0-1999999")
+            .build()
+
+        val result = readBilibiliRangeWithRetry(
+            execute = { r ->
+                if (r.url.host == "upos-sz-mirrorali.bilivideo.com") {
+                    throw IOException("Alternate mirror timeout")
+                }
+                val range = r.header("Range").orEmpty()
+                val total = 2_000_000L
+                val (start, end) = range.removePrefix("bytes=").split('-').map(String::toLong)
+                val len = (end - start + 1).toInt()
+                Response.Builder()
+                    .request(r)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(206)
+                    .message("Partial Content")
+                    .header("Content-Range", "bytes $start-$end/$total")
+                    .body(ByteArray(len) { 42 }.toResponseBody())
+                    .build()
+            },
+            request = req,
+            alternateUrls = listOf(alternate),
+            cdnRegion = null,
+            enableSubchunks = true,
+            enablePrefetch = true,
+        )
+
+        assertTrue(result is ExtractionResult.Success)
+        val data = (result as ExtractionResult.Success).data
+        val buf = ByteArray(1024 * 1024)
+        var totalRead = 0
+        data.stream.use { s ->
+            while (true) {
+                val n = s.read(buf)
+                if (n == -1) break
+                totalRead += n
+            }
+        }
+        assertEquals(2_000_000, totalRead)
+        val candidate = BilibiliMirrorSpeedTracker.findProbeCandidate(listOf(primary, alternate), primary)
+        org.junit.jupiter.api.Assertions.assertNull(candidate)
+    }
 }

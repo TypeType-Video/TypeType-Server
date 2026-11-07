@@ -236,7 +236,10 @@ private fun readBilibiliDirectRange(
             response.close()
             continue
         }
-        val openDurationNanos = (nanoTime() - openStarted).coerceAtLeast(0)
+        if (hedge != null && mirror != primary.url.toString()) {
+            BilibiliMirrorSpeedTracker.recordFailure(listed)
+        }
+        val openDurationNanos = opened.durationNanos.takeIf { it > 0 } ?: (nanoTime() - openStarted).coerceAtLeast(0)
         BilibiliMirrorSpeedTracker.recordSuccess(mirror, openDurationNanos / 1_000_000)
         val otherMirrors = mirrors - mirror
         val switcher = if (otherMirrors.isNotEmpty() && mirrorExecute != null && mirrorPermits != null) {

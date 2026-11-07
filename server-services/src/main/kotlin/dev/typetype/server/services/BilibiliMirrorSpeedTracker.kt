@@ -16,7 +16,9 @@ object BilibiliMirrorSpeedTracker {
     )
 
     private val stats = ConcurrentHashMap<String, HostStats>()
-    private const val PENALTY_DURATION_MS = 120_000L
+    const val PENALTY_DURATION_MS = 120_000L
+    const val FAST_THROUGHPUT_THRESHOLD = 2.5 * 1024 * 1024.0
+    const val FRESHNESS_WINDOW_MS = 180_000L
     private const val PENALTY_SCORE = 15_000.0
     private const val STALE_SAMPLE_DURATION_MS = 90_000L
     private const val THROUGHPUT_LIFETIME_MS = 30 * 60_000L
@@ -67,7 +69,7 @@ object BilibiliMirrorSpeedTracker {
             val rate = current.bytesPerSecond
                 .takeIf { it > 0.0 && nowMs - current.lastThroughputEpochMs < THROUGHPUT_LIFETIME_MS }
                 ?: UNKNOWN_BYTES_PER_SECOND
-            val inPenalty = current.consecutiveFailures > 0 && nowMs - current.lastFailureEpochMs < PENALTY_DURATION_MS
+            val inPenalty = current.consecutiveFailures > 0 && nowMs - current.lastFailureEpochMs < penaltyDuration(current.consecutiveFailures)
             val penalty = if (inPenalty) PENALTY_SCORE * current.consecutiveFailures else 0.0
             return latency + TYPICAL_SEGMENT_BYTES * 1000 / rate + penalty
         }
@@ -79,6 +81,49 @@ object BilibiliMirrorSpeedTracker {
         synchronized(current) {
             current.consecutiveFailures++
             current.lastFailureEpochMs = nowMs
+        }
+    }
+
+    fun penaltyDuration(failures: Int): Long =
+        if (failures <= 0) 0L else PENALTY_DURATION_MS * (1L shl (failures - 1).coerceIn(0, 4))
+
+    fun hasFreshMeasurement(
+        urlOrHost: String,
+        maxAgeMs: Long = FRESHNESS_WINDOW_MS,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Boolean {
+        val host = extractHost(urlOrHost) ?: return false
+        val current = stats[host] ?: return false
+        synchronized(current) {
+            val freshThroughput = current.bytesPerSecond > 0.0 && (nowMs - current.lastThroughputEpochMs) < maxAgeMs
+            val freshLatency = current.sampleCount > 0 && (nowMs - current.lastLatencyEpochMs) < maxAgeMs
+            return freshThroughput || freshLatency
+        }
+    }
+
+    fun isFastHost(
+        urlOrHost: String,
+        threshold: Double = FAST_THROUGHPUT_THRESHOLD,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Boolean {
+        val host = extractHost(urlOrHost) ?: return false
+        val current = stats[host] ?: return false
+        synchronized(current) {
+            return current.bytesPerSecond >= threshold && (nowMs - current.lastThroughputEpochMs) < THROUGHPUT_LIFETIME_MS
+        }
+    }
+
+    fun findProbeCandidate(urls: List<String>, activeUrl: String, nowMs: Long = System.currentTimeMillis()): String? {
+        val activeHost = extractHost(activeUrl)
+        return urls.firstOrNull { candidate ->
+            val host = extractHost(candidate) ?: return@firstOrNull false
+            if (host == activeHost) return@firstOrNull false
+            val current = stats[host] ?: return@firstOrNull true
+            synchronized(current) {
+                val inPenalty = current.consecutiveFailures > 0 && (nowMs - current.lastFailureEpochMs) < penaltyDuration(current.consecutiveFailures)
+                val isStale = (nowMs - current.lastThroughputEpochMs) >= THROUGHPUT_LIFETIME_MS
+                !inPenalty && isStale
+            }
         }
     }
 
@@ -105,7 +150,7 @@ object BilibiliMirrorSpeedTracker {
         if (current == null) return bucketOffset + staticIndex
 
         synchronized(current) {
-            val inPenalty = (nowMs - current.lastFailureEpochMs) < PENALTY_DURATION_MS && current.consecutiveFailures > 0
+            val inPenalty = (nowMs - current.lastFailureEpochMs) < penaltyDuration(current.consecutiveFailures) && current.consecutiveFailures > 0
             val penalty = if (inPenalty) PENALTY_SCORE * current.consecutiveFailures else 0.0
             val isStale = (nowMs - current.lastSampleEpochMs) > STALE_SAMPLE_DURATION_MS
             return bucketOffset + if (current.sampleCount > 0 && !isStale) {
