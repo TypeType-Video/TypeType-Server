@@ -13,18 +13,25 @@ import java.util.concurrent.TimeoutException
 internal class BilibiliHedgedOpen(
     private val hedgeAfterMillis: Long = DEFAULT_HEDGE_AFTER_MILLIS,
     private val executor: ExecutorService = SHARED_EXECUTOR,
+    private val nanoTime: () -> Long = System::nanoTime,
 ) {
-    class Opened(val request: Request, val response: Response)
+    class Opened(val request: Request, val response: Response, val durationNanos: Long = 0L)
 
     fun open(execute: (Request) -> Response, primary: Request, alternate: Request?): Opened {
-        if (alternate == null) return Opened(primary, execute(primary))
+        if (alternate == null) {
+            val started = nanoTime()
+            val response = execute(primary)
+            return Opened(primary, response, (nanoTime() - started).coerceAtLeast(0))
+        }
         val first = start(execute, primary)
         val early = try {
             first.get(hedgeAfterMillis, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
             null
         } catch (_: ExecutionException) {
-            return Opened(alternate, execute(alternate))
+            val started = nanoTime()
+            val response = execute(alternate)
+            return Opened(alternate, response, (nanoTime() - started).coerceAtLeast(0))
         }
         if (early != null) return early
         val second = start(execute, alternate)
@@ -46,9 +53,11 @@ internal class BilibiliHedgedOpen(
 
     private fun start(execute: (Request) -> Response, request: Request): CompletableFuture<Opened?> =
         CompletableFuture.supplyAsync({
+            val started = nanoTime()
             val response = execute(request)
+            val durationNanos = (nanoTime() - started).coerceAtLeast(0)
             if (response.isSuccessful) {
-                Opened(request, response)
+                Opened(request, response, durationNanos)
             } else {
                 response.close()
                 null
