@@ -20,7 +20,12 @@ fun SabrSessionHolder.playbackContinuationSequence(
     ?.plus(1)
     ?: playbackStartSequence(format, playerTimeMs)
 
+// A VOD index gives each segment its own time; extrapolating from the latest observed segment assumes one duration
+// for all of them and drifts by minutes after a seek, which made a plain continuation look like a rewind.
 fun SabrSessionHolder.playbackSegmentStartMs(format: YoutubeSabrFormat, sequence: Int): Long {
+    if (session.streamState.hasSegmentIndex(format)) {
+        return session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L)
+    }
     val observed = observedMediaSegment(format)
     val observedStartMs = observed?.header?.startMs?.takeIf { it >= 0L }
     if (observed != null && observedStartMs != null) {
@@ -32,6 +37,7 @@ fun SabrSessionHolder.playbackSegmentStartMs(format: YoutubeSabrFormat, sequence
 }
 
 fun SabrSessionHolder.playbackSegmentDurationMs(format: YoutubeSabrFormat, sequence: Int): Long {
+    if (session.streamState.hasSegmentIndex(format)) return streamStateSegmentDurationMs(format, sequence)
     val observed = observedMediaSegment(format)
     val observedStartMs = observed?.header?.startMs?.takeIf { it >= 0L }
     val observedDurationMs = observed?.header?.durationMs?.takeIf { it > 0L }
@@ -43,6 +49,10 @@ fun SabrSessionHolder.playbackSegmentDurationMs(format: YoutubeSabrFormat, seque
             ?.takeIf { it in MIN_LIVE_SEGMENT_DURATION_MS..MAX_LIVE_SEGMENT_DURATION_MS }
             ?.let { return it }
     }
+    return streamStateSegmentDurationMs(format, sequence)
+}
+
+private fun SabrSessionHolder.streamStateSegmentDurationMs(format: YoutubeSabrFormat, sequence: Int): Long {
     val startMs = session.streamState.getSegmentStartMs(format, sequence).coerceAtLeast(0L)
     return (session.streamState.getSegmentEndMs(format, sequence) - startMs).coerceAtLeast(1L)
 }

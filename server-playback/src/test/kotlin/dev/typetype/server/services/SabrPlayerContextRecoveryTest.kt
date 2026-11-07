@@ -34,6 +34,7 @@ class SabrPlaybackSessionServiceTest {
         val holder = holder(audio, video)
         val initializationFetches = AtomicInteger()
         every { holder.session.streamState.getEndSegment(any()) } returns 0L
+        every { holder.session.streamState.hasSegmentIndex(any()) } returns false
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 88_168L) } answers {
@@ -171,6 +172,7 @@ class SabrPlaybackSessionServiceTest {
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
         every { holder.session.streamState.getEndSegment(any()) } returns 0L
+        every { holder.session.streamState.hasSegmentIndex(any()) } returns false
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(any(), 90_000L) } returns 9
@@ -199,6 +201,7 @@ class SabrPlaybackSessionServiceTest {
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
         every { holder.session.streamState.getEndSegment(any()) } returns 0L
+        every { holder.session.streamState.hasSegmentIndex(any()) } returns false
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(true) } returns Unit
         every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(video, 120_000L) } returns 24
@@ -224,6 +227,7 @@ class SabrPlaybackSessionServiceTest {
         val video = format(137, isAudio = false)
         val holder = holder(audio, video)
         every { holder.session.streamState.getEndSegment(any()) } returns 0L
+        every { holder.session.streamState.hasSegmentIndex(any()) } returns false
         every { holder.session.streamState.setActiveTrackTypes(any(), any()) } returns Unit
         every { holder.session.streamState.setSelectVideoFormatBeforeAudio(false) } returns Unit
         every { holder.session.streamState.getSegmentNumberAtOrAfterTimeMs(audio, 299L) } returns 1

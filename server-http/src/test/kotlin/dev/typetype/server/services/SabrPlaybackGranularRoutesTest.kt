@@ -229,6 +229,7 @@ class SabrPlaybackGranularRoutesTest {
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns state
+        every { state.hasSegmentIndex(any()) } returns false
         every { session.getCachedSegment(any()) } returns null
         every { session.getReadableSegment(any()) } returns null
         every { session.isBeyondEnd(any()) } returns false
