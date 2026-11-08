@@ -23,6 +23,10 @@ class BilibiliMirrorProber(
         urls.distinctBy { it.toHttpUrlOrNull()?.host }.forEach { url ->
             val host = url.toHttpUrlOrNull()?.host ?: return@forEach
             val now = nowMs()
+            if (BilibiliMirrorSpeedTracker.hasFreshMeasurement(host, PROBE_INTERVAL_MS, now)) {
+                lastProbe[host] = now
+                return@forEach
+            }
             var claimed = false
             lastProbe.compute(host) { _, previous ->
                 if (previous != null && now - previous < PROBE_INTERVAL_MS) previous else now.also { claimed = true }
