@@ -89,6 +89,34 @@ class RetryingProxyInputStreamTest {
     }
 
     @Test
+    fun `slow connection opening does not lower the recorded transfer rate`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val uposUrl = "https://upos-sz-mirrorcosov.bilivideo.com/test.m4s"
+        val uposRequest = Request.Builder().url(uposUrl).header("Range", "bytes=0-524287").build()
+        val resp = Response.Builder()
+            .request(uposRequest).protocol(Protocol.HTTP_1_1).code(206).message("Partial Content")
+            .header("Content-Type", "video/mp4")
+            .header("Content-Range", "bytes 0-524287/10000000")
+            .body(GeneratedBody(512 * 1024)).build()
+
+        var currentNano = 100_000_000L
+        val stream = RetryingProxyInputStream(
+            execute = { resp },
+            request = uposRequest,
+            initialResponse = resp,
+            attemptsRemaining = 1,
+            initialOpenNanos = 5_000_000_000L,
+            nanoTime = { currentNano.also { currentNano += 5_000_000L } },
+        )
+        stream.use {
+            val buf = ByteArray(64 * 1024)
+            while (it.read(buf) != -1) {
+            }
+        }
+        assertTrue(BilibiliMirrorSpeedTracker.expectedSegmentMillis(uposUrl) < 1_000.0)
+    }
+
+    @Test
     fun `large range is read on demand without a body-sized allocation`() {
         val body = GeneratedBody(3L * 1024 * 1024 * 1024)
         val proxy = open { response(body) }

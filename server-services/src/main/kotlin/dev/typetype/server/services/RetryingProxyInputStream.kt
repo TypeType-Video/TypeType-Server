@@ -22,6 +22,7 @@ class RetryingProxyInputStream(
     private var response = initialResponse
     private var source = response.body.byteStream()
     private var upstreamWaitNanos = initialOpenNanos.coerceAtLeast(0)
+    private var transferNanos = 0L
     private val status = response.code
     private val length = response.body.contentLength()
     private val headers = listOf("Content-Range", "Content-Type", "Content-Encoding", "ETag")
@@ -66,6 +67,7 @@ class RetryingProxyInputStream(
                 } finally {
                     val elapsed = (nanoTime() - started).coerceAtLeast(0)
                     upstreamWaitNanos = (upstreamWaitNanos + elapsed).coerceAtLeast(upstreamWaitNanos)
+                    transferNanos = (transferNanos + elapsed).coerceAtLeast(transferNanos)
                 }
                 if (read < 0) {
                     if (length >= 0 && delivered < length) throw EOFException("Incomplete proxy body")
@@ -183,8 +185,8 @@ class RetryingProxyInputStream(
     override fun close() {
         if (closed) return
         closed = true
-        if (eofReached && delivered >= MIN_THROUGHPUT_SAMPLE_BYTES && upstreamWaitNanos > 0) {
-            val bytesPerSecond = delivered.toDouble() * 1_000_000_000.0 / upstreamWaitNanos
+        if (eofReached && delivered >= MIN_THROUGHPUT_SAMPLE_BYTES && transferNanos > 0) {
+            val bytesPerSecond = delivered.toDouble() * 1_000_000_000.0 / transferNanos
             BilibiliMirrorSpeedTracker.recordThroughput(response.request.url.toString(), bytesPerSecond)
         }
         response.close()
