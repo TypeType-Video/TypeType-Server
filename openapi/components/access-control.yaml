@@ -33,6 +33,10 @@ SettingsItem:
       type: boolean
       default: false
       description: Hide upcoming playlist titles and thumbnails by default.
+    ambientLight:
+      type: boolean
+      default: false
+      description: Light the page around the player with the colors of the video.
     muted: { type: boolean, default: false }
     notificationPopupsEnabled: { type: boolean, default: true }
     subtitlesEnabled: { type: boolean, default: false }

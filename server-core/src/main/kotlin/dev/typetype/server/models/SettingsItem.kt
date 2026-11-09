@@ -16,6 +16,7 @@ data class SettingsItem(
     val autoplayCountdownSeconds: Int = 10,
     val skipPlaylistAutoplayScreen: Boolean = false,
     val hideUpcomingPlaylistVideos: Boolean = false,
+    val ambientLight: Boolean = false,
     val volume: Double = 1.0,
     val muted: Boolean = false,
     val notificationPopupsEnabled: Boolean = true,

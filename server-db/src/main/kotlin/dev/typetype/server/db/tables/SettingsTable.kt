@@ -16,6 +16,7 @@ object SettingsTable : Table("settings") {
     val autoplayCountdownSeconds = integer("autoplay_countdown_seconds").default(10)
     val skipPlaylistAutoplayScreen = bool("skip_playlist_autoplay_screen").default(false)
     val hideUpcomingPlaylistVideos = bool("hide_upcoming_playlist_videos").default(false)
+    val ambientLight = bool("ambient_light").default(false)
     val volume = double("volume").default(1.0)
     val muted = bool("muted").default(false)
     val notificationPopupsEnabled = bool("notification_popups_enabled").default(true)
