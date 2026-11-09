@@ -43,6 +43,11 @@ fun Route.subscriptionFeedRoutes(
             }
             val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceIn(0, MAX_FEED_PAGE) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
+            val oldestFirst = when (call.request.queryParameters["order"]) {
+                null, "newest" -> false
+                "oldest" -> true
+                else -> return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid feed order"))
+            }
             val visibility = settingsService?.subscriptionFeedVisibility(userId) ?: SubscriptionFeedVisibility()
             call.response.headers.append(HttpHeaders.CacheControl, "no-store")
             when (
@@ -54,6 +59,7 @@ fun Route.subscriptionFeedRoutes(
                     visibility.hideLiveStreams,
                     visibility.hideMembersOnlyContent,
                     selection,
+                    oldestFirst = oldestFirst,
                 )
             ) {
                 is SubscriptionFeedPageResult.Ready -> call.respond(

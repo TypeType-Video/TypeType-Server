@@ -25,6 +25,7 @@ private data class SubscriptionFeedCursor(
     val hideMembersOnlyContent: Boolean = false,
     val filterKey: String = SubscriptionSelection.All.cursorKey,
     val selectionToken: String? = null,
+    val oldestFirst: Boolean = false,
 )
 
 object SubscriptionFeedCursorCodec {
@@ -36,11 +37,13 @@ object SubscriptionFeedCursorCodec {
         hideMembersOnlyContent: Boolean,
         filterKey: String,
         selectionToken: String?,
+        oldestFirst: Boolean = false,
     ): String {
         val payload = CacheJson.encodeToString(
             SubscriptionFeedCursor.serializer(),
             SubscriptionFeedCursor(
                 generation, offset, limit, hideLiveStreams, hideMembersOnlyContent, filterKey, selectionToken,
+                oldestFirst,
             ),
         )
         return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray())
@@ -63,6 +66,7 @@ object SubscriptionFeedCursorCodec {
                     it.hideMembersOnlyContent,
                     it.filterKey,
                     it.selectionToken,
+                    it.oldestFirst,
                 )
             }
     }.getOrNull()
@@ -78,6 +82,7 @@ data class SubscriptionFeedCursorState(
     val hideMembersOnlyContent: Boolean,
     val filterKey: String,
     val selectionToken: String?,
+    val oldestFirst: Boolean = false,
 )
 
 fun SubscriptionFeedSnapshot.hasCompleteSourceAttribution(): Boolean =
@@ -92,11 +97,13 @@ fun SubscriptionFeedSnapshot.page(
     selection: SubscriptionSelection = SubscriptionSelection.All,
     selectedChannelUrls: Set<String>? = null,
     selectionToken: String? = null,
+    oldestFirst: Boolean = false,
 ): SubscriptionFeedResponse {
-    val projectedVideos = projectedVideos(selection, selectedChannelUrls).filterNot { video ->
+    val visibleVideos = projectedVideos(selection, selectedChannelUrls).filterNot { video ->
         (hideLiveStreams && video.isLiveContentOrUpcomingAt(generatedAt)) ||
             (hideMembersOnlyContent && video.requiresMembership)
     }
+    val projectedVideos = if (oldestFirst) visibleVideos.asReversed() else visibleVideos
     val from = offset.coerceAtMost(projectedVideos.size)
     val to = minOf(from + limit, projectedVideos.size)
     val nextpage = if (to < projectedVideos.size) {
@@ -108,6 +115,7 @@ fun SubscriptionFeedSnapshot.page(
             hideMembersOnlyContent,
             selection.cursorKey,
             selectionToken,
+            oldestFirst,
         )
     } else {
         null

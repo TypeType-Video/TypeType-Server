@@ -157,6 +157,24 @@ class SubscriptionFeedRoutesTest {
     }
 
     @Test
+    fun `oldest order pages from the oldest video and keeps its order in the cursor`() = withApp {
+        subscriptionsService.add(TEST_USER_ID, subscription(1))
+        coEvery { channelService.getChannel(any(), null) } returns channel(video(5000L), video(4000L), video(3000L))
+        buildAndRead(limit = 2)
+        val first = Json.decodeFromString<SubscriptionFeedResponse>(
+            requestFeed(limit = 2, order = "oldest").bodyAsText(),
+        )
+        assertEquals(listOf(3000L, 4000L), first.videos.map { it.uploaded })
+        val cursor = requireNotNull(first.nextpage)
+        val second = Json.decodeFromString<SubscriptionFeedResponse>(
+            requestFeed(limit = 2, cursor = cursor, order = "oldest").bodyAsText(),
+        )
+        assertEquals(listOf(5000L), second.videos.map { it.uploaded })
+        assertEquals(HttpStatusCode.BadRequest, requestFeed(limit = 2, cursor = cursor).status)
+        assertEquals(HttpStatusCode.BadRequest, requestFeed(order = "sideways").status)
+    }
+
+    @Test
     fun `cursor older than retained generation returns typed 409`() = withApp {
         subscriptionsService.add(TEST_USER_ID, subscription(1))
         var newest = 5_000L
@@ -250,8 +268,13 @@ class SubscriptionFeedRoutesTest {
         return Json.decodeFromString(response.bodyAsText())
     }
 
-    private suspend fun ApplicationTestBuilder.requestFeed(limit: Int = 30, cursor: String? = null): HttpResponse =
+    private suspend fun ApplicationTestBuilder.requestFeed(
+        limit: Int = 30,
+        cursor: String? = null,
+        order: String? = null,
+    ): HttpResponse =
         client.get("/subscriptions/feed") {
+            order?.let { parameter("order", it) }
             header(HttpHeaders.Authorization, "Bearer test-jwt")
             parameter("limit", limit)
             cursor?.let { parameter("cursor", it) }
