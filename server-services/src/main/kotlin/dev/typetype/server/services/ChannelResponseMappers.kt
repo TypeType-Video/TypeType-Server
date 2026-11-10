@@ -24,9 +24,12 @@ fun ChannelInfo.toChannelResponse(): ChannelResponse {
         verification = verification.toApiValue(),
         videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
-        hasCourses = tabs.any { tab -> tab.contentFilters.any { it.name == ChannelTabs.COURSES } },
+        hasCourses = hasCoursesTab(),
     )
 }
+
+fun ChannelInfo.hasCoursesTab(): Boolean =
+    tabs.any { tab -> tab.contentFilters.any { it.name == ChannelTabs.COURSES } }
 
 fun InfoItemsPage<StreamInfoItem>.toChannelResponse(): ChannelResponse {
     requireItems(items.isEmpty(), errors, "Channel")
@@ -46,6 +49,7 @@ fun ChannelTabInfo.toChannelTabResponse(metadata: ChannelInfo? = null): ChannelR
         verification = metadata?.verification.toApiValue(),
         videos = videoItems.map { it.toVideoItem(fallbackAvatarUrl = metadata?.avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
+        hasCourses = metadata?.hasCoursesTab() ?: false,
     )
 }
 
