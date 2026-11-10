@@ -154,6 +154,7 @@ internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(
             publishedAt = primary.data.publishedAt ?: metadata.publishedAt,
             collections = primary.data.collections.ifEmpty { metadata.collections },
             parts = primary.data.parts.ifEmpty { metadata.parts },
+            endScreenElements = primary.data.endScreenElements.ifEmpty { metadata.endScreenElements },
         ),
     )
 }

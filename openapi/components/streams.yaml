@@ -92,4 +92,21 @@ StreamResponse:
     relatedStreams: { type: array, items: { $ref: './media.yaml#/VideoItem' } }
     collections: { type: array, items: { $ref: "./stream-collections.yaml#/StreamCollectionItem" }, default: [] }
     parts: { type: array, items: { $ref: "./stream-parts.yaml#/StreamPartItem" }, default: [] }
+    endScreenElements: { type: array, items: { $ref: '#/EndScreenItem' }, default: [] }
     sponsorBlockSegments: { type: array, items: { type: object }, default: [] }
+EndScreenItem:
+  type: object
+  description: A creator-placed element shown over the end of the video.
+  required: [id, type, title, url, thumbnailUrl, startMs, endMs, left, top, width, aspectRatio]
+  properties:
+    id: { type: string }
+    type: { type: string, enum: [video, playlist, channel, website] }
+    title: { type: string }
+    url: { type: string }
+    thumbnailUrl: { type: string }
+    startMs: { type: integer, format: int64 }
+    endMs: { type: integer, format: int64 }
+    left: { type: number, format: double, description: Left edge as a fraction of the video width. }
+    top: { type: number, format: double, description: Top edge as a fraction of the video height. }
+    width: { type: number, format: double, description: Width as a fraction of the video width. }
+    aspectRatio: { type: number, format: double, description: Width divided by height of the element. }

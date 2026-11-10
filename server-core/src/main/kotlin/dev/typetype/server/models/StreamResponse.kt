@@ -47,6 +47,7 @@ data class StreamResponse(
     val hasLiveManifest: Boolean = false,
     val collections: List<StreamCollectionItem> = emptyList(),
     val parts: List<StreamPartItem> = emptyList(),
+    val endScreenElements: List<EndScreenItem> = emptyList(),
     @Transient
     val providerMediaAlternates: Map<String, List<String>> = emptyMap(),
 )
