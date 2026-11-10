@@ -94,8 +94,13 @@ fun Route.channelRoutes(
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
         }
 
+        val listUrl = when (call.request.queryParameters["tab"]) {
+            null, "playlists" -> url
+            "courses" -> "${url.substringBefore('?').trimEnd('/')}/courses"
+            else -> return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid 'tab' parameter"))
+        }
         call.respondChannelPlaylistsResult(
-            channelService.getPlaylists(url = url, nextpage = nextpage),
+            channelService.getPlaylists(url = listUrl, nextpage = nextpage),
             access.profile,
             blocked,
         )

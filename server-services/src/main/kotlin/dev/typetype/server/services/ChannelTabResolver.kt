@@ -15,3 +15,11 @@ fun String.toBaseChannelUrl(tab: String): String = substringBefore("/$tab")
     .substringBefore('?')
     .substringBefore('#')
     .trimEnd('/')
+
+/** Courses are listed as playlists under their own tab; any other URL lists the Playlists tab. */
+fun String.playlistListTab(): String =
+    if (substringBefore('?').trimEnd('/').endsWith("/${ChannelTabs.COURSES}", ignoreCase = true)) {
+        ChannelTabs.COURSES
+    } else {
+        ChannelTabs.PLAYLISTS
+    }

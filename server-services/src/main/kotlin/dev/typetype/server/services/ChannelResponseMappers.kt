@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage
 import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelTabInfo
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabs
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
@@ -23,6 +24,7 @@ fun ChannelInfo.toChannelResponse(): ChannelResponse {
         verification = verification.toApiValue(),
         videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
         nextpage = nextPage?.toCursor(),
+        hasCourses = tabs.any { tab -> tab.contentFilters.any { it.name == ChannelTabs.COURSES } },
     )
 }
 

@@ -77,6 +77,7 @@ ChannelResponse:
     isVerified: { type: boolean }
     videos: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
+    hasCourses: { type: boolean, default: false, description: The channel has a Courses tab. }
 ChannelPageRequest:
   type: object
   required: [url]

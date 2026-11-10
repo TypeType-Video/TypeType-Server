@@ -50,6 +50,11 @@ ChannelPlaylists:
         in: query
         required: false
         schema: { type: string }
+      - name: tab
+        in: query
+        required: false
+        description: Which playlist-like tab of the channel to list.
+        schema: { type: string, enum: [playlists, courses], default: playlists }
     responses:
       '200':
         description: Channel playlist page.

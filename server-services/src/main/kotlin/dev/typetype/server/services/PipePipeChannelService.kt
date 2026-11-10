@@ -98,16 +98,18 @@ class PipePipeChannelService : ChannelService, ChannelVideosSource {
 
     private fun extractPlaylistFirstPage(url: String): ChannelPlaylistsResponse {
         val service = NewPipe.getServiceByUrl(url)
-        val channelUrl = url.toBaseChannelUrl(ChannelTabs.PLAYLISTS)
-        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), ChannelTabs.PLAYLISTS, null)
+        val tab = url.playlistListTab()
+        val channelUrl = url.toBaseChannelUrl(tab)
+        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), tab, null)
         extractor.fetchPage()
         return ChannelTabInfo.getInfo(extractor).toChannelPlaylistsResponse()
     }
 
     private fun extractPlaylistMorePage(url: String, page: Page): ChannelPlaylistsResponse {
         val service = NewPipe.getServiceByUrl(url)
-        val channelUrl = url.toBaseChannelUrl(ChannelTabs.PLAYLISTS)
-        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), ChannelTabs.PLAYLISTS, null)
+        val tab = url.playlistListTab()
+        val channelUrl = url.toBaseChannelUrl(tab)
+        val extractor = service.channelTabExtractor(channelUrl, channelId(channelUrl, service), tab, null)
         return extractor.getPage(page).toChannelPlaylistsResponse()
     }
 
