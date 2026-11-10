@@ -37,6 +37,22 @@ SettingsItem:
       type: boolean
       default: false
       description: Light the page around the player with the colors of the video.
+    ambientLightSpread:
+      type: integer
+      minimum: 0
+      maximum: 200
+      default: 100
+      description: How far the ambient light reaches around the player, in percent of the player size.
+    ambientLightBlur:
+      type: integer
+      minimum: 0
+      maximum: 100
+      default: 50
+    ambientLightBrightness:
+      type: integer
+      minimum: 50
+      maximum: 150
+      default: 100
     muted: { type: boolean, default: false }
     notificationPopupsEnabled: { type: boolean, default: true }
     subtitlesEnabled: { type: boolean, default: false }

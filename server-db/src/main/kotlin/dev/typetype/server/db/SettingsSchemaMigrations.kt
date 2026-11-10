@@ -32,6 +32,9 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS skip_playlist_autoplay_screen BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_upcoming_playlist_videos BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_spread INTEGER NOT NULL DEFAULT 100")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_blur INTEGER NOT NULL DEFAULT 50")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_brightness INTEGER NOT NULL DEFAULT 100")
         if (!settingsColumnExists("autoplay_on_open")) {
             exec("ALTER TABLE settings ADD COLUMN autoplay_on_open BOOLEAN NOT NULL DEFAULT true")
             exec("UPDATE settings SET autoplay_on_open = autoplay")
