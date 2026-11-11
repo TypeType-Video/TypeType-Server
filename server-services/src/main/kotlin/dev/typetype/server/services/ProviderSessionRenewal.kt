@@ -20,7 +20,7 @@ class ProviderSessionRenewal(
     private val restMs: Long = 120_000L,
     private val now: () -> Long = System::currentTimeMillis,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    private val renew: (videoUrl: String) -> Boolean,
+    private val renew: suspend (videoUrl: String) -> Boolean,
 ) {
     private val recent = ArrayDeque<Long>()
     private var renewedAt = Long.MIN_VALUE / 2

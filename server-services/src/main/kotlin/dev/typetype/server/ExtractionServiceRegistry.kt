@@ -44,6 +44,7 @@ import dev.typetype.server.services.ProviderMediaReadAhead
 import dev.typetype.server.services.ProviderMediaSegmentTable
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProviderMediaWarmup
+import dev.typetype.server.services.GluetunEgressRotation
 import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.YoutubeEndScreenFetcher
 import dev.typetype.server.services.SabrBootstrapCache
@@ -99,11 +100,13 @@ internal class ExtractionServiceRegistry(
     private val proxyHttpClient: OkHttpClient = egress.proxy
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, egress.token)
     private val sabrTokenClient = TypetypeTokenSabrTokenClient(subtitleServiceUrl, egress.token)
+    private val egressRotation = GluetunEgressRotation.fromEnvironment()
     val sabrSessionStore = SabrSessionStore(
         subtitleServiceUrl,
         tokenClient = sabrTokenClient,
         sessionClient = tokenYoutubeSessionClient,
         initCache = cache,
+        egressRotation = egressRotation,
     )
     val youtubeSubtitleService = YouTubeSubtitleService(subtitleHttpClient, subtitleServiceUrl)
     private val bilibiliRelatedService = BilibiliRelatedService()
@@ -163,7 +166,7 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
         YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
-    private val youtubeStreamGuards = YoutubeStreamGuards(sabrTokenClient)
+    private val youtubeStreamGuards = YoutubeStreamGuards(sabrTokenClient, egressRotation)
     val streamRequestWatch get() = youtubeStreamGuards.watch
     val youtubeSabrStreamService = youtubeStreamGuards.cached(
         YoutubeScopedStreamService(YoutubeLiveHlsStreamService(youtubeSabrFallbackStreamService, liveHlsStreamService)),
