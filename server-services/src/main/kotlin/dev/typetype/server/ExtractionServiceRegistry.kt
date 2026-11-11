@@ -45,6 +45,7 @@ import dev.typetype.server.services.ProviderMediaSegmentTable
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.SabrFallbackStreamService
+import dev.typetype.server.services.YoutubeEndScreenFetcher
 import dev.typetype.server.services.SabrBootstrapCache
 import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
@@ -154,6 +155,7 @@ internal class ExtractionServiceRegistry(
         sabrPublicStreamService,
         sabrSessionStore,
         tokenYoutubeSessionClient,
+        YoutubeEndScreenFetcher()::fetch,
     )
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
