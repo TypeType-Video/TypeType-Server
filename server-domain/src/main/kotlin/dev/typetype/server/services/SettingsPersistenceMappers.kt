@@ -54,6 +54,7 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideHomeRecommendations = this[SettingsTable.hideHomeRecommendations],
     hideContinueWatching = this[SettingsTable.hideContinueWatching],
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
+    hideEndScreens = this[SettingsTable.hideEndScreens],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
     hideSubscriptionLiveStreams = this[SettingsTable.hideSubscriptionLiveStreams],
@@ -106,6 +107,7 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideHomeRecommendations] = settings.hideHomeRecommendations
     this[SettingsTable.hideContinueWatching] = settings.hideContinueWatching
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
+    this[SettingsTable.hideEndScreens] = settings.hideEndScreens
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
     this[SettingsTable.hideSubscriptionLiveStreams] = settings.hideSubscriptionLiveStreams

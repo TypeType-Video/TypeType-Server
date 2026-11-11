@@ -41,6 +41,7 @@ object SettingsTable : Table("settings") {
     val hideHomeRecommendations = bool("hide_home_recommendations").default(false)
     val hideContinueWatching = bool("hide_continue_watching").default(false)
     val hideRelatedVideos = bool("hide_related_videos").default(false)
+    val hideEndScreens = bool("hide_end_screens").default(false)
     val hideComments = bool("hide_comments").default(false)
     val hideShorts = bool("hide_shorts").default(false)
     val hideSubscriptionLiveStreams = bool("hide_subscription_live_streams").default(false)

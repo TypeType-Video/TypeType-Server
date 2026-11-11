@@ -73,6 +73,7 @@ SettingsItem:
     hideHomeRecommendations: { type: boolean, default: false }
     hideContinueWatching: { type: boolean, default: false }
     hideRelatedVideos: { type: boolean, default: false }
+    hideEndScreens: { type: boolean, default: false }
     hideComments: { type: boolean, default: false }
     hideShorts: { type: boolean, default: false }
     hideSubscriptionLiveStreams: { type: boolean, default: false }
