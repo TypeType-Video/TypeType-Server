@@ -4,7 +4,7 @@ import org.gradle.api.GradleException
 val openApiValidator = configurations.create("openApiValidator")
 
 dependencies {
-    openApiValidator("io.swagger.parser.v3:swagger-parser-v3:2.1.45")
+    openApiValidator("io.swagger.parser.v3:swagger-parser-v3:2.1.48")
     openApiValidator("org.slf4j:slf4j-nop:2.0.20")
 }
 
