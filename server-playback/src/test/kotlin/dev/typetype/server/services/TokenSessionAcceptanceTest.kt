@@ -53,4 +53,12 @@ class TokenSessionAcceptanceTest {
         advanceUntilIdle()
         assertEquals(3, check.sessions)
     }
+
+    @Test
+    fun `the number of tries comes from the environment`() {
+        assertEquals(6, TokenSessionAcceptance.triesFromEnvironment { null })
+        assertEquals(0, TokenSessionAcceptance.triesFromEnvironment { "0" })
+        assertEquals(20, TokenSessionAcceptance.triesFromEnvironment { "99" })
+        assertEquals(6, TokenSessionAcceptance.triesFromEnvironment { "many" })
+    }
 }

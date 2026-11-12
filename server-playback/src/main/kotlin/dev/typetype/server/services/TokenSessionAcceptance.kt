@@ -16,7 +16,7 @@ class TokenSessionAcceptance(
     private val check: EgressExitCheck,
     private val rotation: GluetunEgressRotation?,
     private val scope: CoroutineScope,
-    private val tries: Int = 6,
+    private val tries: Int = triesFromEnvironment(),
     private val pauseMs: Long = 20_000L,
     private val restMs: Long = 120_000L,
     private val now: () -> Long = System::currentTimeMillis,
@@ -52,7 +52,12 @@ class TokenSessionAcceptance(
         logger.warn("youtube_session event=still_on_hold reason={} rotated={}", reason, rotated)
     }
 
-    private companion object {
-        val logger = LoggerFactory.getLogger(TokenSessionAcceptance::class.java)
+    companion object {
+        private const val DEFAULT_TRIES = 6
+        private val logger = LoggerFactory.getLogger(TokenSessionAcceptance::class.java)
+
+        /** YOUTUBE_SESSION_REPLACEMENTS sets how many sessions are tried before the egress moves, 0 to move at once. */
+        fun triesFromEnvironment(env: (String) -> String? = System::getenv): Int =
+            env("YOUTUBE_SESSION_REPLACEMENTS")?.trim()?.toIntOrNull()?.coerceIn(0, 20) ?: DEFAULT_TRIES
     }
 }
