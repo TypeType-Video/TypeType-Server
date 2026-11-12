@@ -10,7 +10,7 @@ class YoutubeStreamGuards(
     private val pace = StreamOpenPace()
     private val renewal = ProviderSessionRenewal { videoUrl ->
         val videoId = YoutubeTypeTypeMapper.videoId(videoUrl) ?: return@ProviderSessionRenewal false
-        egressRotation?.rotate("bot_check")
+        egressRotation?.rotate("bot_check", videoId)
         tokenClient.fetch(videoId, forceRefresh = true) != null
     }
 
