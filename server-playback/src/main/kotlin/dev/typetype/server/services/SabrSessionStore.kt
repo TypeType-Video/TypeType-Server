@@ -180,13 +180,15 @@ class SabrSessionStore(
 
     /**
      * The token service ignores a forced refresh for a while after its last one, so this asks again
-     * until the session generation changes: a check run on the previous session would judge the
-     * previous exit.
+     * until the session generation changes, also while the token service cannot answer because the
+     * exit is reconnecting: a check run on the previous session would judge the previous exit.
      */
     suspend fun renewTokenSession(videoId: String) {
         val previous = withContext(Dispatchers.IO) { tokenClient.fetch(videoId) }?.generation
         withTimeoutOrNull(TOKEN_RENEWAL_WAIT_MS) {
-            while (withContext(Dispatchers.IO) { tokenClient.fetch(videoId, forceRefresh = true) }?.generation == previous) {
+            while (true) {
+                val renewed = withContext(Dispatchers.IO) { tokenClient.fetch(videoId, forceRefresh = true) }?.generation
+                if (renewed != null && renewed != previous) break
                 delay(TOKEN_RENEWAL_RETRY_MS)
             }
         }
