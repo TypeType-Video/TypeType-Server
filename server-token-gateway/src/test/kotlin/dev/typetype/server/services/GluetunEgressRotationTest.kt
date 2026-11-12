@@ -23,13 +23,15 @@ class GluetunEgressRotationTest {
         }
         createContext("/v1/vpn/settings") { exchange ->
             val body = exchange.requestBody.readBytes().decodeToString()
-            connected += SERVER_NAME.find(body)?.groupValues?.get(1).orEmpty()
-            exchange.sendResponseHeaders(status, -1)
+            val name = SERVER_NAME.find(body)?.groupValues?.get(1).orEmpty()
+            if (name !in unknownNames) connected += name
+            exchange.sendResponseHeaders(if (name in unknownNames) 400 else status, -1)
             exchange.close()
         }
         start()
     }
     private val connected = CopyOnWriteArrayList<String>()
+    private val unknownNames = CopyOnWriteArrayList<String>()
 
     private fun rotation(servers: List<String> = emptyList()) = GluetunEgressRotation(
         control = GluetunControl("http://127.0.0.1:${server.address.port}/", "key"),
@@ -123,6 +125,26 @@ class GluetunEgressRotationTest {
         assertTrue(rotation.rotate("sabr_attestation", "video"))
 
         assertEquals(listOf("FR#1", "FR#2", "FR#3"), connected)
+    }
+
+    @Test
+    fun `a name gluetun does not know is set aside for the next one`() = runTest {
+        unknownNames += "FR#1"
+        val rotation = rotation(listOf("FR#1", "FR#2"))
+        rotation.exitCheck = Check(setOf("FR#2"), connected)
+
+        assertTrue(rotation.rotate("sabr_attestation", "video"))
+
+        assertEquals(listOf("FR#2"), connected)
+    }
+
+    @Test
+    fun `it draws an exit at random when gluetun knows none of the names`() = runTest {
+        unknownNames += listOf("FR#1", "FR#2")
+
+        assertTrue(rotation(listOf("FR#1", "FR#2")).rotate("bot_check"))
+
+        assertEquals(listOf("""PUT key {"status":"stopped"}""", """PUT key {"status":"running"}"""), calls)
     }
 
     @Test

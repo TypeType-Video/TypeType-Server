@@ -36,6 +36,7 @@ class GluetunEgressRotation(
     private val mutex = Mutex()
     private val recent = ArrayDeque<Long>()
     private val refusedAt = HashMap<String, Long>()
+    private val unknown = HashSet<String>()
     private var rotatedAt = Long.MIN_VALUE / 2
     private var current: String? = null
     private var lastAccepted: String? = null
@@ -49,26 +50,40 @@ class GluetunEgressRotation(
         rotatedAt = now()
         current?.let { refusedAt[it] = now() }
         repeat(attempts) { attempt ->
-            val candidate = candidate()
-            if (!move(candidate)) {
-                logger.warn("youtube_egress event=rotated reason={} done=false", reason)
-                return@withLock false
-            }
+            val candidate = reachable(reason) ?: return@withLock false
             val accepted = accepted(videoId)
             logger.warn(
                 "youtube_egress event=rotated reason={} attempt={} server={} accepted={}",
-                reason, attempt + 1, candidate ?: "random", accepted,
+                reason, attempt + 1, candidate.server ?: "random", accepted,
             )
-            current = candidate
+            current = candidate.server
             if (accepted) {
-                lastAccepted = candidate
+                lastAccepted = candidate.server
                 return@withLock true
             }
-            candidate?.let { refusedAt[it] = now() }
+            candidate.server?.let { refusedAt[it] = now() }
         }
         goBack(videoId)
         false
     }
+
+    /**
+     * Connects to the next candidate. The names gluetun knows change with its version, so a name it
+     * refuses is set aside and the next one is tried; with none left the exit is drawn at random.
+     */
+    private suspend fun reachable(reason: String): Exit? {
+        repeat(servers.size) {
+            val server = candidate() ?: return@repeat
+            if (move(server)) return Exit(server)
+            logger.warn("youtube_egress event=unknown_server server={}", server)
+            unknown += server
+        }
+        if (move(null)) return Exit(null)
+        logger.warn("youtube_egress event=rotated reason={} done=false", reason)
+        return null
+    }
+
+    private class Exit(val server: String?)
 
     private suspend fun goBack(videoId: String?) {
         val server = lastAccepted?.takeIf { it != current } ?: return
@@ -92,8 +107,9 @@ class GluetunEgressRotation(
     }
 
     private fun candidate(): String? {
-        if (servers.isEmpty()) return null
-        val others = servers.filter { it != current }.ifEmpty { servers }
+        val known = servers - unknown
+        if (known.isEmpty()) return null
+        val others = known.filter { it != current }.ifEmpty { known }
         val fresh = others.filter { now() - (refusedAt[it] ?: Long.MIN_VALUE / 2) >= refusedForMs }
         return if (fresh.isNotEmpty()) pick(fresh) else others.minBy { refusedAt[it] ?: 0L }
     }
