@@ -8,14 +8,11 @@ import dev.typetype.server.cache.CacheService
  * other's sessions.
  */
 class YoutubeStreamGuards(
-    private val recoverSession: (reason: String, videoId: String) -> Boolean,
+    private val recoverSession: (reason: String) -> Boolean,
 ) {
     val watch = StreamRequestWatch()
     private val pace = StreamOpenPace()
-    private val renewal = ProviderSessionRenewal { videoUrl ->
-        val videoId = YoutubeTypeTypeMapper.videoId(videoUrl) ?: return@ProviderSessionRenewal false
-        recoverSession("bot_check", videoId)
-    }
+    private val renewal = ProviderSessionRenewal { recoverSession("bot_check") }
 
     fun cached(delegate: StreamService, cache: CacheService, cachePrefix: String): CachedStreamService =
         CachedStreamService(delegate, cache, cachePrefix, watch, pace, renewal)

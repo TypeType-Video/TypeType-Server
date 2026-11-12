@@ -51,7 +51,18 @@ class TokenSessionAcceptanceTest {
 
         assertTrue(acceptance.onHold("sabr_attestation_pending", "video"))
         advanceUntilIdle()
-        assertEquals(3, check.sessions)
+        assertEquals(2, check.sessions)
+    }
+
+    @Test
+    fun `a session that still plays is kept`() = runTest {
+        val check = Check(acceptedFrom = 0)
+        val acceptance = TokenSessionAcceptance(check, rotation = null, scope = this, now = { testScheduler.currentTime })
+
+        acceptance.onHold("bot_check", "video")
+        advanceUntilIdle()
+
+        assertEquals(0, check.sessions)
     }
 
     @Test

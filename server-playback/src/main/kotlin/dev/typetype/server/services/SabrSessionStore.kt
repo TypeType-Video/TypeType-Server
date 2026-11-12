@@ -195,7 +195,12 @@ class SabrSessionStore(
         infoFetcher.invalidatePlayback(videoId)
     }
 
-    fun recoverTokenSession(reason: String, videoId: String): Boolean = acceptance.onHold(reason, videoId)
+    /**
+     * Recovers with the last video that played, not the one that raised the signal: that one may be
+     * unplayable for its own reasons and would fail every check.
+     */
+    fun recoverTokenSession(reason: String): Boolean =
+        sessionWatch.videoId?.let { acceptance.onHold(reason, it) } ?: false
 
     private fun reportProtectionPending(holder: SabrSessionHolder) {
         if (holder.key.userId == SabrEgressExitCheck.PROBE_USER) return

@@ -11,6 +11,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * an accepted one plays anything, one put on hold only plays the start of a video. The rating of a
  * shared exit moves within minutes, so a session on hold is replaced by a new one, checked, until one
  * is accepted. Only when none is does the egress move to another exit.
+ *
+ * The session in use is checked first: a signal that turns out wrong, such as a private video read as
+ * a bot check, must not throw away a session that plays, nor move an exit every viewer is on.
  */
 class TokenSessionAcceptance(
     private val check: EgressExitCheck,
@@ -41,6 +44,10 @@ class TokenSessionAcceptance(
     }
 
     private suspend fun recover(reason: String, videoId: String) {
+        if (check.accepts(videoId)) {
+            logger.info("youtube_session event=kept reason={}", reason)
+            return
+        }
         repeat(tries) { attempt ->
             check.renew(videoId)
             val accepted = check.accepts(videoId)

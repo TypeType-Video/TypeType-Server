@@ -14,7 +14,8 @@ class TokenSessionWatch(
     private val periodMs: Long = 60_000L,
 ) {
     @Volatile
-    private var videoId: String? = null
+    var videoId: String? = null
+        private set
     private var checked: String? = null
 
     fun played(videoId: String) {
