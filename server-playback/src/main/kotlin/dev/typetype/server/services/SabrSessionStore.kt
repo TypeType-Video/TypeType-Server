@@ -50,9 +50,16 @@ class SabrSessionStore(
     private val exitCheck = SabrEgressExitCheck(this)
     private val acceptance = TokenSessionAcceptance(exitCheck, egressRotation, scope)
 
+    private val sessionWatch = TokenSessionWatch(
+        generation = { videoId -> withContext(Dispatchers.IO) { tokenClient.fetch(videoId) }?.generation },
+        check = exitCheck,
+        acceptance = acceptance,
+    )
+
     init {
         runCatching { NewPipeInitializer.init() }
         egressRotation?.exitCheck = exitCheck
+        scope.launch { sessionWatch.run() }
     }
     fun getOrCreate(
         videoId: String,
@@ -68,6 +75,7 @@ class SabrSessionStore(
         initialGeneration: Long = 0L,
         source: SabrPreparedSource = SabrPreparedSource.PUBLIC,
     ): SabrSessionHolder {
+        if (userId != SabrEgressExitCheck.PROBE_USER) sessionWatch.played(videoId)
         val sessionToken = SabrSessionTokenGenerator.newToken()
         val isolatedSourceId = sessionToken.takeIf {
             purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.DOWNLOAD
