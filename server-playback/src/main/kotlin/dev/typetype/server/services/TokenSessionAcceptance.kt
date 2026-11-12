@@ -49,7 +49,7 @@ class TokenSessionAcceptance(
             delay(pauseMs)
         }
         val rotated = rotation?.rotate(reason, videoId)
-        logger.warn("youtube_session event=still_on_hold reason={} rotated={}", reason, rotated)
+        logger.warn("youtube_session event=exit_asked reason={} accepted={}", reason, rotated)
     }
 
     companion object {
