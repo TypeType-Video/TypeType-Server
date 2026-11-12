@@ -166,7 +166,7 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
         YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
-    private val youtubeStreamGuards = YoutubeStreamGuards(sabrTokenClient, egressRotation)
+    private val youtubeStreamGuards = YoutubeStreamGuards(sabrSessionStore::recoverTokenSession)
     val streamRequestWatch get() = youtubeStreamGuards.watch
     val youtubeSabrStreamService = youtubeStreamGuards.cached(
         YoutubeScopedStreamService(YoutubeLiveHlsStreamService(youtubeSabrFallbackStreamService, liveHlsStreamService)),

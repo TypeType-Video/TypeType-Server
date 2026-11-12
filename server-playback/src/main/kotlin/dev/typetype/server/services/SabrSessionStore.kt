@@ -195,6 +195,8 @@ class SabrSessionStore(
         infoFetcher.invalidatePlayback(videoId)
     }
 
+    fun recoverTokenSession(reason: String, videoId: String): Boolean = acceptance.onHold(reason, videoId)
+
     private fun reportProtectionPending(holder: SabrSessionHolder) {
         if (holder.key.userId == SabrEgressExitCheck.PROBE_USER) return
         acceptance.onHold("sabr_attestation_pending", holder.key.videoId)
