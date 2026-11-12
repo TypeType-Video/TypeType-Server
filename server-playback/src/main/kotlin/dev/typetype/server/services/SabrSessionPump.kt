@@ -9,11 +9,13 @@ import java.time.Instant
 
 class SabrSessionPump(
     private val segmentCache: SabrSegmentCache? = null,
+    onProtectionPending: (SabrSessionHolder) -> Unit = {},
     refreshPoToken: (SabrSessionHolder) -> SabrTokenBundle? = { null },
 ) {
     private val unauthorizedRecovery = SabrUnauthorizedResponseRecovery(refreshPoToken = refreshPoToken)
     private val loop = SabrSessionPumpLoop(
         unauthorizedRecovery = unauthorizedRecovery,
+        onProtectionPending = onProtectionPending,
         onResolved = { holder, segment -> segmentCache?.put(holder, segment) },
     )
 

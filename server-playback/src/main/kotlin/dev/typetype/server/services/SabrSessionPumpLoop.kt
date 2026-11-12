@@ -17,6 +17,7 @@ class SabrSessionPumpLoop(
     private val unauthorizedRecovery: SabrUnauthorizedResponseRecovery = SabrUnauthorizedResponseRecovery { null },
     private val runtimeFactory: () -> SabrPumpRuntime = { SabrPumpRuntime() },
     private val onResolved: (SabrSessionHolder, SabrMediaSegment) -> Unit = { _, _ -> },
+    private val onProtectionPending: (SabrSessionHolder) -> Unit = {},
 ) {
     suspend fun run(isAlive: () -> Boolean, holder: SabrSessionHolder, intervalMs: Long) {
         try {
@@ -154,10 +155,15 @@ class SabrSessionPumpLoop(
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreaming(localization) } }
                 .also { runInterruptible(Dispatchers.IO) { unauthorizedRecovery.verify(holder) } }
-                .also { runtime.verifyProtectedResponse(holder) }
+                .also { verifyProtection(holder, runtime) }
         } finally {
             runtime.recordRequest()
         }
+    }
+
+    private fun verifyProtection(holder: SabrSessionHolder, runtime: SabrPumpRuntime) {
+        if (runtime.protectionTurnedPending(holder)) onProtectionPending(holder)
+        runtime.verifyProtectedResponse(holder)
     }
 
     private suspend fun pumpUntilCached(
@@ -169,7 +175,7 @@ class SabrSessionPumpLoop(
         return try {
             runInterruptible(Dispatchers.IO) { holder.withPlayerContext { pumpOnceStreamingForDemand(localization, request) } }
                 .also { runInterruptible(Dispatchers.IO) { unauthorizedRecovery.verify(holder) } }
-                .also { runtime.verifyProtectedResponse(holder) }
+                .also { verifyProtection(holder, runtime) }
         } finally {
             runtime.recordRequest()
         }
