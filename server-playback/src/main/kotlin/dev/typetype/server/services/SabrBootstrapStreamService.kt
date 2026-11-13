@@ -59,6 +59,11 @@ class SabrBootstrapStreamService(
             PROVIDER_ACCESS_BLOCKED_CODE,
             ExtractionFailureKind.ProviderAccessBlocked,
         )
+        isContentUnavailable() -> ExtractionResult.Failure(
+            "This video is not available",
+            CONTENT_UNAVAILABLE_CODE,
+            ExtractionFailureKind.ContentUnavailable,
+        )
         isTransient() -> ExtractionResult.Failure(
             "The token service did not answer in time",
             TOKEN_SERVICE_UNAVAILABLE_CODE,
@@ -69,6 +74,7 @@ class SabrBootstrapStreamService(
 
     private companion object {
         const val PROVIDER_ACCESS_BLOCKED_CODE = "provider_access_blocked"
+        const val CONTENT_UNAVAILABLE_CODE = "content_unavailable"
         const val TOKEN_SERVICE_UNAVAILABLE_CODE = "token_service_unavailable"
     }
 }
