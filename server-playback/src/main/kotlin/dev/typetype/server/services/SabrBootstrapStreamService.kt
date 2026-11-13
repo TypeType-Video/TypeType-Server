@@ -35,7 +35,7 @@ class SabrBootstrapStreamService(
             is TokenServiceResult.Success -> metadataResult.value
             is TokenServiceResult.Failure -> return metadataResult.toBootstrapFailure()
         }
-        if (metadata.isLive) return liveHlsStreamService.getStreamInfo(url)
+        if (metadata.isLive) return liveStream(url, videoId, metadata)
         val formatsStartedAt = System.nanoTime()
         val fromSession = metadata.preparedSabrInfo()
         val formatsResult = fromSession ?: sessionStore.fetchInfo(videoId, cachedFirst = true)
@@ -51,6 +51,17 @@ class SabrBootstrapStreamService(
             cache.put(videoId, response, epoch)
         }
         return ExtractionResult.Success(response)
+    }
+
+    private suspend fun liveStream(
+        url: String,
+        videoId: String,
+        session: TokenYoutubeSession,
+    ): ExtractionResult<StreamResponse> {
+        val live = liveHlsStreamService.getStreamInfo(url)
+        if (live is ExtractionResult.Success || session.hlsUrl.isBlank()) return live
+        PlaybackTraceLog.record("sabr_bootstrap_live", "source=session")
+        return ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
     }
 
     private fun TokenServiceResult.Failure.toBootstrapFailure(): ExtractionResult.Failure = when {
