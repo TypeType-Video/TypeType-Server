@@ -13,6 +13,7 @@ import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
@@ -93,6 +94,12 @@ internal fun Route.sabrRoutes(
         val sessionId = call.parameters["sessionId"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
         playbackHandler.manifest(call, sessionId)
+    }
+    delete("/sabr/playback/{sessionId}") {
+        val sessionId = call.parameters["sessionId"]
+            ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing sessionId"))
+        sabrSessionStore.lookupByToken(sessionId)?.let(sabrSessionStore::releaseByClient)
+        call.respond(HttpStatusCode.NoContent)
     }
     get("/sabr/playback/{sessionId}/state") {
         val sessionId = call.parameters["sessionId"]

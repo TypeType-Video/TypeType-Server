@@ -46,6 +46,18 @@ class SabrSessionRegistryTest {
     }
 
     @Test
+    fun `release frees the session and its token once`() {
+        val registry = SabrSessionRegistry()
+        val released = holder("released", Instant.now())
+        registry.put(released.key, released)
+
+        assertTrue(registry.releaseByClient(released))
+        assertNull(registry.get(released.key))
+        assertNull(registry.lookupByToken(released.sessionToken))
+        assertTrue(!registry.releaseByClient(released))
+    }
+
+    @Test
     fun `idle eviction removes stale sessions`() {
         val registry = SabrSessionRegistry()
         val staleKey = key("stale")

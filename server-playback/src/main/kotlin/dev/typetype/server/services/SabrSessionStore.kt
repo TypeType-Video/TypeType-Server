@@ -133,6 +133,7 @@ class SabrSessionStore(
     fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? = registry.lookupByToken(videoId, token, itag)
     fun lookupByToken(videoId: String, token: String): SabrSessionHolder? = registry.lookupByToken(videoId, token)
     fun lookupByToken(token: String): SabrSessionHolder? = registry.lookupByToken(token)
+    fun releaseByClient(holder: SabrSessionHolder): Boolean = registry.releaseByClient(holder)
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8): Unit = pump.ensureWarmed(holder, maxPumps)
 

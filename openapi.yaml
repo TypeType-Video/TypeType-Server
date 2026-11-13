@@ -33,6 +33,7 @@ paths:
   /media/{handle}: { $ref: ./openapi/paths/media.yaml#/ProviderMedia }
   /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{videoId}: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackCreate }
+  /sabr/playback/{sessionId}: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackRelease }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
   /sabr/playback/{sessionId}/prefetch: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPrefetch }

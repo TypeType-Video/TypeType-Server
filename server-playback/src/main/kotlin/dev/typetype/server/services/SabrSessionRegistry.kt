@@ -36,6 +36,25 @@ class SabrSessionRegistry {
 
     fun contains(holder: SabrSessionHolder): Boolean = sessions[holder.key] === holder
 
+    // A client that moves to another video releases its session at once instead of holding one of the few
+    // registry slots until idle eviction, which matters when one viewer jumps through many videos.
+    fun releaseByClient(holder: SabrSessionHolder): Boolean {
+        val removed = synchronized(mutationLock) {
+            if (!sessions.remove(holder.key, holder)) return@synchronized false
+            sessionsByToken.remove(holder.sessionToken, holder)
+            true
+        }
+        if (!removed) return false
+        holder.releaseResources()
+        logger.info(
+            "sabr_session event=released videoId={} registrySize={} state={}",
+            holder.key.videoId,
+            sessions.size,
+            holder.playbackState(),
+        )
+        return true
+    }
+
     fun remove(holder: SabrSessionHolder): Unit {
         val removed = synchronized(mutationLock) {
             if (!sessions.remove(holder.key, holder)) return@synchronized false
