@@ -65,6 +65,27 @@ internal class SabrPlaybackPrewarmHandoffs(
         return entry.session.takeUnless { now - entry.expiresAtNanos >= 0L }
     }
 
+    @Synchronized
+    fun diagnoseMiss(key: SabrPlaybackPrewarmKey): String {
+        val now = System.nanoTime()
+        evictExpired(now)
+        val candidate =
+            entries.keys.lastOrNull { it.videoId == key.videoId && it.userId == key.userId }
+                ?: entries.keys.lastOrNull { it.videoId == key.videoId }
+                ?: return "no_entry"
+        return when {
+            candidate.userId != key.userId -> "user_mismatch"
+            candidate.videoItag != key.videoItag || candidate.audioItag != key.audioItag ->
+                "itag_mismatch(prewarm=${candidate.videoItag}/${candidate.audioItag},req=${key.videoItag}/${key.audioItag})"
+            candidate.audioTrackId != key.audioTrackId ->
+                "track_mismatch(prewarm=${candidate.audioTrackId},req=${key.audioTrackId})"
+            candidate.startTimeMs != key.startTimeMs ->
+                "start_mismatch(prewarm=${candidate.startTimeMs},req=${key.startTimeMs})"
+            candidate.audioOnly != key.audioOnly || candidate.isLive != key.isLive -> "mode_mismatch"
+            else -> "expired"
+        }
+    }
+
     private fun evictExpired(now: Long) {
         val iterator = entries.values.iterator()
         while (iterator.hasNext()) {
