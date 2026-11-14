@@ -13,7 +13,6 @@ class YoutubeSessionTokenScopeTest {
     fun `withCredentials injects and clears YouTube tokens`() = runBlocking {
         val youtube = ServiceList.YouTube
         youtube.setTokens("previous-cookies")
-        youtube.setAdditionalTokens("previous-pot")
         val observed = YoutubeSessionTokenScope.withCredentials(
             YoutubeSessionCredentials(
                 userId = TEST_USER_ID,
@@ -23,17 +22,11 @@ class YoutubeSessionTokenScopeTest {
                 authUser = 2,
             )
         ) {
-            Triple(
-                youtube.tokens,
-                youtube.additionalTokens,
-                YoutubeAuthUserContext.headerFor("https://www.youtube.com/youtubei/v1/player"),
-            )
+            youtube.tokens to YoutubeAuthUserContext.headerFor("https://www.youtube.com/youtubei/v1/player")
         }
         assertEquals("SID=session-cookie", observed.first)
-        assertEquals("session-pot-value", observed.second)
-        assertEquals("2", observed.third)
+        assertEquals("2", observed.second)
         assertEquals("", youtube.tokens.orEmpty())
-        assertEquals("", youtube.additionalTokens.orEmpty())
         assertEquals(null, YoutubeAuthUserContext.headerFor("https://www.youtube.com/youtubei/v1/player"))
     }
 
@@ -41,11 +34,7 @@ class YoutubeSessionTokenScopeTest {
     fun `withoutCredentials clears YouTube tokens for public extraction`() = runBlocking {
         val youtube = ServiceList.YouTube
         youtube.setTokens("previous-cookies")
-        youtube.setAdditionalTokens("previous-pot")
-        val observed = YoutubeSessionTokenScope.withoutCredentials {
-            youtube.tokens.orEmpty() to youtube.additionalTokens.orEmpty()
-        }
-        assertEquals("", observed.first)
-        assertEquals("", observed.second)
+        val observed = YoutubeSessionTokenScope.withoutCredentials { youtube.tokens.orEmpty() }
+        assertEquals("", observed)
     }
 }

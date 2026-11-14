@@ -17,11 +17,9 @@ object YoutubeSessionTokenScope {
             try {
                 YoutubeAuthUserContext.set(credentials.authUser)
                 youtube.setTokens(credentials.cookies)
-                youtube.setAdditionalTokens(credentials.poToken)
                 block()
             } finally {
                 youtube.setTokens("")
-                youtube.setAdditionalTokens("")
                 YoutubeAuthUserContext.set(null)
             }
         }
@@ -31,7 +29,6 @@ object YoutubeSessionTokenScope {
             val youtube = ServiceList.YouTube
             YoutubeAuthUserContext.set(null)
             youtube.setTokens("")
-            youtube.setAdditionalTokens("")
             block()
         }
 
