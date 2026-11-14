@@ -1,5 +1,6 @@
 package dev.typetype.server.routes
 
+import dev.typetype.server.PlaybackTraceLog
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.services.SabrPlaybackDiagnostics
 import dev.typetype.server.services.SabrSessionHolder
@@ -10,9 +11,11 @@ import dev.typetype.server.services.liveRetryAfterMs
 import dev.typetype.server.services.resolvePlaybackStartMs
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import dev.typetype.server.sabr.SabrSegmentRequest
+import org.slf4j.LoggerFactory
 
 internal class SabrPlaybackWindowHandler(
     private val sabrSessionStore: SabrSessionStore,
@@ -169,13 +172,22 @@ internal class SabrPlaybackWindowHandler(
         live = livePlaybackSnapshot()?.toResponse(),
     )
 
+    private suspend fun respondMissingSession(call: ApplicationCall, sessionId: String): SabrSessionHolder? {
+        val requestPath = call.request.path()
+        val prefix = sessionId.take(8)
+        PlaybackTraceLog.record("sabr_session_not_found", "path=$requestPath sessionPrefix=$prefix")
+        logger.info("SABR session not found (404) path={} sessionPrefix={}", requestPath, prefix)
+        call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
+        return null
+    }
+
     private suspend fun validatedHolder(
         call: ApplicationCall,
         sessionId: String,
         request: SabrPlaybackWindowRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return respondMissingSession(call, sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Window formats do not match session")).let { null }
         }
@@ -194,7 +206,7 @@ internal class SabrPlaybackWindowHandler(
         request: SabrPlaybackPositionRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return respondMissingSession(call, sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Position formats do not match session")).let { null }
         }
@@ -218,4 +230,8 @@ internal class SabrPlaybackWindowHandler(
             initialWindowReady = initialWindowReady,
             defaultRetryAfterMs = liveRetryAfterMs(window.blockedRequests),
         )
+
+    private companion object {
+        val logger = LoggerFactory.getLogger(SabrPlaybackWindowHandler::class.java)
+    }
 }
