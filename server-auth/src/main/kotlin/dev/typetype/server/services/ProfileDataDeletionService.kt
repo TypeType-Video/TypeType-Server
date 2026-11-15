@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.db.tables.TwitchAccountsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.AllowedPlaylistsTable
 import dev.typetype.server.db.tables.BlockedChannelsTable
@@ -105,6 +106,7 @@ internal object ProfileDataDeletionService {
             { UserChannelInterestTable.deleteWhere { UserChannelInterestTable.userId eq userId } },
             { UserTopicInterestTable.deleteWhere { UserTopicInterestTable.userId eq userId } },
             { YoutubeSessionsTable.deleteWhere { YoutubeSessionsTable.userId eq userId } },
+            { TwitchAccountsTable.deleteWhere { TwitchAccountsTable.userId eq userId } },
             { YoutubeSessionPairingsTable.deleteWhere { YoutubeSessionPairingsTable.userId eq userId } },
             { YoutubeTakeoutImportJobsTable.deleteWhere { YoutubeTakeoutImportJobsTable.userId eq userId } },
             { YoutubeTakeoutPlaylistKeysTable.deleteWhere { YoutubeTakeoutPlaylistKeysTable.userId eq userId } },

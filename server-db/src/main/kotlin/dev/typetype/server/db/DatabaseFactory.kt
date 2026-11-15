@@ -50,6 +50,7 @@ import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.BiliBiliSessionsTable
+import dev.typetype.server.db.tables.TwitchAccountsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -104,6 +105,7 @@ object DatabaseFactory {
                 YoutubeSessionsTable,
                 YoutubeSessionPairingsTable,
                 BiliBiliSessionsTable,
+                TwitchAccountsTable,
                 BugReportsTable,
                 NotificationStatesTable,
                 NotificationReadItemsTable,
