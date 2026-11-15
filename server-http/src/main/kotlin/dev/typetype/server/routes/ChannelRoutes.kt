@@ -12,8 +12,11 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.ChannelService
+import dev.typetype.server.services.FocusProfile
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.filterAllowed
 import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.limitFocusArchive
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -28,6 +31,7 @@ fun Route.channelRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     blockedService: BlockedService? = null,
+    focusService: FocusService? = null,
 ) {
     get("/channel") {
         val url = call.request.queryParameters["url"]
@@ -40,6 +44,7 @@ fun Route.channelRoutes(
             adminSettingsService,
         ) ?: return@get
         val blocked = access.userId?.let { blockedService?.profileFor(it) } ?: BlockedContentProfile.empty
+        val focus = access.userId?.let { focusService?.profileFor(it) }
 
         when (val result = channelService.getChannel(url = url, nextpage = nextpage, sort = sort)) {
             is ExtractionResult.Success -> {
@@ -52,7 +57,10 @@ fun Route.channelRoutes(
                         ErrorResponse("Channel is blocked", "content_blocked"),
                     )
                 }
-                call.respond(result.data.filterAllowed(access.profile).filterBlocked(blocked))
+                call.respond(
+                    result.data.filterAllowed(access.profile).filterBlocked(blocked)
+                        .limitFocusArchive(focus, url, newestFirst = sort.isNewestFirst()),
+                )
             }
             is ExtractionResult.BadRequest -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             is ExtractionResult.Failure -> call.respondExtractionFailure(result, youtube = false)
@@ -68,16 +76,19 @@ fun Route.channelRoutes(
             adminSettingsService,
         ) ?: return@post
         val blocked = access.userId?.let { blockedService?.profileFor(it) } ?: BlockedContentProfile.empty
+        val sort = request.sort?.takeIf { it.isNotBlank() }
 
         call.respondChannelResult(
             channelService.getChannel(
                 url = url,
                 nextpage = request.nextpage?.takeIf { it.isNotBlank() },
-                sort = request.sort?.takeIf { it.isNotBlank() },
+                sort = sort,
             ),
             url,
             access.profile,
             blocked,
+            access.userId?.let { focusService?.profileFor(it) },
+            sort.isNewestFirst(),
         )
     }
     get("/channel/playlists") {
@@ -112,6 +123,8 @@ private suspend fun ApplicationCall.respondChannelResult(
     url: String,
     profile: AccessControlProfile,
     blocked: BlockedContentProfile,
+    focus: FocusProfile?,
+    newestFirst: Boolean,
 ) {
     when (result) {
         is ExtractionResult.Success -> {
@@ -121,12 +134,14 @@ private suspend fun ApplicationCall.respondChannelResult(
             if (!blocked.allowsChannel(url = url, name = result.data.name)) {
                 return respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is blocked", "content_blocked"))
             }
-            respond(result.data.filterAllowed(profile).filterBlocked(blocked))
+            respond(result.data.filterAllowed(profile).filterBlocked(blocked).limitFocusArchive(focus, url, newestFirst))
         }
         is ExtractionResult.BadRequest -> respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
         is ExtractionResult.Failure -> respondExtractionFailure(result, youtube = false)
     }
 }
+
+private fun String?.isNewestFirst(): Boolean = this == null || this == "latest"
 
 private suspend fun ApplicationCall.respondChannelPlaylistsResult(
     result: ExtractionResult<ChannelPlaylistsResponse>,

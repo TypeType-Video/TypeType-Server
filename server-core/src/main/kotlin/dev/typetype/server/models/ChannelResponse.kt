@@ -14,4 +14,5 @@ data class ChannelResponse(
     val nextpage: String?,
     val verification: String? = null,
     val hasCourses: Boolean = false,
+    val focusArchiveDays: Int? = null,
 )

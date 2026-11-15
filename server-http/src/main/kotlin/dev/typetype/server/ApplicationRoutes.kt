@@ -111,6 +111,7 @@ fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             channelPostsRoutes(
                 svc.channelPostsService,

@@ -5,6 +5,7 @@ import dev.typetype.server.models.SubscriptionFeedPreparingResponse
 import dev.typetype.server.routes.preserveTooManyRequestsBody
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SubscriptionFeedPageResult
 import dev.typetype.server.services.SubscriptionFeedService
 import dev.typetype.server.services.SubscriptionFeedVisibility
@@ -12,6 +13,7 @@ import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionSelection
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.filterFocus
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -26,6 +28,7 @@ fun Route.subscriptionFeedRoutes(
     settingsService: SettingsService? = null,
     groupsService: SubscriptionGroupsService = SubscriptionGroupsService(),
     blockedService: BlockedService? = null,
+    focusService: FocusService? = null,
 ) {
     get("/subscriptions/feed") {
         call.withJwtAuth(authService) { userId ->
@@ -63,7 +66,8 @@ fun Route.subscriptionFeedRoutes(
                 )
             ) {
                 is SubscriptionFeedPageResult.Ready -> call.respond(
-                    blockedService?.let { result.response.filterBlocked(it.profileFor(userId)) } ?: result.response,
+                    (blockedService?.let { result.response.filterBlocked(it.profileFor(userId)) } ?: result.response)
+                        .filterFocus(focusService?.profileFor(userId)),
                 )
                 is SubscriptionFeedPageResult.Preparing -> {
                     call.response.headers.append(HttpHeaders.RetryAfter, "1")

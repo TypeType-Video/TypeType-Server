@@ -20,6 +20,7 @@ internal fun Route.userDataRoutes(
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionGroupsRoutes(svc.subscriptionGroupsService, authService)
+    focusRoutes(svc.focusService, authService)
     subscriptionsRoutes(
         svc.subscriptionsService,
         authService,
@@ -34,6 +35,7 @@ internal fun Route.userDataRoutes(
         svc.settingsService,
         svc.subscriptionGroupsService,
         svc.blockedService,
+        svc.focusService,
     )
     subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
@@ -65,6 +67,7 @@ internal fun Route.userDataRoutes(
         blockedService = svc.blockedService,
         accessControlService = svc.accessControlService,
         recommenderHomeService = svc.recommenderServices.homeService,
+        focusService = svc.focusService,
     )
     recommenderRoutes(svc.recommenderServices, authService)
     recommenderFeedbackRoutes(svc.recommenderServices, authService)

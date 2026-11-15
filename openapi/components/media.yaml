@@ -78,6 +78,7 @@ ChannelResponse:
     videos: { type: array, items: { $ref: '#/VideoItem' } }
     nextpage: { type: string, nullable: true }
     hasCourses: { type: boolean, default: false, description: The channel has a Courses tab. }
+    focusArchiveDays: { type: integer, nullable: true, description: Set when the focus mode limits this channel to its recent videos. }
 ChannelPageRequest:
   type: object
   required: [url]
