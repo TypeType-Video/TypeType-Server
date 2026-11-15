@@ -1,0 +1,19 @@
+FocusSettingsItem:
+  type: object
+  required: [enabled, transitionDays, archiveDays, entertainmentShare]
+  properties:
+    enabled: { type: boolean, description: Stays true until disableAt passes. }
+    entertainmentGroupId: { type: string, nullable: true, description: Subscription group whose channels fade out. }
+    transitionDays: { type: integer, minimum: 1, maximum: 365, description: Days for the group to fade from the home and the subscription feed. }
+    archiveDays: { type: integer, minimum: 1, maximum: 365, description: Channel pages of the group only list videos from these last days. }
+    startedAt: { type: integer, format: int64, nullable: true }
+    disableAt: { type: integer, format: int64, nullable: true, description: When a requested exit takes effect. }
+    entertainmentShare: { type: number, minimum: 0, maximum: 1, description: Share of the group's videos still shown. }
+FocusSettingsRequest:
+  type: object
+  required: [enabled]
+  properties:
+    enabled: { type: boolean, description: False while active schedules the exit one day later; true cancels it. }
+    entertainmentGroupId: { type: string, nullable: true }
+    transitionDays: { type: integer, minimum: 1, maximum: 365 }
+    archiveDays: { type: integer, minimum: 1, maximum: 365 }

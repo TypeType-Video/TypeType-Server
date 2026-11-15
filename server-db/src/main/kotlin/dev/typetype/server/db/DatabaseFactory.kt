@@ -18,6 +18,7 @@ import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
 import dev.typetype.server.db.tables.UserSeekbarIconsTable
@@ -86,6 +87,7 @@ object DatabaseFactory {
                 SubscriptionsTable,
                 SubscriptionGroupsTable,
                 SubscriptionGroupMembershipsTable,
+                FocusSettingsTable,
                 PlaylistsTable,
                 PlaylistVideosTable,
                 WatchLaterTable,

@@ -59,6 +59,7 @@ paths:
   /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
   /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
+  /focus: { $ref: ./openapi/paths/focus.yaml#/Focus }
   /auth/device/start: { $ref: ./openapi/paths/device-auth.yaml#/DeviceStart }
   /auth/device/lookup: { $ref: ./openapi/paths/device-auth.yaml#/DeviceLookup }
   /auth/device/approve: { $ref: ./openapi/paths/device-auth.yaml#/DeviceApprove }

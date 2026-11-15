@@ -1,0 +1,15 @@
+package dev.typetype.server.db.tables
+
+import org.jetbrains.exposed.v1.core.Table
+
+object FocusSettingsTable : Table("focus_settings") {
+    val userId = text("user_id")
+    val enabled = bool("enabled").default(false)
+    val entertainmentGroupId = text("entertainment_group_id").nullable()
+    val transitionDays = integer("transition_days").default(60)
+    val archiveDays = integer("archive_days").default(7)
+    val startedAt = long("started_at").default(0)
+    val disableAt = long("disable_at").nullable()
+    val updatedAt = long("updated_at")
+    override val primaryKey = PrimaryKey(userId)
+}

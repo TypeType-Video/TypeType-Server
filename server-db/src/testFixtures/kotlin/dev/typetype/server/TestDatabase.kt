@@ -9,6 +9,7 @@ import dev.typetype.server.db.tables.BlockedKeywordsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.PasswordResetTable
@@ -121,6 +122,7 @@ object TestDatabase {
         value?.takeIf { it.isNotBlank() } ?: fallback
 
     fun truncateAll() = transaction {
+        FocusSettingsTable.deleteAll()
         RecommenderUserSettingsTable.deleteAll()
         RecommenderFeedbackTable.deleteAll()
         RssFeedChannelsTable.deleteAll()

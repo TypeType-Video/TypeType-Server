@@ -46,6 +46,7 @@ import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionAvatarWarmupService
 import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.TypeTypeBackupService
@@ -128,6 +129,7 @@ class ServiceRegistry(
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)
     val subscriptionGroupsService = SubscriptionGroupsService()
+    val focusService = FocusService()
     val subscriptionFeedService = SubscriptionFeedService(
         subscriptionsService,
         channelService,

@@ -28,6 +28,7 @@ import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.RssFeedChannelsTable
 import dev.typetype.server.db.tables.RssFeedServicesTable
 import dev.typetype.server.db.tables.RecommenderFeedbackTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.RecommenderUserSettingsTable
 import dev.typetype.server.db.tables.RssFeedsTable
 import dev.typetype.server.db.tables.RssUserPoliciesTable
@@ -116,6 +117,7 @@ internal object ProfileDataDeletionService {
             { RecommendationOnboardingPreferencesTable.deleteWhere { RecommendationOnboardingPreferencesTable.userId eq userId } },
             { RecommendationOnboardingStateTable.deleteWhere { RecommendationOnboardingStateTable.userId eq userId } },
             { RecommenderUserSettingsTable.deleteWhere { RecommenderUserSettingsTable.userId eq userId } },
+            { FocusSettingsTable.deleteWhere { FocusSettingsTable.userId eq userId } },
             { RecommenderFeedbackTable.deleteWhere { RecommenderFeedbackTable.userId eq userId } },
             { RssUserPoliciesTable.deleteWhere { RssUserPoliciesTable.userId eq userId } },
         ).forEach { it() }
