@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.twitchRoutes
+import dev.typetype.server.routes.shortLinkRoutes
 import dev.typetype.server.routes.seekbarIconFileRoutes
 import dev.typetype.server.routes.deviceAuthRoutes
 import dev.typetype.server.services.device.DeviceAuthorizationService
@@ -39,6 +40,7 @@ import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.BilibiliShortLinkResolver
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.AvatarService
@@ -85,6 +87,7 @@ fun Application.installApplicationRoutes(
     deviceAuthorizationService: DeviceAuthorizationService,
     serverNotices: ServerNoticeHub,
 ) {
+    val bilibiliShortLinks = BilibiliShortLinkResolver()
     routing {
         internalObservabilityRoutes(internalHealthService::check)
         serverEventRoutes(serverNotices, authService)
@@ -165,6 +168,7 @@ fun Application.installApplicationRoutes(
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         seekbarIconFileRoutes(svc.seekbarIconService)
         rateLimit(USER_DATA_ZONE) { twitchRoutes(svc.twitchService, authService, adminSettingsService) }
+        rateLimit(USER_DATA_ZONE) { shortLinkRoutes(bilibiliShortLinks, authService, adminSettingsService) }
         rateLimit(USER_DATA_ZONE) {
             userDataRoutes(
                 svc,
