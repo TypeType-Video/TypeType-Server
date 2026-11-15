@@ -55,6 +55,13 @@ Video:
     summary: Past broadcast with a signed HLS link
     parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }]
     responses: *relay
+VideoChapters:
+  get:
+    tags: [twitch]
+    summary: Game chapters of a past broadcast
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }
+    responses: *relay
 VideoComments:
   get:
     tags: [twitch]

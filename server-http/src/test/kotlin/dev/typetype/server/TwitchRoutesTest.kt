@@ -106,6 +106,14 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the chapters of a past broadcast are relayed`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/chapters?evil=1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/chapters").status)
+        assertEquals("/v1/videos/2929630714/chapters", requests.single().url.encodedPath)
+        assertEquals(null, requests.single().url.queryParameter("evil"))
+    }
+
+    @Test
     fun `errors from the live service keep their status`() = withApp {
         answer = { 404 to """{"error":"offline"}""" }
         val response = client.get("/twitch/live/somechannel")
