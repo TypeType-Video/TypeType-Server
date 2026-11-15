@@ -56,5 +56,6 @@ object SettingsTable : Table("settings") {
     val accessModeAdminManagedAt = long("access_mode_admin_managed_at").default(0)
     val seekbarIcon = text("seekbar_icon").default("typetype")
     val seekbarIconUrl = text("seekbar_icon_url").default("")
+    val playerEngine = text("player_engine").default("vidstack")
     override val primaryKey = PrimaryKey(userId)
 }

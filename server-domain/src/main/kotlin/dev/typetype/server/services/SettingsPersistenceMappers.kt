@@ -67,6 +67,7 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     accessMode = this[SettingsTable.accessMode].toAccessMode(),
     seekbarIcon = this[SettingsTable.seekbarIcon],
     seekbarIconUrl = this[SettingsTable.seekbarIconUrl],
+    playerEngine = this[SettingsTable.playerEngine],
 )
 
 fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
@@ -119,6 +120,7 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.deArrowTrustMode] = settings.deArrowTrustMode
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
     this[SettingsTable.seekbarIcon] = settings.seekbarIcon
+    this[SettingsTable.playerEngine] = settings.playerEngine
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
 }
@@ -141,10 +143,12 @@ fun SettingsItem.normalized(): SettingsItem = copy(
     deArrowThumbnailMode = deArrowThumbnailMode.takeIf { it in DEARROW_THUMBNAIL_MODES } ?: "dearrow_or_random",
     deArrowTrustMode = deArrowTrustMode.takeIf { it in DEARROW_TRUST_MODES } ?: "accepted",
     seekbarIcon = seekbarIcon.takeIf { it in SEEKBAR_ICONS } ?: "typetype",
+    playerEngine = playerEngine.takeIf { it in PLAYER_ENGINES } ?: "vidstack",
 )
 
 private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
 private val SEEKBAR_ICONS = setOf("typetype", "custom", "none")
+private val PLAYER_ENGINES = setOf("vidstack", "videojs")
 private val VIDEO_GRID_COLUMNS = setOf(0, 4, 5, 6)
 private val RELATED_VIDEO_SIZES = setOf("default", "large")
 private val HOLD_PLAYBACK_SPEEDS = setOf(1.5, 2.0, 2.5, 3.0, 4.0)

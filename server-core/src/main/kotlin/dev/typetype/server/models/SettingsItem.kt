@@ -54,4 +54,5 @@ data class SettingsItem(
     val accessMode: String = "unrestricted",
     val seekbarIcon: String = "typetype",
     val seekbarIconUrl: String = "",
+    val playerEngine: String = "vidstack",
 )

@@ -23,6 +23,7 @@ SettingsItem:
     relatedVideoSize: { type: string, enum: [default, large], default: default }
     autoplay: { type: boolean, default: true }
     autoplayOnOpen: { type: boolean, default: true }
+    playerEngine: { type: string, enum: [vidstack, videojs], default: vidstack, description: Web player engine. Video.js is optional during the migration. }
     autoplayCountdownSeconds:
       type: integer
       minimum: 0

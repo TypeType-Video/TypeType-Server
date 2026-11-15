@@ -54,6 +54,7 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_trust_mode TEXT NOT NULL DEFAULT 'accepted'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon TEXT NOT NULL DEFAULT 'typetype'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon_url TEXT NOT NULL DEFAULT ''")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS player_engine TEXT NOT NULL DEFAULT 'vidstack'")
     }
 
     private fun settingsColumnExists(column: String): Boolean =
