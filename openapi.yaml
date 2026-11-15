@@ -21,6 +21,8 @@ tags:
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
+  /server/events: { $ref: ./openapi/paths/server-events.yaml#/ServerEvents }
+  /admin/server/notice: { $ref: ./openapi/paths/server-events.yaml#/AdminServerNotice }
   /streams/youtube/sabr: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrStreams }
   /streams/youtube/live: { $ref: ./openapi/paths/streams.yaml#/YoutubeLiveHls }
   /streams/youtube/sabr/bootstrap: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrBootstrap }

@@ -32,6 +32,7 @@ import dev.typetype.server.routes.pushNotificationRoutes
 import dev.typetype.server.routes.rssPublicRoutes
 import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
+import dev.typetype.server.routes.serverEventRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
@@ -53,6 +54,7 @@ import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PresenceKeyService
 import dev.typetype.server.services.PresenceService
+import dev.typetype.server.services.ServerNoticeHub
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.portability.PortabilityEngine
 import io.ktor.server.application.Application
@@ -81,9 +83,11 @@ fun Application.installApplicationRoutes(
     restoreService: PipePipeBackupImporterService,
     portabilityEngine: PortabilityEngine,
     deviceAuthorizationService: DeviceAuthorizationService,
+    serverNotices: ServerNoticeHub,
 ) {
     routing {
         internalObservabilityRoutes(internalHealthService::check)
+        serverEventRoutes(serverNotices, authService)
         publicMetadataRoutes(instanceService::getInstance)
         rssPublicRoutes(svc.rssFeedReaderService)
         installStreamRoutes(svc, authService, adminSettingsService)
