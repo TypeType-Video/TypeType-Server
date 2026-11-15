@@ -121,6 +121,7 @@ paths:
   /twitch/me/live: { $ref: ./openapi/paths/twitch.yaml#/MeLive }
   /twitch/me/follows: { $ref: ./openapi/paths/twitch.yaml#/MeFollows }
   /twitch/me/follows/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeFollow }
+  /twitch/me/emotes/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeEmotes }
   /twitch/chat/assets: { $ref: ./openapi/paths/twitch.yaml#/ChatAssets }
   /twitch/chat/{login}/assets: { $ref: ./openapi/paths/twitch.yaml#/ChannelChatAssets }
   /twitch/chat/{login}/events: { $ref: ./openapi/paths/twitch.yaml#/ChatEvents }

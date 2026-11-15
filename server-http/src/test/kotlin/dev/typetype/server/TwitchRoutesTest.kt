@@ -178,6 +178,16 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the emotes of the linked account are relayed with its token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        answer = { 200 to """{"channelId":"42","emotes":[{"id":"25","name":"Kappa","type":"GLOBALS"}]}""" }
+        val response = client.get("/twitch/me/emotes/somechannel") { bearerAuth("test-jwt") }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("Kappa"))
+        assertTrue(requests.all { it.url.encodedPath == "/v1/me/emotes/somechannel" && it.header("X-Twitch-Token") == "user-token" })
+    }
+
+    @Test
     fun `follow without a linked account is a conflict`() = withApp {
         coEvery { store.get(TEST_USER_ID) } returns null
         val response = client.put("/twitch/me/follows/somechannel") { bearerAuth("test-jwt") }

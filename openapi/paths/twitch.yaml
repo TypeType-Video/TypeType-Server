@@ -98,6 +98,8 @@ MeFollow:
   get: { tags: [twitch], summary: Whether the linked account follows a channel, security: *auth, parameters: [*login], responses: *relay }
   put: { tags: [twitch], summary: Follow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
   delete: { tags: [twitch], summary: Unfollow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
+MeEmotes:
+  get: { tags: [twitch], summary: Twitch emotes the linked account can use in a channel, security: *auth, parameters: [*login], responses: *relay }
 ChatAssets:
   get: { tags: [twitch], summary: Global chat badges and emotes, responses: *relay }
 ChannelChatAssets:

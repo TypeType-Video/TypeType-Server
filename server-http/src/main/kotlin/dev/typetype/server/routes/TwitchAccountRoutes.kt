@@ -89,6 +89,10 @@ internal fun Route.twitchAccountRoutes(
         val login = call.pathParam("login", twitchLoginPattern) ?: return@delete
         call.signedIn { userId -> call.respondLinked(service.setFollow(userId, login, follow = false)) }
     }
+    get("/twitch/me/emotes/{login}") {
+        val login = call.pathParam("login", twitchLoginPattern) ?: return@get
+        call.signedIn { userId -> call.respondLinked(service.authed(userId, "/v1/me/emotes/$login", emptyMap())) }
+    }
     post("/twitch/chat/{login}/messages") {
         val login = call.pathParam("login", twitchLoginPattern) ?: return@post
         call.signedIn { userId ->
