@@ -64,6 +64,10 @@ fun Route.twitchRoutes(
         val id = call.pathParam("id", idPattern) ?: return@get
         call.relay("/v1/videos/$id", emptyList(), withUser = true)
     }
+    get("/twitch/videos/{id}/comments") {
+        val id = call.pathParam("id", idPattern) ?: return@get
+        call.relay("/v1/videos/$id/comments", listOf("offset", "cursor"))
+    }
     get("/twitch/clips/{slug}") {
         val slug = call.pathParam("slug", slugPattern) ?: return@get
         call.relay("/v1/clips/$slug", emptyList())

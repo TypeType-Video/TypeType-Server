@@ -109,6 +109,7 @@ paths:
   /twitch/games: { $ref: ./openapi/paths/twitch.yaml#/Games }
   /twitch/games/{slug}/streams: { $ref: ./openapi/paths/twitch.yaml#/GameStreams }
   /twitch/tags/{tag}/streams: { $ref: ./openapi/paths/twitch.yaml#/TagStreams }
+  /twitch/videos/{id}/comments: { $ref: ./openapi/paths/twitch.yaml#/VideoComments }
   /links/b23/{code}: { $ref: ./openapi/paths/short-links.yaml#/BilibiliShortLink }
   /twitch/channels/{login}: { $ref: ./openapi/paths/twitch.yaml#/Channel }
   /twitch/channels/{login}/videos: { $ref: ./openapi/paths/twitch.yaml#/ChannelVideos }
