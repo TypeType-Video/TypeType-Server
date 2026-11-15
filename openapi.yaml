@@ -102,6 +102,26 @@ paths:
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
+  /twitch/streams: { $ref: ./openapi/paths/twitch.yaml#/Streams }
+  /twitch/games: { $ref: ./openapi/paths/twitch.yaml#/Games }
+  /twitch/games/{slug}/streams: { $ref: ./openapi/paths/twitch.yaml#/GameStreams }
+  /twitch/channels/{login}: { $ref: ./openapi/paths/twitch.yaml#/Channel }
+  /twitch/channels/{login}/videos: { $ref: ./openapi/paths/twitch.yaml#/ChannelVideos }
+  /twitch/channels/{login}/clips: { $ref: ./openapi/paths/twitch.yaml#/ChannelClips }
+  /twitch/live/{login}: { $ref: ./openapi/paths/twitch.yaml#/Live }
+  /twitch/videos/{id}: { $ref: ./openapi/paths/twitch.yaml#/Video }
+  /twitch/clips/{slug}: { $ref: ./openapi/paths/twitch.yaml#/Clip }
+  /twitch/search: { $ref: ./openapi/paths/twitch.yaml#/Search }
+  /twitch/account: { $ref: ./openapi/paths/twitch.yaml#/Account }
+  /twitch/account/device: { $ref: ./openapi/paths/twitch.yaml#/AccountDevice }
+  /twitch/account/poll: { $ref: ./openapi/paths/twitch.yaml#/AccountPoll }
+  /twitch/me/live: { $ref: ./openapi/paths/twitch.yaml#/MeLive }
+  /twitch/me/follows: { $ref: ./openapi/paths/twitch.yaml#/MeFollows }
+  /twitch/me/follows/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeFollow }
+  /twitch/chat/assets: { $ref: ./openapi/paths/twitch.yaml#/ChatAssets }
+  /twitch/chat/{login}/assets: { $ref: ./openapi/paths/twitch.yaml#/ChannelChatAssets }
+  /twitch/chat/{login}/events: { $ref: ./openapi/paths/twitch.yaml#/ChatEvents }
+  /twitch/chat/{login}/messages: { $ref: ./openapi/paths/twitch.yaml#/ChatMessages }
   /recommendations/home: { $ref: ./openapi/paths/recommender.yaml#/HomeRecommendations }
   /recommendations/algorithms: { $ref: ./openapi/paths/recommender.yaml#/RecommenderAlgorithms }
   /recommendations/settings: { $ref: ./openapi/paths/recommender.yaml#/RecommenderSettings }
