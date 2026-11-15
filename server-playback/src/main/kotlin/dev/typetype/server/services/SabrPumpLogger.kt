@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.sabr.SabrSegmentRequest
+import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.slf4j.LoggerFactory
 
 object SabrPumpLogger {
@@ -51,6 +52,18 @@ object SabrPumpLogger {
             error.javaClass.simpleName,
             error.message,
             error,
+        )
+    }
+
+    fun extractionFailure(holder: SabrSessionHolder, error: ExtractionException): Unit {
+        logger.warn(
+            "sabr_pump event=extraction_failed videoId={} state={} requestNumber={} edgeMs={} errorType={} error={}",
+            holder.key.videoId,
+            holder.playbackState(),
+            holder.session.requestNumber,
+            holder.session.streamState.getMinBufferedEndMs(),
+            error.javaClass.simpleName,
+            error.message,
         )
     }
 
