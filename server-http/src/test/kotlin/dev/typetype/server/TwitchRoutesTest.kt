@@ -83,6 +83,17 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `tag lives are relayed for any script and refused for anything but one word`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/tags/Speedrun/streams?first=12").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/tags/%E6%97%A5%E6%9C%AC%E8%AA%9E/streams").status)
+        assertEquals(listOf("/v1/tags/Speedrun/streams", "/v1/tags/%E6%97%A5%E6%9C%AC%E8%AA%9E/streams"), requests.map { it.url.encodedPath })
+        assertEquals("12", requests.first().url.queryParameter("first"))
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/tags/two%20words/streams").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/tags/a.b/streams").status)
+        assertEquals(2, requests.size)
+    }
+
+    @Test
     fun `errors from the live service keep their status`() = withApp {
         answer = { 404 to """{"error":"offline"}""" }
         val response = client.get("/twitch/live/somechannel")
