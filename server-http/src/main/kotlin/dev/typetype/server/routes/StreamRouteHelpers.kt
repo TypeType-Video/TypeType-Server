@@ -150,6 +150,7 @@ internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(
             previewFrames = primary.data.previewFrames.ifEmpty { metadata.previewFrames },
             sponsorBlockSegments = primary.data.sponsorBlockSegments
                 .ifEmpty { metadata.sponsorBlockSegments },
+            sponsorBlockAvailable = primary.data.sponsorBlockAvailable && metadata.sponsorBlockAvailable,
             relatedStreams = primary.data.relatedStreams.ifEmpty { metadata.relatedStreams },
             publishedAt = primary.data.publishedAt ?: metadata.publishedAt,
             collections = primary.data.collections.ifEmpty { metadata.collections },

@@ -94,6 +94,10 @@ StreamResponse:
     parts: { type: array, items: { $ref: "./stream-parts.yaml#/StreamPartItem" }, default: [] }
     endScreenElements: { type: array, items: { $ref: '#/EndScreenItem' }, default: [] }
     sponsorBlockSegments: { type: array, items: { type: object }, default: [] }
+    sponsorBlockAvailable:
+      type: boolean
+      default: true
+      description: False when SponsorBlock did not answer in time, so the segments may be missing for this load.
 EndScreenItem:
   type: object
   description: A creator-placed element shown over the end of the video.

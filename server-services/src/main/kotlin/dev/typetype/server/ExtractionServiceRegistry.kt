@@ -36,6 +36,7 @@ import dev.typetype.server.services.PipePipePodcastService
 import dev.typetype.server.services.PipePipePublicPlaylistService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
+import dev.typetype.server.services.SponsorBlockSegmentResolver
 import dev.typetype.server.services.PipePipeLiveHlsStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
@@ -110,11 +111,14 @@ internal class ExtractionServiceRegistry(
     )
     val youtubeSubtitleService = YouTubeSubtitleService(subtitleHttpClient, subtitleServiceUrl)
     private val bilibiliRelatedService = BilibiliRelatedService()
+    private val sponsorBlockSegments =
+        SponsorBlockSegmentResolver(cache, CoroutineScope(SupervisorJob() + Dispatchers.IO))
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
         bilibiliRelatedService,
         earlyMediaWarmup = { provider, video, audio -> providerMediaWarmup.warm(provider, video, audio) },
+        sponsorBlockSegments = sponsorBlockSegments,
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,
@@ -122,6 +126,7 @@ internal class ExtractionServiceRegistry(
         bilibiliRelatedService,
         sabrSessionStore::rememberExtractedInfoAsync,
         fetchSupplementalSubtitles = false,
+        sponsorBlockSegments = sponsorBlockSegments,
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
