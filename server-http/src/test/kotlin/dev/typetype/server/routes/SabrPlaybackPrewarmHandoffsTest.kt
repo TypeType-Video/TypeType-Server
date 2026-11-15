@@ -2,12 +2,11 @@ package dev.typetype.server.routes
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class SabrPlaybackPrewarmHandoffsTest {
     @Test
-    fun `diagnoseMiss explains itag track and startTime mismatches`() {
+    fun `takeOrDiagnose explains itag track and startTime mismatches`() {
         val handoffs = SabrPlaybackPrewarmHandoffs()
         val storedKey = SabrPlaybackPrewarmKey(
             userId = "user-1",
@@ -23,32 +22,32 @@ class SabrPlaybackPrewarmHandoffsTest {
 
         assertEquals(
             "itag_mismatch(prewarm=137/251,req=248/251)",
-            handoffs.diagnoseMiss(storedKey.copy(videoItag = 248)),
+            handoffs.takeOrDiagnose(storedKey.copy(videoItag = 248)).second,
         )
         assertEquals(
             "track_mismatch(prewarm=en,req=ja)",
-            handoffs.diagnoseMiss(storedKey.copy(audioTrackId = "ja")),
+            handoffs.takeOrDiagnose(storedKey.copy(audioTrackId = "ja")).second,
         )
         assertEquals(
             "start_mismatch(prewarm=0,req=15000)",
-            handoffs.diagnoseMiss(storedKey.copy(startTimeMs = 15_000L)),
+            handoffs.takeOrDiagnose(storedKey.copy(startTimeMs = 15_000L)).second,
         )
         val otherUserKey = storedKey.copy(userId = "user-2")
         handoffs.remember(otherUserKey, SabrPlaybackPrewarmSession("tok-2", 0L, ready = true))
         assertEquals(
             "itag_mismatch(prewarm=137/251,req=248/251)",
-            handoffs.diagnoseMiss(storedKey.copy(videoItag = 248)),
+            handoffs.takeOrDiagnose(storedKey.copy(videoItag = 248)).second,
         )
-        assertNotNull(handoffs.take(otherUserKey))
+        assertNotNull(handoffs.takeOrDiagnose(otherUserKey).first)
 
-        assertEquals("no_entry", handoffs.diagnoseMiss(storedKey.copy(videoId = "other-vid")))
+        assertEquals("no_entry", handoffs.takeOrDiagnose(storedKey.copy(videoId = "other-vid")).second)
 
-        assertNotNull(handoffs.take(storedKey))
-        assertNull(handoffs.take(storedKey))
+        assertNotNull(handoffs.takeOrDiagnose(storedKey).first)
+        assertEquals(null to "no_entry", handoffs.takeOrDiagnose(storedKey))
     }
 
     @Test
-    fun `takeOrDiagnose and diagnoseMiss report expired entries before evicting them`() {
+    fun `takeOrDiagnose reports expired entries before evicting them`() {
         val handoffs = SabrPlaybackPrewarmHandoffs(ttlNanos = -1L)
         val key = SabrPlaybackPrewarmKey(
             userId = "user-1",
@@ -61,12 +60,7 @@ class SabrPlaybackPrewarmHandoffsTest {
             isLive = false,
         )
         handoffs.remember(key, SabrPlaybackPrewarmSession("tok-expired", 0L, ready = true))
-        assertEquals("expired", handoffs.diagnoseMiss(key))
-        assertEquals("no_entry", handoffs.diagnoseMiss(key))
-
-        handoffs.remember(key, SabrPlaybackPrewarmSession("tok-expired-2", 0L, ready = true))
-        val (session, missReason) = handoffs.takeOrDiagnose(key)
-        assertNull(session)
-        assertEquals("expired", missReason)
+        assertEquals(null to "expired", handoffs.takeOrDiagnose(key))
+        assertEquals(null to "no_entry", handoffs.takeOrDiagnose(key))
     }
 }
