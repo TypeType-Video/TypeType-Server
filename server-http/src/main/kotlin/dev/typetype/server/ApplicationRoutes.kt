@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.routes.twitchRoutes
 import dev.typetype.server.routes.seekbarIconFileRoutes
 import dev.typetype.server.routes.deviceAuthRoutes
 import dev.typetype.server.services.device.DeviceAuthorizationService
@@ -158,6 +159,7 @@ fun Application.installApplicationRoutes(
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         seekbarIconFileRoutes(svc.seekbarIconService)
+        rateLimit(USER_DATA_ZONE) { twitchRoutes(svc.twitchService, authService, adminSettingsService) }
         rateLimit(USER_DATA_ZONE) {
             userDataRoutes(
                 svc,
