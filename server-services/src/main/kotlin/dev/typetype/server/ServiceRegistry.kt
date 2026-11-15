@@ -1,5 +1,7 @@
 package dev.typetype.server
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.TwitchConfig
+import dev.typetype.server.services.TwitchService
 import dev.typetype.server.services.CommentSearchService
 import dev.typetype.server.services.CommentVoiceAudioService
 import dev.typetype.server.services.YoutubeRelatedVideosService
@@ -82,6 +84,7 @@ class ServiceRegistry(
             if (secret.length >= 32) BiliBiliSessionCrypto.fromSecret(secret) else null
         },
     )
+    val twitchService = TwitchService(TwitchConfig.fromEnvironment())
     val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService

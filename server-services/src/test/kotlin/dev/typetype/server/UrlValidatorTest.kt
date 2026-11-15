@@ -44,6 +44,18 @@ class UrlValidatorTest {
     }
 
     @Test
+    fun `allows twitch images and chat emote hosts only`() {
+        listOf(
+            "https://static-cdn.jtvnw.net/badges/v1/x/1",
+            "https://cdn.7tv.app/emote/1/1x.webp",
+            "https://cdn.betterttv.net/emote/1/1x.webp",
+            "https://cdn.frankerfacez.com/emote/1/1",
+        ).forEach { assertEquals(ProxyProvider.TWITCH, requireProxyTarget(it).provider) }
+        assertEquals("Unsupported proxy host", validateProxyUrl("https://7tv.app/emote/1"))
+        assertEquals("Unsupported proxy host", validateProxyUrl("https://evilcdn.7tv.app.example.com/x"))
+    }
+
+    @Test
     fun `rejects arbitrary and lookalike hosts`() {
         assertEquals("Unsupported proxy host", validateProxyUrl("https://example.com/content"))
         assertEquals("Unsupported proxy host", validateProxyUrl("https://evilgooglevideo.com/content"))

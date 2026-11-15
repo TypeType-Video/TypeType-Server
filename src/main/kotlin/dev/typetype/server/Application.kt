@@ -104,6 +104,7 @@ fun Application.module() {
         oidcConfigProvider = oidcAuthService::publicConfig,
         pushNotificationCapabilityProvider = svc.pushNotificationService::capability,
         recommenderInstalled = { svc.recommenderServices.config.installed },
+        twitchEnabled = { svc.twitchService.enabled },
     )
     val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
