@@ -18,6 +18,7 @@ data class AdminSettingsItem(
     val oidcAutoRedirect: Boolean = false,
     val youtubeRemoteLoginEnabled: Boolean = false,
     val accessMode: String = "unrestricted",
+    val applyParentalControlsToAdmins: Boolean = false,
     val rssEnabled: Boolean = false,
     val rssPublicBaseUrl: String? = null,
     val rssMaxFeedsPerUser: Int = 10,

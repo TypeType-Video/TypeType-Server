@@ -20,6 +20,7 @@ object AdminSettingsTable : Table("admin_settings") {
     val deviceLoginEnabled = bool("device_login_enabled").default(true)
     val bilibiliMirrorProbingEnabled = bool("bilibili_mirror_probing_enabled").default(false)
     val accessMode = text("access_mode").default("unrestricted")
+    val applyParentalControlsToAdmins = bool("apply_parental_controls_to_admins").default(false)
     val rssEnabled = bool("rss_enabled").default(false)
     val rssPublicBaseUrl = text("rss_public_base_url").nullable()
     val rssMaxFeedsPerUser = integer("rss_max_feeds_per_user").default(10)

@@ -65,6 +65,19 @@ class AdminSettingsAccessModeRoutesTest {
     }
 
     @Test
+    fun `PUT admin settings persists applyParentalControlsToAdmins and defaults to false`() = withApp {
+        val initial = client.get("/admin/settings") { authHeader() }.bodyAsText()
+        assertTrue(initial.contains("\"applyParentalControlsToAdmins\":false"))
+        client.put("/admin/settings") {
+            authHeader()
+            contentType(ContentType.Application.Json)
+            setBody("""{"name":"TypeType","accessMode":"allow_list","applyParentalControlsToAdmins":true}""")
+        }
+        val updated = client.get("/admin/settings") { authHeader() }.bodyAsText()
+        assertTrue(updated.contains("\"applyParentalControlsToAdmins\":true"))
+    }
+
+    @Test
     fun `PUT admin settings normalizes unknown access mode to unrestricted`() = withApp {
         putSettings("bad")
         val body = client.get("/admin/settings") { authHeader() }.bodyAsText()

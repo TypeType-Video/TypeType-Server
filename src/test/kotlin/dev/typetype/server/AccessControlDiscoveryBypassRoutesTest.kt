@@ -63,6 +63,28 @@ class AccessControlDiscoveryBypassRoutesTest {
     }
 
     @Test
+    fun `admin is filtered by global allow list when applyParentalControlsToAdmins is enabled`() = withApp(AuthService.fixed(TEST_USER_ID)) {
+        enableGlobalAllowList(applyToAdmins = true)
+        assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
+        channels.addChannel(TEST_USER_ID, "https://youtube.com/@electroboom", "ElectroBOOM", global = true)
+        assertTrue(searchBodyWithAuth().contains("ElectroBOOM"))
+    }
+
+    @Test
+    fun `admin with explicit unrestricted override bypasses global allow list even when applyParentalControlsToAdmins is enabled`() = withApp(AuthService.fixed(TEST_USER_ID)) {
+        enableGlobalAllowList(applyToAdmins = true)
+        users.setAccessMode(TEST_USER_ID, "unrestricted")
+        assertTrue(searchBodyWithAuth().contains("ElectroBOOM"))
+    }
+
+    @Test
+    fun `admin with user allow list is filtered when global is unrestricted and applyParentalControlsToAdmins is enabled`() = withApp(AuthService.fixed(TEST_USER_ID)) {
+        adminSettings.upsert(AdminSettingsItem(accessMode = "unrestricted", applyParentalControlsToAdmins = true))
+        settings.upsert(TEST_USER_ID, SettingsItem(accessMode = "allow_list"))
+        assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
+    }
+
+    @Test
     fun `normal unrestricted user remains filtered by global allow list`() = withApp(AuthService.fixed(UNRESTRICTED_USER_ID)) {
         enableGlobalAllowList()
         assertFalse(searchBodyWithAuth().contains("ElectroBOOM"))
@@ -98,8 +120,8 @@ class AccessControlDiscoveryBypassRoutesTest {
         block()
     }
 
-    private suspend fun enableGlobalAllowList() {
-        adminSettings.upsert(AdminSettingsItem(accessMode = "allow_list"))
+    private suspend fun enableGlobalAllowList(applyToAdmins: Boolean = false) {
+        adminSettings.upsert(AdminSettingsItem(accessMode = "allow_list", applyParentalControlsToAdmins = applyToAdmins))
         channels.addChannel(TEST_USER_ID, "https://youtube.com/@alreadyallowed", "Already Allowed", global = true)
     }
 

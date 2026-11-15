@@ -7,8 +7,9 @@ class AccessControlService(
     private val adminSettingsService: AdminSettingsService,
 ) {
     suspend fun profileFor(userId: String?, role: String? = null): AccessControlProfile {
-        if (role == "admin") return AccessControlProfile.unrestricted
-        val globalAllowList = adminSettingsService.get().accessMode.toAccessMode() == ACCESS_MODE_ALLOW_LIST
+        val adminSettings = adminSettingsService.get()
+        if (role == "admin" && !adminSettings.applyParentalControlsToAdmins) return AccessControlProfile.unrestricted
+        val globalAllowList = adminSettings.accessMode.toAccessMode() == ACCESS_MODE_ALLOW_LIST
         if (userId == null) return if (globalAllowList) allowListProfile(null) else AccessControlProfile.unrestricted
         val policy = settingsService.getAccessModePolicy(userId)
         if (globalAllowList) {

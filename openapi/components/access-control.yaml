@@ -142,6 +142,10 @@ AdminSettingsItem:
       type: integer
       default: 0
       description: Instance-wide limit of video requests to YouTube made for recommendations; 0 uses RECOMMENDER_STREAM_REQUESTS_PER_MINUTE.
+    applyParentalControlsToAdmins:
+      type: boolean
+      default: false
+      description: When enabled, administrator accounts are also subject to parental control allow-list restrictions.
     accessMode:
       type: string
       enum: [unrestricted, allow_list]

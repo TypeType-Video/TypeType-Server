@@ -36,6 +36,7 @@ class AdminSettingsService(
                     deviceLoginEnabled = it[AdminSettingsTable.deviceLoginEnabled],
                     bilibiliMirrorProbingEnabled = it[AdminSettingsTable.bilibiliMirrorProbingEnabled],
                     accessMode = it[AdminSettingsTable.accessMode].toAccessMode(),
+                    applyParentalControlsToAdmins = it[AdminSettingsTable.applyParentalControlsToAdmins],
                     rssEnabled = it[AdminSettingsTable.rssEnabled],
                     rssPublicBaseUrl = it[AdminSettingsTable.rssPublicBaseUrl],
                     rssMaxFeedsPerUser = it[AdminSettingsTable.rssMaxFeedsPerUser],
@@ -76,6 +77,7 @@ class AdminSettingsService(
                     it[deviceLoginEnabled] = settings.deviceLoginEnabled
                     it[bilibiliMirrorProbingEnabled] = settings.bilibiliMirrorProbingEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
+                    it[applyParentalControlsToAdmins] = settings.applyParentalControlsToAdmins
                     it[rssEnabled] = settings.rssEnabled
                     it[rssPublicBaseUrl] = settings.rssPublicBaseUrl
                     it[rssMaxFeedsPerUser] = settings.rssMaxFeedsPerUser
@@ -107,6 +109,7 @@ class AdminSettingsService(
                     it[deviceLoginEnabled] = settings.deviceLoginEnabled
                     it[bilibiliMirrorProbingEnabled] = settings.bilibiliMirrorProbingEnabled
                     it[accessMode] = settings.accessMode.toAccessMode()
+                    it[applyParentalControlsToAdmins] = settings.applyParentalControlsToAdmins
                     it[rssEnabled] = settings.rssEnabled
                     it[rssPublicBaseUrl] = settings.rssPublicBaseUrl
                     it[rssMaxFeedsPerUser] = settings.rssMaxFeedsPerUser
