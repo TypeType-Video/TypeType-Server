@@ -59,16 +59,29 @@ internal class SabrPlaybackPrewarmHandoffs(
     }
 
     @Synchronized
-    fun take(key: SabrPlaybackPrewarmKey): SabrPlaybackPrewarmSession? {
+    fun take(key: SabrPlaybackPrewarmKey): SabrPlaybackPrewarmSession? = takeOrDiagnose(key).first
+
+    @Synchronized
+    fun takeOrDiagnose(key: SabrPlaybackPrewarmKey): Pair<SabrPlaybackPrewarmSession?, String?> {
         val now = System.nanoTime()
-        val entry = entries.remove(key) ?: return null
-        return entry.session.takeUnless { now - entry.expiresAtNanos >= 0L }
+        val entry = entries.remove(key)
+        if (entry != null && now - entry.expiresAtNanos < 0L) {
+            return entry.session to null
+        }
+        val reason = if (entry != null) "expired" else diagnoseCandidateLocked(key)
+        evictExpired(now)
+        return null to reason
     }
 
     @Synchronized
     fun diagnoseMiss(key: SabrPlaybackPrewarmKey): String {
         val now = System.nanoTime()
+        val reason = diagnoseCandidateLocked(key)
         evictExpired(now)
+        return reason
+    }
+
+    private fun diagnoseCandidateLocked(key: SabrPlaybackPrewarmKey): String {
         val candidate =
             entries.keys.lastOrNull { it.videoId == key.videoId && it.userId == key.userId }
                 ?: entries.keys.lastOrNull { it.videoId == key.videoId }

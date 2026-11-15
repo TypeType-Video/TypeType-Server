@@ -45,7 +45,7 @@ internal class SabrPlaybackHandler(
         val isPrewarm = call.request.queryParameters["prewarm"]?.toBooleanStrictOrNull() == true
         val handoffKey = prewarmHandoffs.key(access.userId, videoId, request, startTimeMs)
         if (!isPrewarm) {
-            val handoff = handoffKey?.let(prewarmHandoffs::take)
+            val (handoff, missReason) = handoffKey?.let(prewarmHandoffs::takeOrDiagnose) ?: (null to null)
             val existing = handoff?.let { playbackService.lookup(it.sessionToken) }
             if (existing != null && existing.terminalFailure() == null) {
                 PlaybackTraceLog.record("sabr_prewarm_handoff", "result=hit videoItag=${existing.videoFormat.itag} audioItag=${existing.audioFormat.itag} audioTrackId=${existing.audioFormat.audioTrackId} startTimeMs=${handoff.startTimeMs} ready=${handoff.ready}")
@@ -53,7 +53,7 @@ internal class SabrPlaybackHandler(
             }
             if (handoffKey != null) {
                 val reason = when {
-                    handoff == null -> prewarmHandoffs.diagnoseMiss(handoffKey)
+                    handoff == null -> missReason ?: "no_entry"
                     existing == null -> "session_missing"
                     else -> "session_failed"
                 }

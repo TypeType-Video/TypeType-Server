@@ -46,4 +46,27 @@ class SabrPlaybackPrewarmHandoffsTest {
         assertNotNull(handoffs.take(storedKey))
         assertNull(handoffs.take(storedKey))
     }
+
+    @Test
+    fun `takeOrDiagnose and diagnoseMiss report expired entries before evicting them`() {
+        val handoffs = SabrPlaybackPrewarmHandoffs(ttlNanos = -1L)
+        val key = SabrPlaybackPrewarmKey(
+            userId = "user-1",
+            videoId = "vid-1",
+            videoItag = 137,
+            audioItag = 251,
+            audioTrackId = "en",
+            startTimeMs = 0L,
+            audioOnly = false,
+            isLive = false,
+        )
+        handoffs.remember(key, SabrPlaybackPrewarmSession("tok-expired", 0L, ready = true))
+        assertEquals("expired", handoffs.diagnoseMiss(key))
+        assertEquals("no_entry", handoffs.diagnoseMiss(key))
+
+        handoffs.remember(key, SabrPlaybackPrewarmSession("tok-expired-2", 0L, ready = true))
+        val (session, missReason) = handoffs.takeOrDiagnose(key)
+        assertNull(session)
+        assertEquals("expired", missReason)
+    }
 }
