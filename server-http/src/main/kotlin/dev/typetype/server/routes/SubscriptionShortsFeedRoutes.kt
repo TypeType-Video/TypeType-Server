@@ -2,8 +2,10 @@ package dev.typetype.server.routes
 
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.filterFocus
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -14,6 +16,7 @@ fun Route.subscriptionShortsFeedRoutes(
     feedService: SubscriptionShortsFeedService,
     authService: AuthService,
     blockedService: BlockedService? = null,
+    focusService: FocusService? = null,
 ) {
     get("/subscriptions/shorts") {
         call.withJwtAuth(authService) { userId ->
@@ -26,7 +29,8 @@ fun Route.subscriptionShortsFeedRoutes(
             } else {
                 feedService.getFeed(userId, page, limit)
             }
-            call.respond(blockedService?.let { response.filterBlocked(it.profileFor(userId)) } ?: response)
+            val unblocked = blockedService?.let { response.filterBlocked(it.profileFor(userId)) } ?: response
+            call.respond(unblocked.filterFocus(focusService?.profileFor(userId)))
         }
     }
 }

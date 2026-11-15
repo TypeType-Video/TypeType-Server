@@ -83,6 +83,31 @@ class FocusServiceTest {
         assertNull(focus.profileFor("other-user"))
     }
 
+    @Test
+    fun `study group and weekday schedule are checked and applied`() = runTest {
+        val entertainment = entertainmentGroup()
+        assertEquals(
+            FocusUpdateResult.InvalidGroup,
+            focus.update(TEST_USER_ID, FocusSettingsRequest(enabled = false, entertainmentGroupId = entertainment, studyGroupId = entertainment)),
+        )
+        assertEquals(
+            FocusUpdateResult.InvalidSchedule,
+            focus.update(TEST_USER_ID, FocusSettingsRequest(enabled = false, entertainmentGroupId = entertainment, schedule = "weekdays")),
+        )
+        val study = (groups.create(TEST_USER_ID, "Study") as SubscriptionGroupWriteResult.Success).group.id
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(channelUrl = "https://www.youtube.com/channel/UCstudy", name = "Study", avatarUrl = ""))
+        groups.addSubscription(TEST_USER_ID, study, "https://www.youtube.com/channel/UCstudy")
+        val saved = focus.update(
+            TEST_USER_ID,
+            FocusSettingsRequest(enabled = true, entertainmentGroupId = entertainment, studyGroupId = study, schedule = "weekdays", timezone = "Europe/Paris"),
+        ) as FocusUpdateResult.Success
+        assertEquals("weekdays", saved.item.schedule)
+        now = java.time.ZonedDateTime.parse("2026-11-16T12:00:00+01:00[Europe/Paris]").toInstant().toEpochMilli()
+        assertTrue(requireNotNull(focus.profileFor(TEST_USER_ID)).isStudy("https://youtube.com/channel/UCstudy"))
+        now = java.time.ZonedDateTime.parse("2026-11-15T12:00:00+01:00[Europe/Paris]").toInstant().toEpochMilli()
+        assertNull(focus.profileFor(TEST_USER_ID))
+    }
+
     private suspend fun entertainmentGroup(): String {
         subscriptions.add(TEST_USER_ID, SubscriptionItem(channelUrl = channel, name = "Fun", avatarUrl = ""))
         val group = (groups.create(TEST_USER_ID, "Fun") as SubscriptionGroupWriteResult.Success).group.id

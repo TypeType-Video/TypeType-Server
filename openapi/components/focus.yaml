@@ -1,9 +1,12 @@
 FocusSettingsItem:
   type: object
-  required: [enabled, transitionDays, archiveDays, entertainmentShare]
+  required: [enabled, schedule, transitionDays, archiveDays, entertainmentShare]
   properties:
     enabled: { type: boolean, description: Stays true until disableAt passes. }
     entertainmentGroupId: { type: string, nullable: true, description: Subscription group whose channels fade out. }
+    studyGroupId: { type: string, nullable: true, description: Subscription group shown first on the home. }
+    schedule: { type: string, enum: [always, weekdays], description: weekdays pauses focus on Saturday and Sunday. }
+    timezone: { type: string, nullable: true, description: IANA timezone used by the weekdays schedule. }
     transitionDays: { type: integer, minimum: 1, maximum: 365, description: Days for the group to fade from the home and the subscription feed. }
     archiveDays: { type: integer, minimum: 1, maximum: 365, description: Channel pages of the group only list videos from these last days. }
     startedAt: { type: integer, format: int64, nullable: true }
@@ -15,5 +18,8 @@ FocusSettingsRequest:
   properties:
     enabled: { type: boolean, description: False while active schedules the exit one day later; true cancels it. }
     entertainmentGroupId: { type: string, nullable: true }
+    studyGroupId: { type: string, nullable: true, description: An empty string clears the study group. }
+    schedule: { type: string, enum: [always, weekdays] }
+    timezone: { type: string, nullable: true }
     transitionDays: { type: integer, minimum: 1, maximum: 365 }
     archiveDays: { type: integer, minimum: 1, maximum: 365 }

@@ -37,7 +37,7 @@ internal fun Route.userDataRoutes(
         svc.blockedService,
         svc.focusService,
     )
-    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService)
+    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService, svc.focusService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)
     savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
@@ -71,5 +71,11 @@ internal fun Route.userDataRoutes(
     )
     recommenderRoutes(svc.recommenderServices, authService)
     recommenderFeedbackRoutes(svc.recommenderServices, authService)
-    homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
+    homeRecommendationShortsRoutes(
+        svc.homeRecommendationService,
+        authService,
+        svc.blockedService,
+        svc.accessControlService,
+        svc.focusService,
+    )
 }

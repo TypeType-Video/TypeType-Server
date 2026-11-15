@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.models.ChannelResponse
+import dev.typetype.server.models.HomeRecommendationsResponse
 import dev.typetype.server.models.VideoItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -10,11 +11,13 @@ import org.junit.jupiter.api.Test
 
 class FocusProfileTest {
     private val funChannel = "https://www.youtube.com/channel/UCfun"
+    private val studyChannel = "https://www.youtube.com/channel/UCstudy"
     private val now = 1_800_000_000_000L
 
     private fun profile(share: Double) = FocusProfile(
         seed = "user-1",
         entertainmentChannels = setOf(normalizeChannelKey(funChannel)),
+        studyChannels = setOf(normalizeChannelKey(studyChannel)),
         entertainmentShare = share,
         archiveDays = 7,
         archiveCutoffMs = now - 7 * FocusProfile.DAY_MS,
@@ -57,15 +60,27 @@ class FocusProfileTest {
         assertNull(limited.nextpage)
         assertEquals(7, limited.focusArchiveDays)
         assertEquals("next", page.limitFocusArchive(profile(0.5), funChannel, newestFirst = false).nextpage)
-        assertEquals(page, page.limitFocusArchive(profile(0.5), "https://www.youtube.com/channel/UCstudy", true))
+        assertEquals(7, page.limitFocusArchive(profile(0.5), "https://www.youtube.com/@fun", true).focusArchiveDays)
+        val studyPage = channel(listOf(video("study", now - 30 * FocusProfile.DAY_MS, studyChannel)), "next")
+        assertEquals(studyPage, studyPage.limitFocusArchive(profile(0.5), "https://www.youtube.com/@study", true))
         assertEquals(page, page.limitFocusArchive(null, funChannel, true))
     }
 
-    private fun video(id: String, publishedAt: Long) = VideoItem(
+    private fun video(id: String, publishedAt: Long, uploaderUrl: String = funChannel) = VideoItem(
         id = id, title = id, url = "https://www.youtube.com/watch?v=$id", thumbnailUrl = "", uploaderName = "Fun",
-        uploaderUrl = funChannel, uploaderAvatarUrl = "", duration = 60, viewCount = 1, uploadDate = "", streamType = "video_stream",
+        uploaderUrl = uploaderUrl, uploaderAvatarUrl = "", duration = 60, viewCount = 1, uploadDate = "", streamType = "video_stream",
         isShortFormContent = false, uploaderVerified = false, shortDescription = null, publishedAt = publishedAt,
     )
+
+    @Test
+    fun `study channels come first on the home`() {
+        val home = HomeRecommendationsResponse(
+            items = listOf(video("a", now), video("b", now, "https://www.youtube.com/channel/UCother"), video("c", now, studyChannel)),
+            nextCursor = null,
+            hasMore = false,
+        )
+        assertEquals(listOf("c", "a", "b"), home.filterFocus(profile(1.0)).items.map { it.id })
+    }
 
     private fun channel(videos: List<VideoItem>, nextpage: String?) = ChannelResponse(
         name = "Fun", description = "", avatarUrl = "", bannerUrl = "", subscriberCount = 1, isVerified = false,

@@ -31,6 +31,10 @@ fun Route.focusRoutes(focusService: FocusService, authService: AuthService) {
                     HttpStatusCode.BadRequest,
                     ErrorResponse("Days must be between 1 and 365", "focus_invalid_days"),
                 )
+                FocusUpdateResult.InvalidSchedule -> call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("Choose a schedule and a valid timezone", "focus_invalid_schedule"),
+                )
             }
         }
     }

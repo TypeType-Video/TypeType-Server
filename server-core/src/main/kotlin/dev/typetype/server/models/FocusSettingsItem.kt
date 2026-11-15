@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
 data class FocusSettingsItem(
     val enabled: Boolean,
     val entertainmentGroupId: String?,
+    val studyGroupId: String?,
+    val schedule: String,
+    val timezone: String?,
     val transitionDays: Int,
     val archiveDays: Int,
     val startedAt: Long?,

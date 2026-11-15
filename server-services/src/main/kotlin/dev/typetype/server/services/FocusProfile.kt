@@ -5,11 +5,14 @@ import java.util.zip.CRC32
 data class FocusProfile(
     val seed: String,
     val entertainmentChannels: Set<String>,
+    val studyChannels: Set<String> = emptySet(),
     val entertainmentShare: Double,
     val archiveDays: Int,
     val archiveCutoffMs: Long,
 ) {
     fun isEntertainment(channelUrl: String): Boolean = normalizeChannelKey(channelUrl) in entertainmentChannels
+
+    fun isStudy(channelUrl: String): Boolean = normalizeChannelKey(channelUrl) in studyChannels
 
     // A hash of the profile and the video keeps the same videos hidden on every page and every reload,
     // so the share drops without the feed reshuffling.
