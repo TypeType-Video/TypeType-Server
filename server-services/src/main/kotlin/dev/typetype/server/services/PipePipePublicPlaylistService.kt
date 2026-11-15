@@ -10,6 +10,8 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
+private val PLAYLIST_SERVICE_IDS = setOf(YOUTUBE_SERVICE_ID, BILIBILI_SERVICE_ID, NICONICO_SERVICE_ID)
+
 class PipePipePublicPlaylistService : PublicPlaylistService {
     override suspend fun getPlaylist(url: String, nextpage: String?): ExtractionResult<PublicPlaylistResponse> =
         withContext(Dispatchers.IO) {
@@ -19,8 +21,8 @@ class PipePipePublicPlaylistService : PublicPlaylistService {
             } else null
             val service = runCatching { NewPipe.getServiceByUrl(url) }
                 .getOrElse { return@withContext ExtractionResult.BadRequest("Unsupported playlist URL") }
-            if (service.serviceId != YOUTUBE_SERVICE_ID && service.serviceId != BILIBILI_SERVICE_ID) {
-                return@withContext ExtractionResult.BadRequest("Public playlists are only supported for YouTube and Bilibili")
+            if (service.serviceId !in PLAYLIST_SERVICE_IDS) {
+                return@withContext ExtractionResult.BadRequest("Public playlists are only supported for YouTube, Bilibili and NicoNico")
             }
 
             runExtractionCatching {
