@@ -4,9 +4,12 @@ import dev.typetype.server.services.AccessControlProfile
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.PlaybackTraceLog
+import dev.typetype.server.metricPath
 import dev.typetype.server.models.ErrorResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
 
 internal data class AccessRouteProfile(
@@ -40,6 +43,12 @@ internal suspend fun ApplicationCall.requirePublicAccessOrRespond(
     adminSettingsService: AdminSettingsService?,
 ): Boolean = publicAccessOrRespond(authService, adminSettingsService) != null
 
+private suspend fun ApplicationCall.respondUnauthorized(reason: String, message: String): Nothing? {
+    PlaybackTraceLog.record("auth_rejected", "reason=$reason route=${metricPath(request.path())}")
+    respond(HttpStatusCode.Unauthorized, ErrorResponse(message))
+    return null
+}
+
 private suspend fun ApplicationCall.publicAccessOrRespond(
     authService: AuthService?,
     adminSettingsService: AdminSettingsService?,
@@ -47,27 +56,22 @@ private suspend fun ApplicationCall.publicAccessOrRespond(
     val allowGuest = adminSettingsService?.get()?.allowGuest ?: true
     if (authService == null) {
         if (allowGuest) return PublicAccess(userId = null, allowGuest = allowGuest)
-        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
-        return null
+        return respondUnauthorized("auth_service_unavailable", "Authentication required")
     }
     val authHeader = request.headers["Authorization"]
     if (authHeader == null) {
         if (allowGuest) return PublicAccess(userId = null, allowGuest = allowGuest)
-        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
-        return null
+        return respondUnauthorized("missing_header", "Authentication required")
     }
     if (!authHeader.startsWith("Bearer ")) {
-        respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
-        return null
+        return respondUnauthorized("invalid_scheme", "Invalid token")
     }
     val userId = authService.verify(authHeader.substringAfter("Bearer "))
     if (userId == null) {
-        respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid token"))
-        return null
+        return respondUnauthorized("token_verify_failed", "Invalid token")
     }
     if (!allowGuest && userId.startsWith("guest:")) {
-        respond(HttpStatusCode.Unauthorized, ErrorResponse("Authentication required"))
-        return null
+        return respondUnauthorized("guest_disallowed", "Authentication required")
     }
     return PublicAccess(userId = userId, allowGuest = allowGuest)
 }

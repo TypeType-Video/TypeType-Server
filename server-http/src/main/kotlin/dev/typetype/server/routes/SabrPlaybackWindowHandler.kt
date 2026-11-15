@@ -175,7 +175,7 @@ internal class SabrPlaybackWindowHandler(
         request: SabrPlaybackWindowRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return call.respondMissingSabrSession(sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Window formats do not match session")).let { null }
         }
@@ -194,7 +194,7 @@ internal class SabrPlaybackWindowHandler(
         request: SabrPlaybackPositionRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return call.respondMissingSabrSession(sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Position formats do not match session")).let { null }
         }
