@@ -5,14 +5,12 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.PlaybackTraceLog
+import dev.typetype.server.metricPath
 import dev.typetype.server.models.ErrorResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import org.slf4j.LoggerFactory
-
-private val authRejectLog = LoggerFactory.getLogger("AccessControlRouteHelpers")
 
 internal data class AccessRouteProfile(
     val userId: String?,
@@ -46,11 +44,7 @@ internal suspend fun ApplicationCall.requirePublicAccessOrRespond(
 ): Boolean = publicAccessOrRespond(authService, adminSettingsService) != null
 
 private suspend fun ApplicationCall.respondUnauthorized(reason: String, message: String): Nothing? {
-    val requestPath = request.path()
-    PlaybackTraceLog.record("auth_rejected", "reason=$reason path=$requestPath")
-    if (requestPath.startsWith("/sabr/")) {
-        authRejectLog.warn("Rejected SABR request with 401 reason={} path={}", reason, requestPath)
-    }
+    PlaybackTraceLog.record("auth_rejected", "reason=$reason route=${metricPath(request.path())}")
     respond(HttpStatusCode.Unauthorized, ErrorResponse(message))
     return null
 }

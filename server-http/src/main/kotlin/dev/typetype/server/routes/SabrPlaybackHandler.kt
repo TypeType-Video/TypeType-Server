@@ -17,9 +17,7 @@ import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.requiresYoutubeSession
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import org.slf4j.LoggerFactory
 import dev.typetype.server.sabr.YoutubeSabrFormat
 
 internal class SabrPlaybackHandler(
@@ -89,7 +87,7 @@ internal class SabrPlaybackHandler(
     }
 
     suspend fun seek(call: ApplicationCall, sessionId: String) {
-        val holder = lookupOrRespondMissing(call, sessionId) ?: return
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         val request = call.playbackRequest()
         val playerTimeMs = request.effectiveStartTimeMs()
         if (request.keepsCurrentFormats(holder)) {
@@ -119,14 +117,14 @@ internal class SabrPlaybackHandler(
     }
 
     suspend fun manifest(call: ApplicationCall, sessionId: String) {
-        val holder = lookupOrRespondMissing(call, sessionId) ?: return
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         playbackService.startPump(holder)
         playbackService.warmPlayback(holder)
         call.respondSabrPlaybackManifest(holder)
     }
 
     suspend fun segment(call: ApplicationCall, sessionId: String, isInit: Boolean, seq: Int) {
-        val holder = lookupOrRespondMissing(call, sessionId) ?: return
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         val itag = call.parameters["itag"]?.toIntOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid itag"))
         val format = holder.formatForItag(itag)
@@ -195,18 +193,7 @@ internal class SabrPlaybackHandler(
         else -> null
     }
 
-    private suspend fun lookupOrRespondMissing(call: ApplicationCall, sessionId: String): SabrSessionHolder? {
-        playbackService.lookup(sessionId)?.let { return it }
-        val requestPath = call.request.path()
-        val prefix = sessionId.take(8)
-        PlaybackTraceLog.record("sabr_session_not_found", "path=$requestPath sessionPrefix=$prefix")
-        logger.info("SABR session not found (404) path={} sessionPrefix={}", requestPath, prefix)
-        call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
-        return null
-    }
-
     private companion object {
-        val logger = LoggerFactory.getLogger(SabrPlaybackHandler::class.java)
         const val PLAYBACK_SEGMENT_TIMEOUT_MS = 4_000L
         const val RETRY_AFTER_MS = 250L
     }
