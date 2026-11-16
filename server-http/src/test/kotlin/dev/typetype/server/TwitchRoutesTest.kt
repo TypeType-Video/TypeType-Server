@@ -106,6 +106,14 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the poll and pinned message of a chat are relayed`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/chat/somechannel/highlights?evil=1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/chat/bad%20login/highlights").status)
+        assertEquals("/v1/chat/somechannel/highlights", requests.single().url.encodedPath)
+        assertEquals(null, requests.single().url.queryParameter("evil"))
+    }
+
+    @Test
     fun `the chapters of a past broadcast are relayed`() = withApp {
         assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/chapters?evil=1").status)
         assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/chapters").status)
