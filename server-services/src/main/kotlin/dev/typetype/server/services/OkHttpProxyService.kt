@@ -88,7 +88,7 @@ class OkHttpProxyService(
                     builder.header("Referer", BILIBILI_REFERER)
                     builder.header("Accept", ACCEPT_ANY)
                 }
-                if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", "domand_bid=$resolvedDomandBid")
+                if (resolvedDomandBid != null && isNicoNico(cleanUrl)) builder.header("Cookie", nicoBidCookieHeader(cleanUrl, resolvedDomandBid))
                 if (rangeHeader != null) builder.header("Range", rangeHeader)
                 val request = builder.build()
                 if (bilibili && rangeHeader != null) {

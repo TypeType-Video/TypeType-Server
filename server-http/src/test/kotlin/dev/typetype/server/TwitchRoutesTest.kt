@@ -94,6 +94,26 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the chat of a past broadcast is relayed with its offset or cursor`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?offset=120&evil=1").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?cursor=abc").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/comments").status)
+        assertEquals("/v1/videos/2929630714/comments", requests.first().url.encodedPath)
+        assertEquals("120", requests.first().url.queryParameter("offset"))
+        assertEquals(null, requests.first().url.queryParameter("evil"))
+        assertEquals("abc", requests.last().url.queryParameter("cursor"))
+        assertEquals(2, requests.size)
+    }
+
+    @Test
+    fun `the chapters of a past broadcast are relayed`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/chapters?evil=1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/chapters").status)
+        assertEquals("/v1/videos/2929630714/chapters", requests.single().url.encodedPath)
+        assertEquals(null, requests.single().url.queryParameter("evil"))
+    }
+
+    @Test
     fun `errors from the live service keep their status`() = withApp {
         answer = { 404 to """{"error":"offline"}""" }
         val response = client.get("/twitch/live/somechannel")
