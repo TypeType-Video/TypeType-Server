@@ -129,6 +129,8 @@ ChatAssets:
   get: { tags: [twitch], summary: Global chat badges and emotes, responses: *relay }
 ChannelChatAssets:
   get: { tags: [twitch], summary: Chat badges and 7TV, BTTV and FFZ emotes of a channel, parameters: [*login], responses: *relay }
+ChatHighlights:
+  get: { tags: [twitch], summary: The running poll and the pinned message of a live chat, parameters: [*login], responses: *relay }
 ChatEvents:
   get:
     tags: [twitch]

@@ -82,6 +82,10 @@ fun Route.twitchRoutes(
         val login = call.pathParam("login", loginPattern) ?: return@get
         call.relay("/v1/chat/$login/assets", emptyList())
     }
+    get("/twitch/chat/{login}/highlights") {
+        val login = call.pathParam("login", loginPattern) ?: return@get
+        call.relay("/v1/chat/$login/highlights", emptyList())
+    }
     twitchAccountRoutes(service, authService, adminSettingsService)
 }
 
