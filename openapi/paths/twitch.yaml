@@ -27,6 +27,15 @@ GameStreams:
       - { name: first, in: query, schema: { type: integer } }
       - { name: after, in: query, schema: { type: string } }
     responses: *relay
+TagStreams:
+  get:
+    tags: [twitch]
+    summary: Lives carrying a Twitch tag, most watched first
+    parameters:
+      - { name: tag, in: path, required: true, schema: { type: string, pattern: '^[\p{L}\p{Nd}]{1,25}$' } }
+      - { name: first, in: query, schema: { type: integer } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
 Channel:
   get: { tags: [twitch], summary: Twitch channel and its current live, parameters: [*login], responses: *relay }
 ChannelVideos:
@@ -98,6 +107,8 @@ MeFollow:
   get: { tags: [twitch], summary: Whether the linked account follows a channel, security: *auth, parameters: [*login], responses: *relay }
   put: { tags: [twitch], summary: Follow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
   delete: { tags: [twitch], summary: Unfollow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
+MeEmotes:
+  get: { tags: [twitch], summary: Twitch emotes the linked account can use in a channel, security: *auth, parameters: [*login], responses: *relay }
 ChatAssets:
   get: { tags: [twitch], summary: Global chat badges and emotes, responses: *relay }
 ChannelChatAssets:
