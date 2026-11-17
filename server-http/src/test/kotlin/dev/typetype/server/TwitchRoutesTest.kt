@@ -234,5 +234,32 @@ class TwitchRoutesTest {
         assertTrue(requests.isEmpty())
     }
 
+    @Test
+    fun `a poll vote is relayed with the linked token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        answer = { 204 to "" }
+        val response = client.post("/twitch/polls/vote") {
+            bearerAuth("test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"pollId":"p-1","choiceId":"c-2"}""")
+        }
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        val sent = requests.single()
+        assertEquals("/v1/polls/vote", sent.url.encodedPath)
+        assertEquals("user-token", sent.header("X-Twitch-Token"))
+    }
+
+    @Test
+    fun `a malformed poll vote never reaches the live service`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        val response = client.post("/twitch/polls/vote") {
+            bearerAuth("test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"pollId":"p 1","choiceId":""}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(requests.isEmpty())
+    }
+
     private fun account() = TwitchAccount("user-token", "refresh", "me", "Me", "", 0)
 }

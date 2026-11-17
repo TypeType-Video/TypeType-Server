@@ -149,3 +149,20 @@ ChatMessages:
         application/json:
           schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 500 } } }
     responses: { '204': { description: Sent. }, '409': { description: No Twitch account linked. } }
+PollVote:
+  post:
+    tags: [twitch]
+    summary: Vote in the running poll of a chat with the linked account
+    security: *auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [pollId, choiceId]
+            properties: { pollId: { type: string, maxLength: 64 }, choiceId: { type: string, maxLength: 64 } }
+    responses:
+      '204': { description: Vote counted. }
+      '403': { description: Twitch refused the vote; code says why. }
+      '409': { description: No Twitch account linked. }

@@ -131,6 +131,7 @@ paths:
   /twitch/chat/{login}/events: { $ref: ./openapi/paths/twitch.yaml#/ChatEvents }
   /twitch/chat/{login}/highlights: { $ref: ./openapi/paths/twitch.yaml#/ChatHighlights }
   /twitch/chat/{login}/messages: { $ref: ./openapi/paths/twitch.yaml#/ChatMessages }
+  /twitch/polls/vote: { $ref: ./openapi/paths/twitch.yaml#/PollVote }
   /recommendations/home: { $ref: ./openapi/paths/recommender.yaml#/HomeRecommendations }
   /recommendations/algorithms: { $ref: ./openapi/paths/recommender.yaml#/RecommenderAlgorithms }
   /recommendations/settings: { $ref: ./openapi/paths/recommender.yaml#/RecommenderSettings }
