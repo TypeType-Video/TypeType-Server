@@ -3,6 +3,7 @@ package dev.typetype.server.routes
 import dev.typetype.server.models.ErrorResponse
 import dev.typetype.server.models.TwitchChatMessageRequest
 import dev.typetype.server.models.TwitchDevicePollRequest
+import dev.typetype.server.models.TwitchPollVoteRequest
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.TwitchLiveResponse
@@ -105,6 +106,19 @@ internal fun Route.twitchAccountRoutes(
             call.respondLinked(service.sendChat(userId, login, json))
         }
     }
+    post("/twitch/polls/vote") {
+        call.signedIn { userId ->
+            val request = runCatching { call.receive<TwitchPollVoteRequest>() }.getOrNull()
+            if (request == null || !pollIdPattern.matches(request.pollId) || !pollIdPattern.matches(request.choiceId)) {
+                return@signedIn call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid vote"))
+            }
+            val json = Json.encodeToString(buildJsonObject {
+                put("pollId", request.pollId)
+                put("choiceId", request.choiceId)
+            })
+            call.respondLinked(service.votePoll(userId, json))
+        }
+    }
     get("/twitch/chat/{login}/events") {
         val login = call.pathParam("login", twitchLoginPattern) ?: return@get
         if (!call.twitchEnabled(service)) return@get
@@ -136,6 +150,8 @@ private suspend fun ApplicationCall.relayChat(service: TwitchService, login: Str
 
 private fun ApplicationCall.page(): Map<String, String> =
     listOf("first", "after").mapNotNull { name -> request.queryParameters[name]?.let { name to it.take(MAX_PARAM) } }.toMap()
+
+private val pollIdPattern = Regex("^[A-Za-z0-9_-]{1,64}$")
 
 private const val MAX_DEVICE_CODE = 200
 private const val MAX_MESSAGE = 500

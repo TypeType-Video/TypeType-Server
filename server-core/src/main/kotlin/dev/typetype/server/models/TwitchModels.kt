@@ -18,6 +18,12 @@ data class TwitchChatMessageRequest(
 )
 
 @Serializable
+data class TwitchPollVoteRequest(
+    val pollId: String = "",
+    val choiceId: String = "",
+)
+
+@Serializable
 data class TwitchAccountStatus(
     val linked: Boolean,
     val login: String? = null,
