@@ -20,17 +20,38 @@ internal data class ProgressBody(val position: Long)
 @Serializable
 internal data class ProgressBatchBody(val videoUrls: List<String>)
 
+@Serializable
+internal data class ProgressWrite(val videoUrl: String, val position: Long)
+
+@Serializable
+internal data class ProgressBatchWriteBody(val items: List<ProgressWrite>)
+
 fun Route.progressRoutes(progressService: ProgressService, authService: AuthService, settingsService: SettingsService? = null) {
     post("/progress/batch") {
         call.withJwtAuth(authService) { userId ->
             val body = runCatching { call.receive<ProgressBatchBody>() }.getOrElse {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
             }
-            if (body.videoUrls.isEmpty() || body.videoUrls.size > MAX_PROGRESS_BATCH_SIZE || body.videoUrls.any { it.isBlank() || it.length > MAX_VIDEO_URL_LENGTH }) {
+            if (body.videoUrls.isEmpty() || body.videoUrls.size > MAX_PROGRESS_BATCH_SIZE || body.videoUrls.any { !it.isValidVideoUrl() }) {
                 return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid videoUrls"))
             }
             val videoUrls = body.videoUrls.distinct()
             call.respond(progressService.getMany(userId, videoUrls))
+        }
+    }
+    put("/progress/batch") {
+        call.withJwtAuth(authService) { userId ->
+            val body = runCatching { call.receive<ProgressBatchWriteBody>() }.getOrElse {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid request body"))
+            }
+            if (body.items.isEmpty() || body.items.size > MAX_PROGRESS_BATCH_SIZE || body.items.any { !it.videoUrl.isValidVideoUrl() }) {
+                return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid items"))
+            }
+            val positions = body.items.associate { it.videoUrl to it.position }
+            if (settingsService?.isWatchHistoryDisabled(userId) == true) {
+                return@withJwtAuth call.respond(positions.map { (videoUrl, position) -> skippedProgress(videoUrl, position) })
+            }
+            call.respond(progressService.upsertMany(userId, positions))
         }
     }
     get("/progress/{videoUrl...}") {
@@ -77,6 +98,8 @@ fun Route.progressRoutes(progressService: ProgressService, authService: AuthServ
 
 private const val MAX_PROGRESS_BATCH_SIZE = 200
 private const val MAX_VIDEO_URL_LENGTH = 2_048
+
+private fun String.isValidVideoUrl(): Boolean = isNotBlank() && length <= MAX_VIDEO_URL_LENGTH
 
 private fun skippedProgress(videoUrl: String, position: Long): ProgressItem = ProgressItem(
     videoUrl = videoUrl,
