@@ -68,6 +68,9 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     seekbarIcon = this[SettingsTable.seekbarIcon],
     seekbarIconUrl = this[SettingsTable.seekbarIconUrl],
     playerEngine = this[SettingsTable.playerEngine],
+    hideWatchedSubscriptionVideos = this[SettingsTable.hideWatchedSubscriptionVideos],
+    watchedThresholdPercent = this[SettingsTable.watchedThresholdPercent],
+    miniPlayerEnabled = this[SettingsTable.miniPlayerEnabled],
 )
 
 fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
@@ -121,6 +124,9 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
     this[SettingsTable.seekbarIcon] = settings.seekbarIcon
     this[SettingsTable.playerEngine] = settings.playerEngine
+    this[SettingsTable.hideWatchedSubscriptionVideos] = settings.hideWatchedSubscriptionVideos
+    this[SettingsTable.watchedThresholdPercent] = settings.watchedThresholdPercent
+    this[SettingsTable.miniPlayerEnabled] = settings.miniPlayerEnabled
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
 }
@@ -144,11 +150,13 @@ fun SettingsItem.normalized(): SettingsItem = copy(
     deArrowTrustMode = deArrowTrustMode.takeIf { it in DEARROW_TRUST_MODES } ?: "accepted",
     seekbarIcon = seekbarIcon.takeIf { it in SEEKBAR_ICONS } ?: "typetype",
     playerEngine = playerEngine.takeIf { it in PLAYER_ENGINES } ?: "vidstack",
+    watchedThresholdPercent = watchedThresholdPercent.takeIf { it == 0 || it in WATCHED_THRESHOLD_PERCENTS } ?: 0,
 )
 
 private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
 private val SEEKBAR_ICONS = setOf("typetype", "custom", "none")
 private val PLAYER_ENGINES = setOf("vidstack", "videojs")
+private val WATCHED_THRESHOLD_PERCENTS = 50..100
 private val VIDEO_GRID_COLUMNS = setOf(0, 4, 5, 6)
 private val RELATED_VIDEO_SIZES = setOf("default", "large")
 private val HOLD_PLAYBACK_SPEEDS = setOf(1.5, 2.0, 2.5, 3.0, 4.0)

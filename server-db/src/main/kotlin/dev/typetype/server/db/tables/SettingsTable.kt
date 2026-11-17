@@ -57,5 +57,8 @@ object SettingsTable : Table("settings") {
     val seekbarIcon = text("seekbar_icon").default("typetype")
     val seekbarIconUrl = text("seekbar_icon_url").default("")
     val playerEngine = text("player_engine").default("vidstack")
+    val hideWatchedSubscriptionVideos = bool("hide_watched_subscription_videos").default(false)
+    val watchedThresholdPercent = integer("watched_threshold_percent").default(0)
+    val miniPlayerEnabled = bool("mini_player_enabled").default(true)
     override val primaryKey = PrimaryKey(userId)
 }

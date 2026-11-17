@@ -55,6 +55,9 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon TEXT NOT NULL DEFAULT 'typetype'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon_url TEXT NOT NULL DEFAULT ''")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS player_engine TEXT NOT NULL DEFAULT 'vidstack'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_watched_subscription_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS watched_threshold_percent INTEGER NOT NULL DEFAULT 0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS mini_player_enabled BOOLEAN NOT NULL DEFAULT true")
     }
 
     private fun settingsColumnExists(column: String): Boolean =

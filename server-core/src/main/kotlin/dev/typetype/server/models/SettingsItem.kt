@@ -55,4 +55,7 @@ data class SettingsItem(
     val seekbarIcon: String = "typetype",
     val seekbarIconUrl: String = "",
     val playerEngine: String = "vidstack",
+    val hideWatchedSubscriptionVideos: Boolean = false,
+    val watchedThresholdPercent: Int = 0,
+    val miniPlayerEnabled: Boolean = true,
 )
