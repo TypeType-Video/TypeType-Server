@@ -235,6 +235,18 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the past broadcasts of followed channels are relayed with paging and the token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        val response = client.get("/twitch/me/videos?first=12&after=c1") { bearerAuth("test-jwt") }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val sent = requests.single()
+        assertEquals("/v1/me/videos", sent.url.encodedPath)
+        assertEquals("12", sent.url.queryParameter("first"))
+        assertEquals("c1", sent.url.queryParameter("after"))
+        assertEquals("user-token", sent.header("X-Twitch-Token"))
+    }
+
+    @Test
     fun `a poll vote is relayed with the linked token`() = withApp {
         coEvery { store.get(TEST_USER_ID) } returns account()
         answer = { 204 to "" }
