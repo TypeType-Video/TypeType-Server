@@ -123,6 +123,7 @@ paths:
   /twitch/account/device: { $ref: ./openapi/paths/twitch.yaml#/AccountDevice }
   /twitch/account/poll: { $ref: ./openapi/paths/twitch.yaml#/AccountPoll }
   /twitch/me/live: { $ref: ./openapi/paths/twitch.yaml#/MeLive }
+  /twitch/me/videos: { $ref: ./openapi/paths/twitch.yaml#/MeVideos }
   /twitch/me/follows: { $ref: ./openapi/paths/twitch.yaml#/MeFollows }
   /twitch/me/follows/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeFollow }
   /twitch/me/emotes/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeEmotes }

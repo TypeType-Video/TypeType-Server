@@ -75,6 +75,9 @@ internal fun Route.twitchAccountRoutes(
     get("/twitch/me/live") {
         call.signedIn { userId -> call.respondLinked(service.authed(userId, "/v1/me/live", call.page())) }
     }
+    get("/twitch/me/videos") {
+        call.signedIn { userId -> call.respondLinked(service.authed(userId, "/v1/me/videos", call.page())) }
+    }
     get("/twitch/me/follows") {
         call.signedIn { userId -> call.respondLinked(service.authed(userId, "/v1/me/follows", call.page())) }
     }

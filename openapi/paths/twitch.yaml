@@ -117,6 +117,8 @@ AccountPoll:
     responses: { '200': { description: pending, slow_down or ok with the account., <<: *json }, '401': { description: Not signed in. } }
 MeLive:
   get: { tags: [twitch], summary: Live channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
+MeVideos:
+  get: { tags: [twitch], summary: Past broadcasts of the channels the linked account follows, newest first, security: *auth, parameters: *page, responses: *relay }
 MeFollows:
   get: { tags: [twitch], summary: Channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
 MeFollow:
