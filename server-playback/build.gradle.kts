@@ -22,6 +22,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.20")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.6.1")
     testImplementation(testFixtures(project(":server-db")))
+    testImplementation(testFixtures(project(":server-core")))
     testImplementation(project(":server-test-support"))
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("io.mockk:mockk:1.14.12")

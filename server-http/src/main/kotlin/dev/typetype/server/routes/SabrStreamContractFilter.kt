@@ -120,7 +120,7 @@ private fun YoutubeSabrFormat.toAudioStreamItem(videoId: String): AudioStreamIte
         url = "",
         mimeType = container,
         format = container.substringAfter('/').uppercase(),
-        bitrate = bitrate.takeIf { it > 0 },
+        bitrate = (bitrate / 1_000).takeIf { it > 0 },
         codec = mime.codec(),
         quality = audioQuality,
         itag = itag,
