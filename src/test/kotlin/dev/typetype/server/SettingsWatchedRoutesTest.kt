@@ -69,6 +69,13 @@ class SettingsWatchedRoutesTest {
     }
 
     @Test
+    fun `search leaves Shorts out by default and the choice is saved`() = withSettings {
+        val initial = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
+        assertTrue(initial.contains("\"hideSearchShorts\":true"))
+        assertTrue(save("""{"hideSearchShorts":false}""").contains("\"hideSearchShorts\":false"))
+    }
+
+    @Test
     fun `out of range watched thresholds fall back to the default rule`() = withSettings {
         assertTrue(save("""{"watchedThresholdPercent":30}""").contains("\"watchedThresholdPercent\":0"))
         assertTrue(save("""{"watchedThresholdPercent":101}""").contains("\"watchedThresholdPercent\":0"))

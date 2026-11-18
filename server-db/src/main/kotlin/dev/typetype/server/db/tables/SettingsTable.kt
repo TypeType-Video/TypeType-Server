@@ -60,5 +60,6 @@ object SettingsTable : Table("settings") {
     val hideWatchedSubscriptionVideos = bool("hide_watched_subscription_videos").default(false)
     val watchedThresholdPercent = integer("watched_threshold_percent").default(0)
     val miniPlayerEnabled = bool("mini_player_enabled").default(true)
+    val hideSearchShorts = bool("hide_search_shorts").default(true)
     override val primaryKey = PrimaryKey(userId)
 }

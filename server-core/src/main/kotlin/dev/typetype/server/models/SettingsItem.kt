@@ -58,4 +58,5 @@ data class SettingsItem(
     val hideWatchedSubscriptionVideos: Boolean = false,
     val watchedThresholdPercent: Int = 0,
     val miniPlayerEnabled: Boolean = true,
+    val hideSearchShorts: Boolean = true,
 )
