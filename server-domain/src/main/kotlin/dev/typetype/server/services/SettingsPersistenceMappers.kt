@@ -71,6 +71,7 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideWatchedSubscriptionVideos = this[SettingsTable.hideWatchedSubscriptionVideos],
     watchedThresholdPercent = this[SettingsTable.watchedThresholdPercent],
     miniPlayerEnabled = this[SettingsTable.miniPlayerEnabled],
+    hideSearchShorts = this[SettingsTable.hideSearchShorts],
 )
 
 fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
@@ -127,6 +128,7 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideWatchedSubscriptionVideos] = settings.hideWatchedSubscriptionVideos
     this[SettingsTable.watchedThresholdPercent] = settings.watchedThresholdPercent
     this[SettingsTable.miniPlayerEnabled] = settings.miniPlayerEnabled
+    this[SettingsTable.hideSearchShorts] = settings.hideSearchShorts
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
 }

@@ -27,6 +27,7 @@ SettingsItem:
     hideWatchedSubscriptionVideos: { type: boolean, default: false, description: Clients hide watched videos from the subscription feed. }
     watchedThresholdPercent: { type: integer, minimum: 0, maximum: 100, default: 0, description: Percent of a video after which clients count it as watched. 0 keeps the default rule, the last minute or 90 percent of a video shorter than a minute. Other values are 50 to 100. }
     miniPlayerEnabled: { type: boolean, default: true, description: The web keeps playing in a mini player after leaving the watch page. }
+    hideSearchShorts: { type: boolean, default: true, description: Clients leave Shorts out of search results. The Shorts page stays available. }
     autoplayCountdownSeconds:
       type: integer
       minimum: 0
