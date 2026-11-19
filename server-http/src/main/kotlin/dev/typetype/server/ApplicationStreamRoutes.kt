@@ -35,6 +35,7 @@ internal fun Route.installStreamRoutes(
             providerMediaHandleService = svc.providerMediaHandleService,
             providerMediaWarmup = svc.providerMediaWarmup,
             sabrStreamContractFilter = { url, data -> data.withPreparedSabrStreams(url, svc.sabrSessionStore) },
+            tokenServiceUnavailable = { svc.sabrSessionStore.tokenServiceUnavailable },
             bilibiliSessionStreamInfo = { userId, url -> svc.bilibiliSessionStreamService.getStreamInfo(userId, url) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
