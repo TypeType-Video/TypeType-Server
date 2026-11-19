@@ -23,4 +23,5 @@ internal data class StreamRouteDependencies(
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)?,
+    val youtubeSponsorBlock: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 )
