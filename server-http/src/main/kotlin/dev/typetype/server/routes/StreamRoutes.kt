@@ -41,6 +41,7 @@ fun Route.streamRoutes(
     bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
     youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)? = null,
     previewsEnabled: Boolean = StreamPreview.enabledByDefault,
+    tokenServiceUnavailable: () -> Boolean = { false },
     youtubeSponsorBlock: (suspend (String, StreamResponse) -> StreamResponse)? = null,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse?)? = null,
 ) {
@@ -56,6 +57,7 @@ fun Route.streamRoutes(
         youtubeSessionSabrStreamInfo = youtubeSessionSabrStreamInfo,
         bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
         youtubeRelatedVideos = youtubeRelatedVideos,
+        tokenServiceUnavailable = tokenServiceUnavailable,
         youtubeSponsorBlock = youtubeSponsorBlock,
     )
     val bootstrapDependencies = dependencies.copy(youtubeRelatedVideos = null)
@@ -169,7 +171,11 @@ private fun Route.streamRoute(
                     filtered
                 } else {
                     dependencies.sabrStreamContractFilter.invoke(url, filtered)
-                        ?: return@get call.respondNoPlayableStreams(upstreamOutage = true)
+                        ?: return@get if (dependencies.tokenServiceUnavailable()) {
+                            call.respondTokenServiceUnavailable()
+                        } else {
+                            call.respondNoPlayableStreams(upstreamOutage = true)
+                        }
                 }
                 if (!data.hasPlayableSource()) {
                     return@get call.respondNoPlayableStreams(upstreamOutage = false)

@@ -19,7 +19,7 @@ ErrorResponse:
         age_restricted, scheduled_premiere, live_not_started,
         content_unavailable, upstream_failure, upstream_timeout,
         youtube_session_rejected, youtube_session_needs_reconnect, paid_content,
-        members_only, or youtube_session_required.
+        members_only, token_service_unavailable, or youtube_session_required.
     requestId: { type: string, nullable: true }
 RequestIdHeader:
   description: Request correlation id returned by TypeType-Server.
@@ -41,7 +41,8 @@ RetryableError:
     Temporary failure; retry after Retry-After seconds. The provider blocks this
     server (`provider_access_blocked`), rate limits it (`provider_rate_limited`),
     the server paces provider requests (`provider_paced`), SABR playback could not
-    be prepared (`no_playable_streams`), or media handles cannot be stored
+    be prepared (`no_playable_streams`), the token service cannot get YouTube
+    tokens (`token_service_unavailable`), or media handles cannot be stored
     (`media_handle_unavailable`).
   headers:
     X-Request-ID:
