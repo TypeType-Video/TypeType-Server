@@ -1,5 +1,7 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.StreamResponse
+
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliAggregatedSearchService
 import dev.typetype.server.services.BilibiliMirrorProber
@@ -173,6 +175,8 @@ internal class ExtractionServiceRegistry(
     }
     private val youtubeStreamGuards = YoutubeStreamGuards(sabrSessionStore::recoverTokenSession)
     val streamRequestWatch get() = youtubeStreamGuards.watch
+    suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
+        directPipePipeStreamService.withSponsorBlock(url, response)
     val youtubeSabrStreamService = youtubeStreamGuards.cached(
         YoutubeScopedStreamService(YoutubeLiveHlsStreamService(youtubeSabrFallbackStreamService, liveHlsStreamService)),
         cache,

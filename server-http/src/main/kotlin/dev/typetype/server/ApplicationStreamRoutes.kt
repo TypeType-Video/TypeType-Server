@@ -40,6 +40,7 @@ internal fun Route.installStreamRoutes(
                 { userId, url -> service.getStreamInfo(userId, url) }
             },
             youtubeRelatedVideos = { url -> svc.youtubeRelatedVideosService.related(url) },
+            youtubeSponsorBlock = svc::withYoutubeSponsorBlock,
         )
         audioOnlyContractRoutes(
             streamService = svc.streamService,
