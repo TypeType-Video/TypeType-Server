@@ -42,6 +42,7 @@ fun Route.streamRoutes(
     youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)? = null,
     previewsEnabled: Boolean = StreamPreview.enabledByDefault,
     tokenServiceUnavailable: () -> Boolean = { false },
+    youtubeSponsorBlock: (suspend (String, StreamResponse) -> StreamResponse)? = null,
     sabrStreamContractFilter: (suspend (String, StreamResponse) -> StreamResponse?)? = null,
 ) {
     val dependencies = StreamRouteDependencies(
@@ -57,6 +58,7 @@ fun Route.streamRoutes(
         bilibiliSessionStreamInfo = bilibiliSessionStreamInfo,
         youtubeRelatedVideos = youtubeRelatedVideos,
         tokenServiceUnavailable = tokenServiceUnavailable,
+        youtubeSponsorBlock = youtubeSponsorBlock,
     )
     val bootstrapDependencies = dependencies.copy(youtubeRelatedVideos = null)
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies, previewsEnabled)

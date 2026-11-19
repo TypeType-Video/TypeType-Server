@@ -24,4 +24,5 @@ internal data class StreamRouteDependencies(
     val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)?,
     val tokenServiceUnavailable: () -> Boolean = { false },
+    val youtubeSponsorBlock: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 )

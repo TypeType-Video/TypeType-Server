@@ -146,6 +146,21 @@ class PipePipeStreamService(
         sink(streamInfo.id, info)
     }
 
+    /**
+     * A signed-in playback (age-restricted or members-only videos) is built without the public extractor, so it
+     * carries no SponsorBlock segments: they are looked up here by id, through the same resolver and cache.
+     */
+    suspend fun withSponsorBlock(url: String, response: StreamResponse): StreamResponse {
+        if (response.sponsorBlockSegments.isNotEmpty()) return response
+        val extractor = runCatching { NewPipe.getServiceByUrl(url).getStreamExtractor(url) }.getOrNull()
+            ?: return response
+        val resolution = resolveSegments(extractor)
+        return response.copy(
+            sponsorBlockSegments = resolution.segments.map { it.toSegmentItem() },
+            sponsorBlockAvailable = resolution.available,
+        )
+    }
+
     private suspend fun resolveSegments(extractor: StreamExtractor): SponsorBlockResolution {
         val hasSponsorBlock = extractor.getService().serviceInfo.mediaCapabilities
             .contains(MediaCapability.SPONSORBLOCK)

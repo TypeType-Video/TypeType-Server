@@ -204,6 +204,7 @@ class SabrSessionStore(
         sessionWatch.videoId?.let { acceptance.onHold(reason, it) } ?: false
 
     val tokenServiceUnavailable: Boolean get() = tokenClient.unavailable
+    val tokenSessionRenewing: Boolean get() = acceptance.recovering
 
     private fun reportProtectionPending(holder: SabrSessionHolder) {
         if (holder.key.userId == SabrEgressExitCheck.PROBE_USER) return
