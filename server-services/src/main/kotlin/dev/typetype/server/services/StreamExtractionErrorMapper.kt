@@ -11,8 +11,11 @@ import org.schabi.newpipe.extractor.exceptions.PaidContentException
 import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.exceptions.VideoNotReleaseException
 import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliRiskControlException
+import org.slf4j.LoggerFactory
 
 object StreamExtractionErrorMapper {
+    private val logger = LoggerFactory.getLogger(StreamExtractionErrorMapper::class.java)
     const val UPSTREAM_FAILURE_CODE = "upstream_failure"
     const val UPSTREAM_TIMEOUT_CODE = "upstream_timeout"
     const val PROVIDER_RATE_LIMITED_CODE = "provider_rate_limited"
@@ -36,17 +39,33 @@ object StreamExtractionErrorMapper {
     fun <T> map(error: Throwable, sourceUrl: String? = null, fallback: String = "Extraction failed"): ExtractionResult<T> {
         val chain = error.causeChain()
         return when {
-            chain.any { it.isProviderAccessBlock() } -> ExtractionResult.Failure(
-                PROVIDER_ACCESS_BLOCKED_FALLBACK,
-                PROVIDER_ACCESS_BLOCKED_CODE,
-                ExtractionFailureKind.ProviderAccessBlocked,
-            )
-            chain.any { it.isProviderRateLimit() } -> ExtractionResult.Failure(
-                PROVIDER_RATE_LIMITED_FALLBACK,
-                PROVIDER_RATE_LIMITED_CODE,
-                ExtractionFailureKind.RateLimited,
-                PROVIDER_RATE_LIMIT_RETRY_AFTER_SECONDS,
-            )
+            chain.any { it.isProviderAccessBlock() } -> {
+                logger.warn(
+                    "provider_access event=blocked provider={} area={} code={}",
+                    inferProvider(sourceUrl, chain),
+                    inferArea(fallback),
+                    PROVIDER_ACCESS_BLOCKED_CODE,
+                )
+                ExtractionResult.Failure(
+                    PROVIDER_ACCESS_BLOCKED_FALLBACK,
+                    PROVIDER_ACCESS_BLOCKED_CODE,
+                    ExtractionFailureKind.ProviderAccessBlocked,
+                )
+            }
+            chain.any { it.isProviderRateLimit() } -> {
+                logger.warn(
+                    "provider_access event=rate_limited provider={} area={} code={}",
+                    inferProvider(sourceUrl, chain),
+                    inferArea(fallback),
+                    PROVIDER_RATE_LIMITED_CODE,
+                )
+                ExtractionResult.Failure(
+                    PROVIDER_RATE_LIMITED_FALLBACK,
+                    PROVIDER_RATE_LIMITED_CODE,
+                    ExtractionFailureKind.RateLimited,
+                    PROVIDER_RATE_LIMIT_RETRY_AFTER_SECONDS,
+                )
+            }
             else -> chain.firstNotNullOfOrNull(::mapByType) ?: mapUntyped(error, chain, fallback)
         }
     }
@@ -125,6 +144,26 @@ object StreamExtractionErrorMapper {
     }
 
     private fun sanitize(message: String?): String? = ExtractionErrorSanitizer.sanitize(message)
+
+    private fun inferProvider(sourceUrl: String?, chain: List<Throwable>): String = when {
+        chain.any { it is BilibiliRiskControlException } || sourceUrl?.contains("bilibili", ignoreCase = true) == true -> "bilibili"
+        sourceUrl?.contains("nicovideo", ignoreCase = true) == true -> "niconico"
+        else -> "youtube"
+    }
+
+    private fun inferArea(fallback: String): String {
+        val lower = fallback.lowercase()
+        return when {
+            "trending" in lower -> "trending"
+            "channel" in lower -> "channel"
+            "search" in lower -> "search"
+            "playlist" in lower -> "playlist"
+            "comment" in lower -> "comments"
+            "suggestion" in lower -> "suggestions"
+            "podcast" in lower -> "podcast"
+            else -> "stream"
+        }
+    }
 
     private const val YOUTUBE_SESSION_REJECTED_EXCEPTION =
         "org.schabi.newpipe.extractor.exceptions.YoutubeSessionRejectedException"

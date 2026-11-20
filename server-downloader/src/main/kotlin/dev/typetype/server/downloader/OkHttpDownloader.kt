@@ -74,6 +74,8 @@ class OkHttpDownloader private constructor(
         @Volatile
         var onProviderRefusal: (() -> Unit)? = null
 
+        private val logger = System.getLogger(OkHttpDownloader::class.java.name)
+
         /**
          * The text of a subtitle track is never asked for from here. The extractor downloads it
          * for every video it opens, only to tidy the list of tracks, and the provider guards
@@ -99,6 +101,12 @@ class OkHttpDownloader private constructor(
         val httpRequest = buildOkHttpRequest(request)
         client.newCall(httpRequest).execute().use { httpResponse ->
             if (httpResponse.code == 429) {
+                logger.log(
+                    System.Logger.Level.WARNING,
+                    "provider_http event=rate_limited method={0} path={1}",
+                    request.httpMethod(),
+                    httpRequest.url.encodedPath,
+                )
                 runCatching { onProviderRefusal?.invoke() }
                 throw ReCaptchaException("reCaptcha required", request.url())
             }
@@ -144,7 +152,13 @@ class OkHttpDownloader private constructor(
         val httpRequest = buildOkHttpRequest(request)
         val httpResponse = streamingClient.newCall(httpRequest).execute()
         if (httpResponse.code == 429) {
+            logger.log(
+                System.Logger.Level.WARNING,
+                "provider_http event=rate_limited method=POST path={0}",
+                httpRequest.url.encodedPath,
+            )
             httpResponse.close()
+            runCatching { onProviderRefusal?.invoke() }
             throw ReCaptchaException("reCaptcha required", url)
         }
         return StreamingResponse(
