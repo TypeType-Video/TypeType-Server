@@ -1,11 +1,14 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.PlaylistVideosTable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.eq
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
@@ -14,20 +17,17 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
     private val lastScheduledAt = ConcurrentHashMap<String, Long>()
 
-    fun schedulePlaylists(scope: CoroutineScope, userId: String): Unit = schedule(scope, "playlists:$userId") {
-        drain { excluded -> repairPlaylists(userId, excluded) }
-    }
+    fun schedulePlaylist(scope: CoroutineScope, userId: String, playlistId: String): Unit =
+        schedule(scope, "playlist:$userId:$playlistId") { excluded -> repairPlaylist(userId, playlistId, excluded) }
 
-    fun scheduleWatchLater(scope: CoroutineScope, userId: String): Unit = schedule(scope, "watch-later:$userId") {
-        drain { excluded -> repairWatchLater(userId, excluded) }
-    }
+    fun scheduleWatchLater(scope: CoroutineScope, userId: String): Unit =
+        schedule(scope, "watch-later:$userId") { excluded -> repairWatchLater(userId, excluded) }
 
-    fun scheduleFavorites(scope: CoroutineScope, userId: String): Unit = schedule(scope, "favorites:$userId") {
-        drain { excluded -> repairFavorites(userId, excluded) }
-    }
+    fun scheduleFavorites(scope: CoroutineScope, userId: String): Unit =
+        schedule(scope, "favorites:$userId") { excluded -> repairFavorites(userId, excluded) }
 
-    private suspend fun repairPlaylists(userId: String, excluded: Set<String>): RepairOutcome =
-        repair(userId, excluded, SavedVideoColumns.playlistVideos)
+    private suspend fun repairPlaylist(userId: String, playlistId: String, excluded: Set<String>): RepairOutcome =
+        repair(userId, excluded, SavedVideoColumns.playlistVideos, PlaylistVideosTable.playlistId eq playlistId)
 
     private suspend fun repairWatchLater(userId: String, excluded: Set<String>): RepairOutcome =
         repair(userId, excluded, SavedVideoColumns.watchLater)
@@ -35,17 +35,22 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     private suspend fun repairFavorites(userId: String, excluded: Set<String>): RepairOutcome =
         repair(userId, excluded, SavedVideoColumns.favorites)
 
-    private suspend fun drain(repair: suspend (Set<String>) -> RepairOutcome) {
+    private suspend fun drain(key: String, repair: suspend (Set<String>) -> RepairOutcome) {
         val excluded = mutableSetOf<String>()
-        repeat(MAX_BATCHES_PER_RUN) {
+        var updated = 0
+        for (batch in 1..MAX_BATCHES_PER_RUN) {
             val outcome = repair(excluded)
-            if (outcome.attempted == 0) return
+            if (outcome.attempted == 0) break
             excluded += outcome.attemptedUrls
-            delay(BATCH_DELAY_MS)
+            updated += outcome.updated
+            if (batch < MAX_BATCHES_PER_RUN) delay(BATCH_DELAY_MS)
+        }
+        if (excluded.isNotEmpty()) {
+            logger.info("Video metadata refresh {}: {} videos attempted, {} rows updated", key.substringBefore(':'), excluded.size, updated)
         }
     }
 
-    private fun schedule(scope: CoroutineScope, key: String, repair: suspend () -> Unit) {
+    private fun schedule(scope: CoroutineScope, key: String, repair: suspend (Set<String>) -> RepairOutcome) {
         val now = System.currentTimeMillis()
         val lastScheduled = lastScheduledAt[key]
         if (lastScheduled != null && now - lastScheduled < REPAIR_COOLDOWN_MS) return
@@ -53,7 +58,7 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         lastScheduledAt[key] = now
         scope.launch(Dispatchers.IO) {
             try {
-                repair()
+                drain(key, repair)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -64,9 +69,14 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         }
     }
 
-    private suspend fun repair(userId: String, excluded: Set<String>, collection: SavedVideoColumns): RepairOutcome {
+    private suspend fun repair(
+        userId: String,
+        excluded: Set<String>,
+        collection: SavedVideoColumns,
+        within: Op<Boolean>? = null,
+    ): RepairOutcome {
         val now = System.currentTimeMillis()
-        val candidates = DatabaseFactory.query { collection.candidateUrls(userId, now) }
+        val candidates = DatabaseFactory.query { collection.candidateUrls(userId, now, within) }
         val urls = candidates.filterNot { it in excluded }.take(MAX_REPAIR_PER_REQUEST)
         if (urls.isEmpty()) return RepairOutcome(attemptedUrls = emptySet(), updated = 0)
         val first = resolver.resolveDetailed(urls)

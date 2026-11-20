@@ -4,6 +4,7 @@ import dev.typetype.server.db.tables.FavoritesTable
 import dev.typetype.server.db.tables.PlaylistVideosTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import org.jetbrains.exposed.v1.core.Column
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
@@ -30,8 +31,8 @@ internal class SavedVideoColumns(
     private val publishedAt: Column<Long>,
     private val refreshedAt: Column<Long>,
 ) {
-    fun candidateUrls(owner: String, now: Long): List<String> = table.select(url, refreshedAt)
-        .where { (userId eq owner) and needsRefresh(now) }
+    fun candidateUrls(owner: String, now: Long, within: Op<Boolean>? = null): List<String> = table.select(url, refreshedAt)
+        .where { (userId eq owner) and needsRefresh(now) and (within ?: Op.TRUE) }
         .orderBy(refreshedAt to SortOrder.ASC)
         .map { it[url] }
         .distinct()

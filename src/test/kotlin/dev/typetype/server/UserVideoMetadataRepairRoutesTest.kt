@@ -125,8 +125,8 @@ class UserVideoMetadataRepairRoutesTest {
         val scope = CoroutineScope(SupervisorJob())
 
         try {
-            repair.schedulePlaylists(scope, TEST_USER_ID)
-            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
 
             withTimeout(5_000) { repairStarted.await() }
             assertEquals(1, attempts.get())
@@ -135,7 +135,7 @@ class UserVideoMetadataRepairRoutesTest {
                 while (scope.coroutineContext.job.children.any()) delay(10)
             }
 
-            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
             delay(100)
 
             assertEquals(2, attempts.get())
@@ -156,7 +156,7 @@ class UserVideoMetadataRepairRoutesTest {
         val scope = CoroutineScope(SupervisorJob())
 
         try {
-            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
             withTimeout(10_000) {
                 while (playlists.getById(TEST_USER_ID, playlist.id)?.videos?.count { it.title.startsWith("Resolved") } != 12) {
                     delay(20)
@@ -186,7 +186,7 @@ class UserVideoMetadataRepairRoutesTest {
         val scope = CoroutineScope(SupervisorJob())
 
         try {
-            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
             withTimeout(10_000) {
                 while (playlists.getById(TEST_USER_ID, playlist.id)?.videos?.single()?.title != "Resolved abc123") {
                     delay(20)
@@ -213,7 +213,7 @@ class UserVideoMetadataRepairRoutesTest {
         playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(VIDEO_URL))
         val scope = CoroutineScope(SupervisorJob())
         try {
-            repair.schedulePlaylists(scope, TEST_USER_ID)
+            repair.schedulePlaylist(scope, TEST_USER_ID, playlist.id)
             withTimeout(5_000) {
                 while (playlists.getById(TEST_USER_ID, playlist.id)?.videos?.last()?.title != "Resolved abc123") {
                     delay(20)

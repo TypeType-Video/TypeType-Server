@@ -3,8 +3,11 @@ package dev.typetype.server
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.PlaylistItem
+import dev.typetype.server.models.PlaylistVideoItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.WatchLaterItem
+import dev.typetype.server.services.PlaylistService
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.UserVideoMetadataRepairService
 import dev.typetype.server.services.VideoMetadataResolver
@@ -28,9 +31,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class SavedVideoMetadataRefreshTest {
     private val watchLater = WatchLaterService()
+    private val playlists = PlaylistService()
 
     companion object {
         private const val VIDEO_URL = "https://www.youtube.com/watch?v=abc123"
+        private const val OTHER_URL = "https://www.youtube.com/watch?v=def456"
         private const val TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000L
 
         @BeforeAll
@@ -93,17 +98,41 @@ class SavedVideoMetadataRefreshTest {
         assertTrue(refreshedAt() > agedAt)
     }
 
+    @Test
+    fun `each playlist is repaired without waiting for another playlist`() = runBlocking {
+        val attempts = AtomicInteger()
+        val first = playlists.create(TEST_USER_ID, PlaylistItem(name = "First", description = ""))
+        val second = playlists.create(TEST_USER_ID, PlaylistItem(name = "Second", description = ""))
+        playlists.addVideo(TEST_USER_ID, first.id, PlaylistVideoItem(url = VIDEO_URL, title = "YouTube video abc123", thumbnail = "", duration = 0L))
+        playlists.addVideo(TEST_USER_ID, second.id, PlaylistVideoItem(url = OTHER_URL, title = "YouTube video def456", thumbnail = "", duration = 0L))
+        val repair = repairService(attempts) { stream(viewCount = 90_000L, avatar = "https://avatar.test/uc1.jpg") }
+
+        drain { scope -> repair.schedulePlaylist(scope, TEST_USER_ID, first.id) }
+        drain { scope -> repair.schedulePlaylist(scope, TEST_USER_ID, second.id) }
+
+        assertEquals(2, attempts.get())
+        assertEquals("Resolved abc123", playlists.getById(TEST_USER_ID, second.id)?.videos?.single()?.title)
+    }
+
     private suspend fun runRepair(attempts: AtomicInteger, answer: () -> ExtractionResult<StreamResponse>) {
+        val repair = repairService(attempts, answer)
+        drain { scope -> repair.scheduleWatchLater(scope, TEST_USER_ID) }
+    }
+
+    private fun repairService(attempts: AtomicInteger, answer: () -> ExtractionResult<StreamResponse>): UserVideoMetadataRepairService {
         val streamService = object : StreamService {
             override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> {
                 attempts.incrementAndGet()
                 return answer()
             }
         }
-        val repair = UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
+        return UserVideoMetadataRepairService(VideoMetadataResolver(streamService))
+    }
+
+    private suspend fun drain(start: (CoroutineScope) -> Unit) {
         val scope = CoroutineScope(SupervisorJob())
         try {
-            repair.scheduleWatchLater(scope, TEST_USER_ID)
+            start(scope)
             withTimeout(10_000) {
                 while (scope.coroutineContext.job.children.any()) delay(10)
             }
