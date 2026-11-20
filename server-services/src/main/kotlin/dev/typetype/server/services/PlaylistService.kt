@@ -106,6 +106,7 @@ class PlaylistService {
                 it[viewCount] = video.viewCount
                 it[addedAt] = now
                 it[publishedAt] = video.publishedAt
+                it[metadataRefreshedAt] = System.currentTimeMillis()
             }
         }
         return video.copy(id = videoId, position = pos, addedAt = now)
