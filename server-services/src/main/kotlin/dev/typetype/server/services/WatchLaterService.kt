@@ -35,6 +35,7 @@ class WatchLaterService {
                 it[channelAvatar] = item.channelAvatar
                 it[viewCount] = item.viewCount
                 it[publishedAt] = item.publishedAt
+                it[metadataRefreshedAt] = System.currentTimeMillis()
             }
         }
         return item.copy(addedAt = now)

@@ -207,7 +207,7 @@ class UserVideoMetadataRepairRoutesTest {
             val url = "https://www.youtube.com/watch?v=complete$index"
             playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(url).copy(
                 title = "Complete $index", duration = 120L,
-                channelName = "Channel", channelUrl = "https://www.youtube.com/channel/UC1",
+                channelName = "Channel", channelUrl = "https://www.youtube.com/channel/UC1", channelAvatar = "https://avatar.test/uc1.jpg",
             ))
         }
         playlists.addVideo(TEST_USER_ID, playlist.id, fallbackVideo(VIDEO_URL))

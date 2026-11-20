@@ -1,21 +1,11 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
-import dev.typetype.server.db.tables.FavoritesTable
-import dev.typetype.server.db.tables.PlaylistVideosTable
-import dev.typetype.server.db.tables.WatchLaterTable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.lessEq
-import org.jetbrains.exposed.v1.core.like
-import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.update
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,13 +27,13 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
     }
 
     private suspend fun repairPlaylists(userId: String, excluded: Set<String>): RepairOutcome =
-        repair(userId, excluded, ::playlistCandidateUrls)
+        repair(userId, excluded, SavedVideoColumns.playlistVideos)
 
     private suspend fun repairWatchLater(userId: String, excluded: Set<String>): RepairOutcome =
-        repair(userId, excluded, ::watchLaterCandidateUrls)
+        repair(userId, excluded, SavedVideoColumns.watchLater)
 
     private suspend fun repairFavorites(userId: String, excluded: Set<String>): RepairOutcome =
-        repair(userId, excluded, ::favoriteCandidateUrls)
+        repair(userId, excluded, SavedVideoColumns.favorites)
 
     private suspend fun drain(repair: suspend (Set<String>) -> RepairOutcome) {
         val excluded = mutableSetOf<String>()
@@ -74,12 +64,10 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
         }
     }
 
-    private suspend fun repair(
-        userId: String,
-        excluded: Set<String>,
-        candidates: suspend (String) -> List<String>,
-    ): RepairOutcome {
-        val urls = candidates(userId).filterNot { it in excluded }.take(MAX_REPAIR_PER_REQUEST)
+    private suspend fun repair(userId: String, excluded: Set<String>, collection: SavedVideoColumns): RepairOutcome {
+        val now = System.currentTimeMillis()
+        val candidates = DatabaseFactory.query { collection.candidateUrls(userId, now) }
+        val urls = candidates.filterNot { it in excluded }.take(MAX_REPAIR_PER_REQUEST)
         if (urls.isEmpty()) return RepairOutcome(attemptedUrls = emptySet(), updated = 0)
         val first = resolver.resolveDetailed(urls)
         var updated = applyMetadata(userId, first)
@@ -88,84 +76,21 @@ class UserVideoMetadataRepairService(private val resolver: VideoMetadataResolver
             val retried = resolver.resolveDetailed(first.retryableUrls)
             updated += applyMetadata(userId, retried)
         }
+        val unavailable = urls.toSet() - first.metadata.keys - first.retryableUrls
+        if (unavailable.isNotEmpty()) {
+            DatabaseFactory.query { SavedVideoColumns.all.forEach { it.touch(userId, unavailable, now) } }
+        }
         return RepairOutcome(attemptedUrls = urls.toSet(), updated = updated)
     }
 
-    private suspend fun applyMetadata(userId: String, resolution: VideoMetadataResolution): Int =
-        DatabaseFactory.query {
-            resolution.metadata.values.sumOf { item ->
-                updatePlaylistVideos(userId, item) + updateWatchLater(userId, item) + updateFavorites(userId, item)
-            }
+    private suspend fun applyMetadata(userId: String, resolution: VideoMetadataResolution): Int {
+        val now = System.currentTimeMillis()
+        return DatabaseFactory.query {
+            resolution.metadata.values.sumOf { item -> SavedVideoColumns.all.sumOf { it.apply(userId, item, now) } }
         }
-
-    private suspend fun playlistCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
-        PlaylistVideosTable.selectAll()
-            .where { (PlaylistVideosTable.userId eq userId) and playlistNeedsRepair() }
-            .map { it[PlaylistVideosTable.url] }
-            .distinct()
-    }
-
-    private suspend fun watchLaterCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
-        WatchLaterTable.selectAll()
-            .where { (WatchLaterTable.userId eq userId) and watchLaterNeedsRepair() }
-            .map { it[WatchLaterTable.url] }
-            .distinct()
-    }
-
-    private suspend fun favoriteCandidateUrls(userId: String): List<String> = DatabaseFactory.query {
-        FavoritesTable.selectAll()
-            .where { (FavoritesTable.userId eq userId) and favoriteNeedsRepair() }
-            .map { it[FavoritesTable.videoUrl] }
-            .distinct()
-    }
-
-    private fun playlistNeedsRepair() =
-        (PlaylistVideosTable.title like FALLBACK_TITLE_PATTERN) or
-            (PlaylistVideosTable.thumbnail eq "") or
-            (PlaylistVideosTable.duration lessEq 0L) or
-            (PlaylistVideosTable.channelName eq "") or
-            (PlaylistVideosTable.channelUrl eq "")
-
-    private fun watchLaterNeedsRepair() =
-        (WatchLaterTable.title like FALLBACK_TITLE_PATTERN) or
-            (WatchLaterTable.thumbnail eq "") or
-            (WatchLaterTable.duration lessEq 0L) or
-            (WatchLaterTable.channelName eq "") or
-            (WatchLaterTable.channelUrl eq "")
-
-    private fun favoriteNeedsRepair() =
-        (FavoritesTable.title like FALLBACK_TITLE_PATTERN) or
-            (FavoritesTable.thumbnail eq "") or
-            (FavoritesTable.duration lessEq 0L) or
-            (FavoritesTable.channelName eq "") or
-            (FavoritesTable.channelUrl eq "")
-
-    private fun updatePlaylistVideos(userId: String, item: VideoMetadataItem): Int = PlaylistVideosTable.update({
-        (PlaylistVideosTable.userId eq userId) and (PlaylistVideosTable.url eq item.url)
-    }) {
-        it[title] = item.title; it[thumbnail] = item.thumbnail; it[duration] = item.duration
-        it[channelName] = item.channelName; it[channelUrl] = item.channelUrl; it[channelAvatar] = item.channelAvatar
-        it[viewCount] = item.viewCount; it[publishedAt] = item.publishedAt
-    }
-
-    private fun updateWatchLater(userId: String, item: VideoMetadataItem): Int = WatchLaterTable.update({
-        (WatchLaterTable.userId eq userId) and (WatchLaterTable.url eq item.url)
-    }) {
-        it[title] = item.title; it[thumbnail] = item.thumbnail; it[duration] = item.duration
-        it[channelName] = item.channelName; it[channelUrl] = item.channelUrl; it[channelAvatar] = item.channelAvatar
-        it[viewCount] = item.viewCount; it[publishedAt] = item.publishedAt
-    }
-
-    private fun updateFavorites(userId: String, item: VideoMetadataItem): Int = FavoritesTable.update({
-        (FavoritesTable.userId eq userId) and (FavoritesTable.videoUrl eq item.url)
-    }) {
-        it[title] = item.title; it[thumbnail] = item.thumbnail; it[duration] = item.duration
-        it[channelName] = item.channelName; it[channelUrl] = item.channelUrl; it[channelAvatar] = item.channelAvatar
-        it[viewCount] = item.viewCount; it[publishedAt] = item.publishedAt
     }
 
     private companion object {
-        const val FALLBACK_TITLE_PATTERN = "YouTube video %"
         const val MAX_REPAIR_PER_REQUEST = 8
         const val MAX_BATCHES_PER_RUN = 3
         const val BATCH_DELAY_MS = 1_500L
