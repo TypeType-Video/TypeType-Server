@@ -98,10 +98,12 @@ fun SubscriptionFeedSnapshot.page(
     selectedChannelUrls: Set<String>? = null,
     selectionToken: String? = null,
     oldestFirst: Boolean = false,
+    focusProfile: FocusProfile? = null,
 ): SubscriptionFeedResponse {
     val visibleVideos = projectedVideos(selection, selectedChannelUrls).filterNot { video ->
         (hideLiveStreams && video.isLiveContentOrUpcomingAt(generatedAt)) ||
-            (hideMembersOnlyContent && video.requiresMembership)
+            (hideMembersOnlyContent && video.requiresMembership) ||
+            (focusProfile != null && !focusProfile.keepsFeedVideo(video))
     }
     val projectedVideos = if (oldestFirst) visibleVideos.asReversed() else visibleVideos
     val from = offset.coerceAtMost(projectedVideos.size)

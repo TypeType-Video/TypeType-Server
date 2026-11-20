@@ -13,7 +13,6 @@ import dev.typetype.server.services.SubscriptionGroupsService
 import dev.typetype.server.services.SubscriptionSelection
 import dev.typetype.server.services.SettingsService
 import dev.typetype.server.services.filterBlocked
-import dev.typetype.server.services.filterFocus
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -63,11 +62,11 @@ fun Route.subscriptionFeedRoutes(
                     visibility.hideMembersOnlyContent,
                     selection,
                     oldestFirst = oldestFirst,
+                    focusProfile = focusService?.profileFor(userId),
                 )
             ) {
                 is SubscriptionFeedPageResult.Ready -> call.respond(
-                    (blockedService?.let { result.response.filterBlocked(it.profileFor(userId)) } ?: result.response)
-                        .filterFocus(focusService?.profileFor(userId)),
+                    blockedService?.let { result.response.filterBlocked(it.profileFor(userId)) } ?: result.response,
                 )
                 is SubscriptionFeedPageResult.Preparing -> {
                     call.response.headers.append(HttpHeaders.RetryAfter, "1")

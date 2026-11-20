@@ -44,6 +44,7 @@ class SubscriptionFeedService(
         selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
         oldestFirst: Boolean = false,
+        focusProfile: FocusProfile? = null,
     ): SubscriptionFeedPageResult {
         planner.touch(userId)
         val current = store.current(userId)
@@ -90,6 +91,7 @@ class SubscriptionFeedService(
             selected.channelUrls,
             selected.token,
             oldestFirst,
+            focusProfile,
         )
         if (cursorState == null && response.nextpage != null && !selections.persist(userId, selection, selected)) {
             return SubscriptionFeedPageResult.CursorCapacityReached
