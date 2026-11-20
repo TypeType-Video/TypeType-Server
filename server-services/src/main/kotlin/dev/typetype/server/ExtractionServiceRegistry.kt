@@ -173,7 +173,10 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
         YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
-    private val youtubeStreamGuards = YoutubeStreamGuards(sabrSessionStore::recoverTokenSession)
+    private val youtubeStreamGuards = YoutubeStreamGuards(
+        recoverSession = sabrSessionStore::recoverTokenSession,
+        onRenewed = egress::evictAll,
+    )
     val streamRequestWatch get() = youtubeStreamGuards.watch
     suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
         directPipePipeStreamService.withSponsorBlock(url, response)
