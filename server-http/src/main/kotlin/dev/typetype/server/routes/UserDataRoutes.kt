@@ -20,7 +20,7 @@ internal fun Route.userDataRoutes(
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionGroupsRoutes(svc.subscriptionGroupsService, authService)
-    focusRoutes(svc.focusService, authService)
+    focusRoutes(svc.focusService, authService, svc.homeRecommendationWarmupService)
     subscriptionsRoutes(
         svc.subscriptionsService,
         authService,

@@ -9,9 +9,13 @@ FocusSettingsItem:
     timezone: { type: string, nullable: true, description: IANA timezone used by the weekdays schedule. }
     transitionDays: { type: integer, minimum: 1, maximum: 365, description: Days for the group to fade from the home and the subscription feed. }
     archiveDays: { type: integer, minimum: 1, maximum: 365, description: Channel pages of the group only list videos from these last days. }
+    grayscaleThumbnails: { type: boolean, default: true, description: Render non-study video thumbnails in grayscale while focus is active. }
     startedAt: { type: integer, format: int64, nullable: true }
     disableAt: { type: integer, format: int64, nullable: true, description: When a requested exit takes effect. }
     entertainmentShare: { type: number, minimum: 0, maximum: 1, description: Share of the group's videos still shown. }
+    active: { type: boolean, default: false, description: True when focus is enabled and active under the current schedule. }
+    focusAiEnabled: { type: boolean, default: false, description: True when instance-level AI evaluation is enabled for focus challenges. }
+    studyChannelKeys: { type: array, items: { type: string }, default: [], description: Normalized channel keys currently active in the study group. }
 FocusSettingsRequest:
   type: object
   required: [enabled]
@@ -23,3 +27,18 @@ FocusSettingsRequest:
     timezone: { type: string, nullable: true }
     transitionDays: { type: integer, minimum: 1, maximum: 365 }
     archiveDays: { type: integer, minimum: 1, maximum: 365 }
+    grayscaleThumbnails: { type: boolean }
+FocusStudyChannelRequest:
+  type: object
+  required: [channelUrl]
+  properties:
+    channelUrl: { type: string }
+    name: { type: string, default: "" }
+    avatarUrl: { type: string, default: "" }
+FocusStudyChannelResponse:
+  type: object
+  required: [channelUrl, status]
+  properties:
+    channelUrl: { type: string }
+    status: { type: string, enum: [active, pending] }
+    unlockAt: { type: integer, format: int64, nullable: true }

@@ -2,8 +2,11 @@ package dev.typetype.server
 
 import dev.typetype.server.models.FocusSettingsRequest
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.services.FocusChannelAccess
 import dev.typetype.server.services.FocusProfile
 import dev.typetype.server.services.FocusService
+import dev.typetype.server.services.FocusStudyChannelRemoveResult
+import dev.typetype.server.services.FocusStudyChannelResult
 import dev.typetype.server.services.FocusUpdateResult
 import dev.typetype.server.services.SubscriptionGroupMembershipResult
 import dev.typetype.server.services.SubscriptionGroupWriteResult
@@ -20,7 +23,7 @@ import org.junit.jupiter.api.Test
 
 class FocusServiceTest {
     private var now = 1_800_000_000_000L
-    private val focus = FocusService { now }
+    private val focus = FocusService(clock = { now })
     private val groups = SubscriptionGroupsService()
     private val subscriptions = SubscriptionsService()
     private val channel = "https://www.youtube.com/channel/UCfun"
@@ -106,6 +109,48 @@ class FocusServiceTest {
         assertTrue(requireNotNull(focus.profileFor(TEST_USER_ID)).isStudy("https://youtube.com/channel/UCstudy"))
         now = java.time.ZonedDateTime.parse("2026-11-15T12:00:00+01:00[Europe/Paris]").toInstant().toEpochMilli()
         assertNull(focus.profileFor(TEST_USER_ID))
+    }
+
+    @Test
+    fun `study channels added during focus cool off for 24 hours and cannot overlap entertainment`() = runTest {
+        val entertainment = entertainmentGroup()
+        val study = (groups.create(TEST_USER_ID, "Study") as SubscriptionGroupWriteResult.Success).group.id
+        focus.update(
+            TEST_USER_ID,
+            FocusSettingsRequest(enabled = true, entertainmentGroupId = entertainment, studyGroupId = study, grayscaleThumbnails = false),
+        )
+        assertFalse(focus.get(TEST_USER_ID).grayscaleThumbnails)
+        assertEquals(
+            FocusStudyChannelResult.EntertainmentConflict,
+            focus.addStudyChannel(TEST_USER_ID, channel, "Fun", ""),
+        )
+        assertEquals(
+            SubscriptionGroupMembershipResult.FocusEntertainmentConflict,
+            groups.addSubscription(TEST_USER_ID, study, channel),
+        )
+        val newStudy = "https://www.youtube.com/channel/UCnewstudy"
+        now += 1_000
+        val added = focus.addStudyChannel(TEST_USER_ID, newStudy, "New Study", "") as FocusStudyChannelResult.Success
+        assertEquals("pending", added.response.status)
+        assertEquals(now + FocusService.STUDY_ADD_DELAY_MS, added.response.unlockAt)
+        assertTrue(subscriptions.getAll(TEST_USER_ID).any { it.channelUrl == newStudy })
+        val pendingProfile = requireNotNull(focus.profileFor(TEST_USER_ID))
+        assertEquals(FocusChannelAccess.PENDING_STUDY, pendingProfile.accessFor(newStudy))
+        assertEquals(FocusStudyChannelRemoveResult.Success, focus.removeStudyChannel(TEST_USER_ID, newStudy))
+        assertFalse(subscriptions.getAll(TEST_USER_ID).any { it.channelUrl == newStudy })
+        assertEquals(FocusChannelAccess.CHALLENGE_REQUIRED, requireNotNull(focus.profileFor(TEST_USER_ID)).accessFor(newStudy))
+        assertEquals(FocusStudyChannelRemoveResult.NotFound, focus.removeStudyChannel(TEST_USER_ID, newStudy))
+
+        val preSubscribed = "https://www.youtube.com/channel/UCexisting"
+        subscriptions.add(TEST_USER_ID, SubscriptionItem(channelUrl = preSubscribed, name = "Existing", avatarUrl = ""))
+        focus.addStudyChannel(TEST_USER_ID, preSubscribed, "Existing", "")
+        assertEquals(FocusStudyChannelRemoveResult.Success, focus.removeStudyChannel(TEST_USER_ID, preSubscribed))
+        assertTrue(subscriptions.getAll(TEST_USER_ID).any { it.channelUrl == preSubscribed })
+
+        focus.addStudyChannel(TEST_USER_ID, newStudy, "New Study", "")
+        now += FocusService.STUDY_ADD_DELAY_MS
+        val activeProfile = requireNotNull(focus.profileFor(TEST_USER_ID))
+        assertEquals(FocusChannelAccess.ALLOW_STUDY, activeProfile.accessFor(newStudy))
     }
 
     private suspend fun entertainmentGroup(): String {
