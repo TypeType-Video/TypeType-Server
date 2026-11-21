@@ -130,6 +130,18 @@ SabrPlaybackSegments:
         $ref: ../components/common.yaml#/JsonError
       '404':
         $ref: ../components/common.yaml#/JsonError
+SabrPlaybackRelease:
+  delete:
+    tags: [playback]
+    summary: Release a SABR playback session the client no longer plays
+    description: Frees the session and its registry slot at once instead of waiting for idle eviction. Releasing an unknown or already released session also returns 204.
+    parameters:
+      - $ref: '#/components/parameters/SessionId'
+    responses:
+      '204':
+        description: The session is released.
+      '400':
+        $ref: ../components/common.yaml#/JsonError
 components:
   parameters:
     SessionId:

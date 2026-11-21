@@ -1,5 +1,7 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.StreamResponse
+
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliAggregatedSearchService
 import dev.typetype.server.services.BilibiliMirrorProber
@@ -37,6 +39,7 @@ import dev.typetype.server.services.PipePipePodcastService
 import dev.typetype.server.services.PipePipePublicPlaylistService
 import dev.typetype.server.services.PipePipeSearchService
 import dev.typetype.server.services.PipePipeStreamService
+import dev.typetype.server.services.SponsorBlockSegmentResolver
 import dev.typetype.server.services.PipePipeLiveHlsStreamService
 import dev.typetype.server.services.PipePipeSuggestionService
 import dev.typetype.server.services.PipePipeTrendingService
@@ -45,7 +48,9 @@ import dev.typetype.server.services.ProviderMediaReadAhead
 import dev.typetype.server.services.ProviderMediaSegmentTable
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProviderMediaWarmup
+import dev.typetype.server.services.GluetunEgressRotation
 import dev.typetype.server.services.SabrFallbackStreamService
+import dev.typetype.server.services.YoutubeEndScreenFetcher
 import dev.typetype.server.services.SabrBootstrapCache
 import dev.typetype.server.services.SabrBootstrapStreamService
 import dev.typetype.server.services.SabrSessionStore
@@ -99,19 +104,24 @@ internal class ExtractionServiceRegistry(
     private val proxyHttpClient: OkHttpClient = egress.proxy
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, egress.token)
     private val sabrTokenClient = TypetypeTokenSabrTokenClient(subtitleServiceUrl, egress.token)
+    private val egressRotation = GluetunEgressRotation.fromEnvironment()
     val sabrSessionStore = SabrSessionStore(
         subtitleServiceUrl,
         tokenClient = sabrTokenClient,
         sessionClient = tokenYoutubeSessionClient,
         initCache = cache,
+        egressRotation = egressRotation,
     )
     val youtubeSubtitleService = YouTubeSubtitleService(subtitleHttpClient, subtitleServiceUrl)
     private val bilibiliRelatedService = BilibiliRelatedService()
+    private val sponsorBlockSegments =
+        SponsorBlockSegmentResolver(cache, CoroutineScope(SupervisorJob() + Dispatchers.IO))
     private val directPipePipeStreamService = PipePipeStreamService(
         cache,
         youtubeSubtitleService,
         bilibiliRelatedService,
         earlyMediaWarmup = { provider, video, audio -> providerMediaWarmup.warm(provider, video, audio) },
+        sponsorBlockSegments = sponsorBlockSegments,
     )
     private val sabrPipePipeStreamService = PipePipeStreamService(
         cache,
@@ -119,6 +129,7 @@ internal class ExtractionServiceRegistry(
         bilibiliRelatedService,
         sabrSessionStore::rememberExtractedInfoAsync,
         fetchSupplementalSubtitles = false,
+        sponsorBlockSegments = sponsorBlockSegments,
     )
     private val publicStreamService = YoutubePlayerClientStreamService(
         directPipePipeStreamService,
@@ -155,6 +166,7 @@ internal class ExtractionServiceRegistry(
         sabrPublicStreamService,
         sabrSessionStore,
         tokenYoutubeSessionClient,
+        YoutubeEndScreenFetcher()::fetch,
     )
     val youtubeSessionStreamService = hlsTokenService?.let {
         YoutubeSessionStreamService(authenticatedStreamService, youtubeSessionService, cache, it)
@@ -162,8 +174,13 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
         YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
-    private val youtubeStreamGuards = YoutubeStreamGuards(sabrTokenClient)
+    private val youtubeStreamGuards = YoutubeStreamGuards(
+        recoverSession = sabrSessionStore::recoverTokenSession,
+        onRenewed = egress::evictAll,
+    )
     val streamRequestWatch get() = youtubeStreamGuards.watch
+    suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
+        directPipePipeStreamService.withSponsorBlock(url, response)
     val youtubeSabrStreamService = youtubeStreamGuards.cached(
         YoutubeScopedStreamService(YoutubeLiveHlsStreamService(youtubeSabrFallbackStreamService, liveHlsStreamService)),
         cache,

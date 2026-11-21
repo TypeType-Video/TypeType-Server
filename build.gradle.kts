@@ -3,7 +3,7 @@ import java.time.Instant
 plugins {
     kotlin("jvm") version "2.4.21"
     kotlin("plugin.serialization") version "2.4.21"
-    id("io.ktor.plugin") version "3.6.0"
+    id("io.ktor.plugin") version "3.6.1"
     id("jacoco")
 }
 
@@ -38,11 +38,11 @@ dependencies {
     implementation(project(":server-http"))
     implementation(project(":server-sabr"))
     implementation(project(":server-token-gateway"))
-    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.4"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.23.0"))
     implementation("com.fasterxml.jackson.core:jackson-core")
-    implementation(platform("io.netty:netty-bom:4.2.19.Final"))
+    implementation(platform("io.netty:netty-bom:4.2.20.Final"))
     constraints {
-        implementation("org.jsoup:jsoup:1.23.2") {
+        implementation("org.jsoup:jsoup:1.24.1") {
             because("CVE-2026-71497 affects PipePipeExtractor's transitive jsoup version")
         }
     }
@@ -56,16 +56,16 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-server-call-logging-jvm")
     implementation("io.ktor:ktor-server-rate-limit-jvm")
-    implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("ch.qos.logback:logback-classic:1.6.6")
     implementation("com.github.TypeType-Video.PipePipeExtractor:extractor:${property("pipePipeExtractorRevision")}")
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("org.json:json:20260814")
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
-    implementation("org.jetbrains.exposed:exposed-core:1.6.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.6.0")
+    implementation("org.jetbrains.exposed:exposed-core:1.6.1")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.6.1")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.14")
-    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
+    implementation("org.xerial:sqlite-jdbc:3.54.1.0")
     testImplementation(project(":server-test-support"))
     testImplementation(testFixtures(project(":server-db")))
     testImplementation(testFixtures(project(":server-services")))
@@ -74,7 +74,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("com.password4j:password4j:1.8.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("io.mockk:mockk:1.14.12")
     testImplementation("io.ktor:ktor-server-test-host-jvm")
     testImplementation("io.ktor:ktor-server-content-negotiation-jvm")
     testImplementation("io.ktor:ktor-serialization-kotlinx-json-jvm")
@@ -96,7 +96,7 @@ tasks.test {
 }
 
 jacoco {
-    toolVersion = "0.8.15"
+    toolVersion = "0.8.16"
 }
 
 tasks.jacocoTestReport {

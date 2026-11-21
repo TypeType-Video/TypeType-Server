@@ -98,6 +98,20 @@ class SabrBootstrapCoalescingTest {
         assertEquals("provider_access_blocked", result.code)
     }
 
+    @Test
+    fun `a video the provider no longer serves is content unavailable`() = runBlocking {
+        coEvery { tokenClient.fetchPlaybackSessionResult(VIDEO_ID) } returns TokenServiceResult.Failure(
+            TokenServiceFailureReason.HTTP_STATUS,
+            500,
+            "YouTube MWEB player response is UNPLAYABLE: Video unavailable",
+        )
+
+        val result = service.getStreamInfo(URL) as ExtractionResult.Failure
+
+        assertEquals(ExtractionFailureKind.ContentUnavailable, result.kind)
+        assertEquals("content_unavailable", result.code)
+    }
+
     private fun session(): TokenYoutubeSession {
         val video = mockk<YoutubeSabrFormat>(relaxed = true) {
             every { isVideo } returns true

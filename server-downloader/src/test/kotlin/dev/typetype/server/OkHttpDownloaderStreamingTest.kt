@@ -5,10 +5,12 @@ import dev.typetype.server.downloader.OkHttpDownloader
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import java.net.InetSocketAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -69,6 +71,29 @@ class OkHttpDownloaderStreamingTest {
             assertTrue(error is SocketTimeoutException)
             assertTrue(started.elapsedNow() < 2.seconds)
         } finally {
+            server.stop(0)
+        }
+    }
+
+    @Test
+    fun `postStreaming invokes onProviderRefusal and throws ReCaptchaException on 429`() {
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/sabr") { exchange ->
+            exchange.sendResponseHeaders(429, -1)
+            exchange.close()
+        }
+        server.start()
+        val refusals = AtomicInteger(0)
+        val previous = OkHttpDownloader.onProviderRefusal
+        OkHttpDownloader.onProviderRefusal = { refusals.incrementAndGet() }
+        try {
+            val error = runCatching {
+                OkHttpDownloader.instance().postStreaming(url(server, "/sabr"), null, null, null)
+            }.exceptionOrNull()
+            assertEquals(ReCaptchaException::class.java, error?.javaClass)
+            assertEquals(1, refusals.get())
+        } finally {
+            OkHttpDownloader.onProviderRefusal = previous
             server.stop(0)
         }
     }

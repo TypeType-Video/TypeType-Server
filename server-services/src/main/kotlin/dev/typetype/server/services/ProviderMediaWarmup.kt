@@ -36,6 +36,7 @@ class ProviderMediaWarmup(
         val indexEnd: Long,
         val startsPlayback: Boolean,
         val bitrate: Int?,
+        val isVideo: Boolean,
     )
 
     private val permits = Semaphore(MAX_PARALLEL_FETCHES)
@@ -48,8 +49,8 @@ class ProviderMediaWarmup(
         scope.launch {
             withTimeoutOrNull(WARMUP_TIMEOUT_MILLIS) {
                 val starting = ProviderMediaStartTracks.urls(provider, video, audio)
-                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate) } +
-                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate) }
+                val media = video.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate, isVideo = true) } +
+                    audio.map { Media(it.url, it.indexStart, it.indexEnd, it.url in starting, it.bitrate, isVideo = false) }
                 when (provider) {
                     ProviderMediaType.BILIBILI -> coroutineScope {
                         media.map { item -> async { targetOf(item.url)?.let { warmDash(it, item) } } }.awaitAll()
@@ -101,7 +102,7 @@ class ProviderMediaWarmup(
         val table = Mp4SegmentIndex.segments(header, media.indexStart) ?: return
         segments.remember(target.url, table)
         if (!media.startsPlayback) return
-        probeMirrors(listOf(target.url) + target.alternateUrls, cache.get(target.url)?.totalLength)
+        if (media.isVideo) probeMirrors(listOf(target.url) + target.alternateUrls, cache.get(target.url)?.totalLength)
         val end = table.first().last
         if (end < header.size || end >= MAX_SEGMENT_BYTES) return
         val claim = cache.begin(target.url, extending = true) ?: return
@@ -111,7 +112,7 @@ class ProviderMediaWarmup(
     private suspend fun warmDashStart(target: ProviderMediaTarget, media: Media): Boolean = permits.withPermit {
         start.fetch(target, media.indexStart, media.indexEnd, media.bitrate) { header ->
             header.segments?.let { segments.remember(target.url, it) }
-            probeMirrors(listOf(target.url) + target.alternateUrls, header.totalLength)
+            if (media.isVideo) probeMirrors(listOf(target.url) + target.alternateUrls, header.totalLength)
         }
     }
 

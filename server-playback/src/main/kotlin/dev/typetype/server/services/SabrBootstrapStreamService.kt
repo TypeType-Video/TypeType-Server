@@ -35,7 +35,7 @@ class SabrBootstrapStreamService(
             is TokenServiceResult.Success -> metadataResult.value
             is TokenServiceResult.Failure -> return metadataResult.toBootstrapFailure()
         }
-        if (metadata.isLive) return liveHlsStreamService.getStreamInfo(url)
+        if (metadata.isLive) return liveStream(url, videoId, metadata)
         val formatsStartedAt = System.nanoTime()
         val fromSession = metadata.preparedSabrInfo()
         val formatsResult = fromSession ?: sessionStore.fetchInfo(videoId, cachedFirst = true)
@@ -53,11 +53,27 @@ class SabrBootstrapStreamService(
         return ExtractionResult.Success(response)
     }
 
+    private suspend fun liveStream(
+        url: String,
+        videoId: String,
+        session: TokenYoutubeSession,
+    ): ExtractionResult<StreamResponse> {
+        val live = liveHlsStreamService.getStreamInfo(url)
+        if (live is ExtractionResult.Success || session.hlsUrl.isBlank()) return live
+        PlaybackTraceLog.record("sabr_bootstrap_live", "source=session")
+        return ExtractionResult.Success(session.toFallbackStreamResponse(videoId))
+    }
+
     private fun TokenServiceResult.Failure.toBootstrapFailure(): ExtractionResult.Failure = when {
         isProviderRefusal() -> ExtractionResult.Failure(
             "YouTube is refusing requests from this server right now",
             PROVIDER_ACCESS_BLOCKED_CODE,
             ExtractionFailureKind.ProviderAccessBlocked,
+        )
+        isContentUnavailable() -> ExtractionResult.Failure(
+            "This video is not available",
+            CONTENT_UNAVAILABLE_CODE,
+            ExtractionFailureKind.ContentUnavailable,
         )
         isTransient() -> ExtractionResult.Failure(
             "The token service did not answer in time",
@@ -69,6 +85,7 @@ class SabrBootstrapStreamService(
 
     private companion object {
         const val PROVIDER_ACCESS_BLOCKED_CODE = "provider_access_blocked"
+        const val CONTENT_UNAVAILABLE_CODE = "content_unavailable"
         const val TOKEN_SERVICE_UNAVAILABLE_CODE = "token_service_unavailable"
     }
 }

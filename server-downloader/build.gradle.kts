@@ -6,6 +6,7 @@ dependencies {
     compileOnly("com.github.TeamNewPipe:nanojson:1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751")
     implementation("com.github.TypeType-Video.PipePipeExtractor:extractor:${property("pipePipeExtractorRevision")}")
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation("org.slf4j:slf4j-api:2.0.20")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

@@ -17,6 +17,7 @@ class BilibiliMirrorWatch(
     private val cache: CacheService,
     private val fetchSample: suspend () -> Sample?,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    private val random: kotlin.random.Random = kotlin.random.Random.Default,
 ) {
     class Sample(val urls: List<String>, val totalLength: Long?)
 
@@ -34,6 +35,8 @@ class BilibiliMirrorWatch(
 
     @Volatile
     private var lastFetchMs = 0L
+    @Volatile
+    private var nextProbeIntervalMs = ACTIVE_PROBE_INTERVAL_MS
 
     fun remember(urls: List<String>, totalLength: Long?) {
         lastUseMs = nowMs()
@@ -66,10 +69,12 @@ class BilibiliMirrorWatch(
 
     suspend fun tick() {
         val now = nowMs()
-        val interval = if (now - lastUseMs < ACTIVE_WINDOW_MS) ACTIVE_PROBE_INTERVAL_MS else IDLE_PROBE_INTERVAL_MS
+        if (lastUseMs == 0L || now - lastUseMs >= ACTIVE_WINDOW_MS) return
+        val interval = nextProbeIntervalMs
         if (now - lastProbeMs < interval) return
         val current = currentSample(now) ?: return
         lastProbeMs = now
+        nextProbeIntervalMs = ACTIVE_PROBE_INTERVAL_MS + random.nextLong(0, ACTIVE_PROBE_JITTER_MS + 1)
         probe(current.urls, current.totalLength)
     }
 
@@ -105,7 +110,7 @@ class BilibiliMirrorWatch(
         private const val TICK_MS = 60_000L
         const val ACTIVE_WINDOW_MS = 30 * 60_000L
         const val ACTIVE_PROBE_INTERVAL_MS = 3 * 60_000L
-        const val IDLE_PROBE_INTERVAL_MS = 20 * 60_000L
+        const val ACTIVE_PROBE_JITTER_MS = 120_000L
         const val FETCH_INTERVAL_MS = 30 * 60_000L
         private const val MIN_SECONDS_LEFT = 120L
         private val DEADLINE = Regex("[?&]deadline=(\\d+)")

@@ -67,8 +67,8 @@ internal class SabrPlaybackWindowTrackBuilder(private val sabrSessionStore: Sabr
                 )
                 if (progressive != null) {
                     if (!progressive.hasReadableMedia) {
-                        blockedRequest = mediaRequest
-                        blockedBy = "${format.trackName()}:${format.itag}:$seq pending"
+                        blockedRequest = SabrSegmentRequest.media(format, progressive.sequence)
+                        blockedBy = "${format.trackName()}:${format.itag}:${progressive.sequence} pending"
                         break
                     }
                     seq = progressive.nextSequence

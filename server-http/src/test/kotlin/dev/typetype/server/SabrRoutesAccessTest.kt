@@ -8,6 +8,7 @@ import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionKey
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -19,6 +20,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -43,6 +45,18 @@ class SabrRoutesAccessTest {
 
     @BeforeEach
     fun clean(): Unit = TestDatabase.truncateAll()
+
+    @Test
+    fun `releasing a playback session frees it and is safe to repeat`() = testApplication {
+        val holder = sabrHolder()
+        every { sabrSessionStore.lookupByToken("known") } returns holder
+        every { sabrSessionStore.lookupByToken("gone") } returns null
+        installSabrApp()
+
+        assertEquals(HttpStatusCode.NoContent, client.delete("/sabr/playback/known").status)
+        assertEquals(HttpStatusCode.NoContent, client.delete("/sabr/playback/gone").status)
+        verify(exactly = 1) { sabrSessionStore.releaseByClient(holder) }
+    }
 
     @Test
     fun `manifest route rejects anonymous when guests are disabled`() = testApplication {

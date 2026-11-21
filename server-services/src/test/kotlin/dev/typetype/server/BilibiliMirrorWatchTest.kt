@@ -4,6 +4,7 @@ import dev.typetype.server.services.BilibiliMirrorWatch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import kotlin.random.Random
 
 class BilibiliMirrorWatchTest {
     private var now = 1_000_000_000L
@@ -18,17 +19,18 @@ class BilibiliMirrorWatchTest {
             cache = cache,
             fetchSample = { fetches++; sample },
             nowMs = { now },
+            random = Random(0),
         )
 
     @Test
-    fun `probes the last played media often while Bilibili is in use, rarely when idle`() = runBlocking {
+    fun `probes the last played media often while Bilibili is in use, pauses when idle`() = runBlocking {
         val watch = watch()
         watch.remember(listOf(valid), 40_000_000)
 
         watch.tick()
         now += BilibiliMirrorWatch.ACTIVE_PROBE_INTERVAL_MS - 1
         watch.tick()
-        now += 1
+        now += BilibiliMirrorWatch.ACTIVE_PROBE_JITTER_MS + 1
         watch.tick()
         assertEquals(2, probes.size)
 
@@ -36,13 +38,23 @@ class BilibiliMirrorWatchTest {
         watch.tick()
         now += BilibiliMirrorWatch.ACTIVE_PROBE_INTERVAL_MS
         watch.tick()
-        assertEquals(3, probes.size)
+        assertEquals(2, probes.size)
         assertEquals(0, fetches)
     }
 
     @Test
-    fun `finds its own sample when nothing was played, at most every half hour`() = runBlocking {
+    fun `does not probe or fetch sample when nothing was played`() = runBlocking {
         val watch = watch(sample = BilibiliMirrorWatch.Sample(listOf(valid), null))
+
+        watch.tick()
+        assertEquals(0, probes.size)
+        assertEquals(0, fetches)
+    }
+
+    @Test
+    fun `finds its own sample when played media expired and active window is current`() = runBlocking {
+        val watch = watch(sample = BilibiliMirrorWatch.Sample(listOf(valid), null))
+        watch.remember(listOf(expired), null)
 
         watch.tick()
         assertEquals(listOf(listOf(valid)), probes)
@@ -52,11 +64,18 @@ class BilibiliMirrorWatchTest {
     @Test
     fun `does not keep asking for a sample when none can be found`() = runBlocking {
         val watch = watch(sample = null)
+        watch.remember(listOf(expired), null)
 
         watch.tick()
-        now += BilibiliMirrorWatch.IDLE_PROBE_INTERVAL_MS
+        assertEquals(1, fetches)
+
+        now += BilibiliMirrorWatch.ACTIVE_PROBE_INTERVAL_MS
+        watch.remember(listOf(expired), null)
         watch.tick()
+        assertEquals(1, fetches)
+
         now += BilibiliMirrorWatch.FETCH_INTERVAL_MS
+        watch.remember(listOf(expired), null)
         watch.tick()
         assertEquals(2, fetches)
         assertEquals(0, probes.size)

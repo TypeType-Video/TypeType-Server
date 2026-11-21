@@ -24,6 +24,7 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_home_recommendations BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_continue_watching BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_related_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_end_screens BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_comments BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_shorts BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_subscription_live_streams BOOLEAN NOT NULL DEFAULT false")
@@ -31,6 +32,10 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS disable_watch_history BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS skip_playlist_autoplay_screen BOOLEAN NOT NULL DEFAULT false")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_upcoming_playlist_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_spread INTEGER NOT NULL DEFAULT 100")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_blur INTEGER NOT NULL DEFAULT 50")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS ambient_light_brightness INTEGER NOT NULL DEFAULT 100")
         if (!settingsColumnExists("autoplay_on_open")) {
             exec("ALTER TABLE settings ADD COLUMN autoplay_on_open BOOLEAN NOT NULL DEFAULT true")
             exec("UPDATE settings SET autoplay_on_open = autoplay")
@@ -47,6 +52,13 @@ object SettingsSchemaMigrations {
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_title_mode TEXT NOT NULL DEFAULT 'dearrow'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_thumbnail_mode TEXT NOT NULL DEFAULT 'dearrow_or_random'")
         exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS dearrow_trust_mode TEXT NOT NULL DEFAULT 'accepted'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon TEXT NOT NULL DEFAULT 'typetype'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS seekbar_icon_url TEXT NOT NULL DEFAULT ''")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS player_engine TEXT NOT NULL DEFAULT 'vidstack'")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_watched_subscription_videos BOOLEAN NOT NULL DEFAULT false")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS watched_threshold_percent INTEGER NOT NULL DEFAULT 0")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS mini_player_enabled BOOLEAN NOT NULL DEFAULT true")
+        exec("ALTER TABLE settings ADD COLUMN IF NOT EXISTS hide_search_shorts BOOLEAN NOT NULL DEFAULT true")
     }
 
     private fun settingsColumnExists(column: String): Boolean =

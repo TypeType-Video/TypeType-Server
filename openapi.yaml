@@ -21,6 +21,8 @@ tags:
 paths:
   /health: { $ref: ./openapi/paths/health.yaml#/Health }
   /instance: { $ref: ./openapi/paths/metadata.yaml#/Instance }
+  /server/events: { $ref: ./openapi/paths/server-events.yaml#/ServerEvents }
+  /admin/server/notice: { $ref: ./openapi/paths/server-events.yaml#/AdminServerNotice }
   /streams/youtube/sabr: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrStreams }
   /streams/youtube/live: { $ref: ./openapi/paths/streams.yaml#/YoutubeLiveHls }
   /streams/youtube/sabr/bootstrap: { $ref: ./openapi/paths/streams.yaml#/YoutubeSabrBootstrap }
@@ -33,6 +35,7 @@ paths:
   /media/{handle}: { $ref: ./openapi/paths/media.yaml#/ProviderMedia }
   /sabr/download/{videoId}: { $ref: ./openapi/paths/sabr-download.yaml#/SabrDownload }
   /sabr/playback/{videoId}: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackCreate }
+  /sabr/playback/{sessionId}: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackRelease }
   /sabr/playback/{sessionId}/position: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPosition }
   /sabr/playback/{sessionId}/window: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackWindow }
   /sabr/playback/{sessionId}/prefetch: { $ref: ./openapi/paths/sabr-playback.yaml#/SabrPlaybackPrefetch }
@@ -58,6 +61,7 @@ paths:
   /subscriptions/groups/{groupId}: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroup }
   /subscriptions/groups/{groupId}/channels: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionGroupChannels }
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
+  /focus: { $ref: ./openapi/paths/focus.yaml#/Focus }
   /auth/device/start: { $ref: ./openapi/paths/device-auth.yaml#/DeviceStart }
   /auth/device/lookup: { $ref: ./openapi/paths/device-auth.yaml#/DeviceLookup }
   /auth/device/approve: { $ref: ./openapi/paths/device-auth.yaml#/DeviceApprove }
@@ -101,6 +105,34 @@ paths:
   /allowed/channels: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannels }
   /allowed/channels/{channelUrl}: { $ref: ./openapi/paths/access-control.yaml#/AllowedChannel }
   /admin/settings: { $ref: ./openapi/paths/access-control.yaml#/AdminSettings }
+  /twitch/streams: { $ref: ./openapi/paths/twitch.yaml#/Streams }
+  /twitch/games: { $ref: ./openapi/paths/twitch.yaml#/Games }
+  /twitch/games/{slug}/streams: { $ref: ./openapi/paths/twitch.yaml#/GameStreams }
+  /twitch/tags/{tag}/streams: { $ref: ./openapi/paths/twitch.yaml#/TagStreams }
+  /twitch/videos/{id}/comments: { $ref: ./openapi/paths/twitch.yaml#/VideoComments }
+  /twitch/videos/{id}/chapters: { $ref: ./openapi/paths/twitch.yaml#/VideoChapters }
+  /links/b23/{code}: { $ref: ./openapi/paths/short-links.yaml#/BilibiliShortLink }
+  /twitch/channels/{login}: { $ref: ./openapi/paths/twitch.yaml#/Channel }
+  /twitch/channels/{login}/videos: { $ref: ./openapi/paths/twitch.yaml#/ChannelVideos }
+  /twitch/channels/{login}/clips: { $ref: ./openapi/paths/twitch.yaml#/ChannelClips }
+  /twitch/live/{login}: { $ref: ./openapi/paths/twitch.yaml#/Live }
+  /twitch/videos/{id}: { $ref: ./openapi/paths/twitch.yaml#/Video }
+  /twitch/clips/{slug}: { $ref: ./openapi/paths/twitch.yaml#/Clip }
+  /twitch/search: { $ref: ./openapi/paths/twitch.yaml#/Search }
+  /twitch/account: { $ref: ./openapi/paths/twitch.yaml#/Account }
+  /twitch/account/device: { $ref: ./openapi/paths/twitch.yaml#/AccountDevice }
+  /twitch/account/poll: { $ref: ./openapi/paths/twitch.yaml#/AccountPoll }
+  /twitch/me/live: { $ref: ./openapi/paths/twitch.yaml#/MeLive }
+  /twitch/me/videos: { $ref: ./openapi/paths/twitch.yaml#/MeVideos }
+  /twitch/me/follows: { $ref: ./openapi/paths/twitch.yaml#/MeFollows }
+  /twitch/me/follows/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeFollow }
+  /twitch/me/emotes/{login}: { $ref: ./openapi/paths/twitch.yaml#/MeEmotes }
+  /twitch/chat/assets: { $ref: ./openapi/paths/twitch.yaml#/ChatAssets }
+  /twitch/chat/{login}/assets: { $ref: ./openapi/paths/twitch.yaml#/ChannelChatAssets }
+  /twitch/chat/{login}/events: { $ref: ./openapi/paths/twitch.yaml#/ChatEvents }
+  /twitch/chat/{login}/highlights: { $ref: ./openapi/paths/twitch.yaml#/ChatHighlights }
+  /twitch/chat/{login}/messages: { $ref: ./openapi/paths/twitch.yaml#/ChatMessages }
+  /twitch/polls/vote: { $ref: ./openapi/paths/twitch.yaml#/PollVote }
   /recommendations/home: { $ref: ./openapi/paths/recommender.yaml#/HomeRecommendations }
   /recommendations/algorithms: { $ref: ./openapi/paths/recommender.yaml#/RecommenderAlgorithms }
   /recommendations/settings: { $ref: ./openapi/paths/recommender.yaml#/RecommenderSettings }

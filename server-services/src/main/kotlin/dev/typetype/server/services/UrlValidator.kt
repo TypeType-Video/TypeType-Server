@@ -9,6 +9,7 @@ enum class ProxyProvider {
     YOUTUBE,
     BILIBILI,
     NICONICO,
+    TWITCH,
 }
 
 data class ProxyTarget(
@@ -78,6 +79,7 @@ fun providerForProxyHost(rawHost: String): ProxyProvider? {
             host.matchesHost("live.bilibili.com") ||
             host == "upos-hz-mirrorakam.akamaized.net" -> ProxyProvider.BILIBILI
         host.matchesHost("nicovideo.jp") || host.matchesHost("nimg.jp") -> ProxyProvider.NICONICO
+        host == "static-cdn.jtvnw.net" || host in TWITCH_CHAT_IMAGE_HOSTS -> ProxyProvider.TWITCH
         else -> null
     }
 }
@@ -112,3 +114,5 @@ private fun hasPrefix(address: ByteArray, prefix: ByteArray, bits: Int): Boolean
     val mask = 0xFF shl (8 - remaining)
     return (address[fullBytes].toInt() and mask) == (prefix[fullBytes].toInt() and mask)
 }
+
+private val TWITCH_CHAT_IMAGE_HOSTS = setOf("cdn.7tv.app", "cdn.betterttv.net", "cdn.frankerfacez.com")

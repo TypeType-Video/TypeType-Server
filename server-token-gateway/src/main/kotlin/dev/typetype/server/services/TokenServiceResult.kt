@@ -15,11 +15,15 @@ sealed interface TokenServiceResult<out T> {
             reason == TokenServiceFailureReason.TIMEOUT ||
                 reason == TokenServiceFailureReason.NETWORK ||
                 status == 502 || status == 503 || status == 504
+
+        fun isContentUnavailable(): Boolean =
+            CONTENT_UNAVAILABLE_MARKERS.any { error?.contains(it, ignoreCase = true) == true }
     }
 
     fun valueOrNull(): T? = (this as? Success<T>)?.value
 
     private companion object {
         val PROVIDER_REFUSAL_MARKERS = listOf("LOGIN_REQUIRED", "not a bot", "player response is not valid")
+        val CONTENT_UNAVAILABLE_MARKERS = listOf("player response is UNPLAYABLE", "player response is ERROR")
     }
 }

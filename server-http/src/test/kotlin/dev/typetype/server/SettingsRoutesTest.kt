@@ -193,4 +193,44 @@ class SettingsRoutesTest {
         }
         assertTrue(get().contains("\"hideUpcomingPlaylistVideos\":false"))
     }
+
+    @Test
+    fun `ambient light defaults to off and survives partial updates`() = withApp {
+        val get = suspend {
+            client.get("/settings") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            }.bodyAsText()
+        }
+        assertTrue(get().contains("\"ambientLight\":false"))
+        for (patch in listOf("""{"ambientLight":true}""", """{"volume":0.5}""")) {
+            assertEquals(HttpStatusCode.OK, client.put("/settings") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                setBody(patch)
+            }.status)
+            assertTrue(get().contains("\"ambientLight\":true"))
+        }
+    }
+
+    @Test
+    fun `ambient light tuning has defaults and stays in range`() = withApp {
+        val get = suspend {
+            client.get("/settings") {
+                headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            }.bodyAsText()
+        }
+        val defaults = get()
+        assertTrue(defaults.contains("\"ambientLightSpread\":100"))
+        assertTrue(defaults.contains("\"ambientLightBlur\":50"))
+        assertTrue(defaults.contains("\"ambientLightBrightness\":100"))
+        client.put("/settings") {
+            headers.append(HttpHeaders.Authorization, "Bearer test-jwt")
+            headers.append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            setBody("""{"ambientLightSpread":900,"ambientLightBlur":-5,"ambientLightBrightness":10}""")
+        }
+        val clamped = get()
+        assertTrue(clamped.contains("\"ambientLightSpread\":200"))
+        assertTrue(clamped.contains("\"ambientLightBlur\":0"))
+        assertTrue(clamped.contains("\"ambientLightBrightness\":50"))
+    }
 }

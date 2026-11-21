@@ -9,6 +9,7 @@ import dev.typetype.server.db.tables.BlockedKeywordsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.PasswordResetTable
@@ -40,6 +41,7 @@ import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.RecommendationEventsTable
@@ -120,6 +122,7 @@ object TestDatabase {
         value?.takeIf { it.isNotBlank() } ?: fallback
 
     fun truncateAll() = transaction {
+        FocusSettingsTable.deleteAll()
         RecommenderUserSettingsTable.deleteAll()
         RecommenderFeedbackTable.deleteAll()
         RssFeedChannelsTable.deleteAll()
@@ -141,6 +144,7 @@ object TestDatabase {
         SessionsTable.deleteAll()
         PasswordResetTable.deleteAll()
         UserAvatarsTable.deleteAll()
+        UserSeekbarIconsTable.deleteAll()
         UsersTable.deleteAll()
         AdminSettingsTable.deleteAll()
         AllowedChannelsTable.deleteAll()

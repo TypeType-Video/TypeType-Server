@@ -11,7 +11,7 @@
         <maxFlushTime>2000</maxFlushTime>
         <appender-ref ref="STDOUT" />
     </appender>
-    <root level="INFO">
+    <root level="${LOG_LEVEL:-INFO}">
         <appender-ref ref="ASYNC_STDOUT" />
     </root>
 </configuration>

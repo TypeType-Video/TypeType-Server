@@ -18,8 +18,10 @@ import dev.typetype.server.db.tables.SessionsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.UsersTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.WatchLaterTable
 import dev.typetype.server.db.tables.AdminSettingsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
@@ -49,6 +51,7 @@ import dev.typetype.server.db.tables.YoutubeTakeoutImportJobsTable
 import dev.typetype.server.db.tables.YoutubeTakeoutPlaylistKeysTable
 import dev.typetype.server.db.tables.YoutubeSessionPairingsTable
 import dev.typetype.server.db.tables.BiliBiliSessionsTable
+import dev.typetype.server.db.tables.TwitchAccountsTable
 import dev.typetype.server.db.tables.YoutubeSessionsTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -77,12 +80,14 @@ object DatabaseFactory {
                 ProfileAccountsTable,
                 PresenceKeysTable,
                 UserAvatarsTable,
+                UserSeekbarIconsTable,
                 SessionsTable,
                 AdminSettingsTable,
                 HistoryTable,
                 SubscriptionsTable,
                 SubscriptionGroupsTable,
                 SubscriptionGroupMembershipsTable,
+                FocusSettingsTable,
                 PlaylistsTable,
                 PlaylistVideosTable,
                 WatchLaterTable,
@@ -102,6 +107,7 @@ object DatabaseFactory {
                 YoutubeSessionsTable,
                 YoutubeSessionPairingsTable,
                 BiliBiliSessionsTable,
+                TwitchAccountsTable,
                 BugReportsTable,
                 NotificationStatesTable,
                 NotificationReadItemsTable,
@@ -166,6 +172,9 @@ object DatabaseFactory {
             exec("ALTER TABLE youtube_takeout_import_jobs ADD COLUMN IF NOT EXISTS preview_json TEXT")
             exec("ALTER TABLE youtube_sessions ADD COLUMN IF NOT EXISTS auth_user INTEGER NOT NULL DEFAULT 0")
             exec("ALTER TABLE bug_reports ALTER COLUMN github_issue_url TYPE TEXT")
+            exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS study_group_id TEXT")
+            exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS schedule TEXT NOT NULL DEFAULT 'always'")
+            exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS timezone TEXT")
             DatabaseYoutubeOauthMigration.apply()
             DatabaseSessionAuthMigration.apply()
             DatabaseOidcMigration.apply()

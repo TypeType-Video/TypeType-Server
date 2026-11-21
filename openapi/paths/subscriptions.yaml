@@ -200,6 +200,11 @@ SubscriptionFeed:
         required: false
         description: Opaque continuation returned in nextpage and bound to the selected membership snapshot.
         schema: { type: string }
+      - name: order
+        in: query
+        required: false
+        description: Read the snapshot from the newest or from the oldest video. A cursor keeps its order.
+        schema: { type: string, enum: [newest, oldest], default: newest }
     responses:
       '200':
         description: A fresh or retained subscription feed snapshot page.

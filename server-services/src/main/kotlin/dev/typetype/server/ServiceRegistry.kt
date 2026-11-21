@@ -1,5 +1,10 @@
 package dev.typetype.server
+
+import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.cache.DragonflyService
+import dev.typetype.server.services.TwitchConfig
+import dev.typetype.server.services.TwitchService
+import dev.typetype.server.services.CommentSearchService
 import dev.typetype.server.services.CommentVoiceAudioService
 import dev.typetype.server.services.YoutubeRelatedVideosService
 import dev.typetype.server.services.CachedRelatedVideosService
@@ -16,6 +21,7 @@ import dev.typetype.server.services.BiliBiliSessionService
 import dev.typetype.server.services.BiliBiliSessionStreamService
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.CustomAvatarService
+import dev.typetype.server.services.SeekbarIconService
 import dev.typetype.server.services.DeArrowService
 import dev.typetype.server.services.BugReportService
 import dev.typetype.server.services.FavoritesService
@@ -42,6 +48,7 @@ import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionAvatarWarmupService
 import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.TypeTypeBackupService
@@ -64,6 +71,7 @@ class ServiceRegistry(
     val publicHlsManifestTokenService = PublicHlsManifestTokenService(jwtSecret)
     val accountIdentityService = AccountIdentityService(profileAccountService)
     val customAvatarService = CustomAvatarService()
+    val seekbarIconService = SeekbarIconService()
     val deArrowService = DeArrowService(cache)
     private val extraction = ExtractionServiceRegistry(
         cache,
@@ -79,10 +87,13 @@ class ServiceRegistry(
             if (secret.length >= 32) BiliBiliSessionCrypto.fromSecret(secret) else null
         },
     )
+    val twitchService = TwitchService(TwitchConfig.fromEnvironment())
     val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
     val youtubeSabrStreamService = extraction.youtubeSabrStreamService
+    suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
+        extraction.withYoutubeSponsorBlock(url, response)
     val youtubeLiveHlsStreamService = extraction.youtubeLiveHlsStreamService
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
     val nicoNicoStreamService = extraction.nicoNicoStreamService
@@ -95,6 +106,7 @@ class ServiceRegistry(
     val searchService = extraction.searchService
     val trendingService = extraction.trendingService
     val commentService = extraction.commentService
+    val commentSearchService = CommentSearchService(commentService)
     val bulletCommentService = extraction.bulletCommentService
     val youtubeLiveChatService = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(subtitleServiceUrl))
     val channelService = extraction.channelService
@@ -121,6 +133,7 @@ class ServiceRegistry(
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)
     val subscriptionGroupsService = SubscriptionGroupsService()
+    val focusService = FocusService()
     val subscriptionFeedService = SubscriptionFeedService(
         subscriptionsService,
         channelService,

@@ -20,6 +20,7 @@ internal fun Route.userDataRoutes(
 ) {
     historyRoutes(svc.historyService, authService, svc.settingsService)
     subscriptionGroupsRoutes(svc.subscriptionGroupsService, authService)
+    focusRoutes(svc.focusService, authService)
     subscriptionsRoutes(
         svc.subscriptionsService,
         authService,
@@ -34,8 +35,9 @@ internal fun Route.userDataRoutes(
         svc.settingsService,
         svc.subscriptionGroupsService,
         svc.blockedService,
+        svc.focusService,
     )
-    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService)
+    subscriptionShortsFeedRoutes(svc.subscriptionShortsFeedService, authService, svc.blockedService, svc.focusService)
     rssFeedRoutes(svc.rssFeedManagementService, authService)
     playlistRoutes(svc.playlistService, authService, svc.videoMetadataRepairService)
     savedPlaylistRoutes(svc.savedPlaylistService, svc.publicPlaylistService, authService)
@@ -53,6 +55,7 @@ internal fun Route.userDataRoutes(
     youtubeTakeoutImportRoutes(svc.youtubeTakeoutImportService, authService)
     profileRoutes(profileService, avatarService, svc.customAvatarService, authService)
     customAvatarRoutes(svc.customAvatarService, authService)
+    seekbarIconRoutes(svc.seekbarIconService, authService)
     accountIdentityRoutes(svc.accountIdentityService, authService)
     bugReportRoutes(bugReportService, authService)
     restoreRoutes(restoreService, authService)
@@ -64,8 +67,15 @@ internal fun Route.userDataRoutes(
         blockedService = svc.blockedService,
         accessControlService = svc.accessControlService,
         recommenderHomeService = svc.recommenderServices.homeService,
+        focusService = svc.focusService,
     )
     recommenderRoutes(svc.recommenderServices, authService)
     recommenderFeedbackRoutes(svc.recommenderServices, authService)
-    homeRecommendationShortsRoutes(svc.homeRecommendationService, authService, svc.blockedService, svc.accessControlService)
+    homeRecommendationShortsRoutes(
+        svc.homeRecommendationService,
+        authService,
+        svc.blockedService,
+        svc.accessControlService,
+        svc.focusService,
+    )
 }

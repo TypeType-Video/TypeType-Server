@@ -10,6 +10,9 @@ class SabrSessionRegistry {
     private val mutationLock = Any()
     private val logger = LoggerFactory.getLogger(SabrSessionRegistry::class.java)
 
+    @Volatile
+    private var lastSaturatedLogAt = 0L
+
     fun get(key: SabrSessionKey): SabrSessionHolder? {
         val holder = sessions[key]
         holder?.touch()
@@ -35,6 +38,25 @@ class SabrSessionRegistry {
     }
 
     fun contains(holder: SabrSessionHolder): Boolean = sessions[holder.key] === holder
+
+    // A client that moves to another video releases its session at once instead of holding one of the few
+    // registry slots until idle eviction, which matters when one viewer jumps through many videos.
+    fun releaseByClient(holder: SabrSessionHolder): Boolean {
+        val removed = synchronized(mutationLock) {
+            if (!sessions.remove(holder.key, holder)) return@synchronized false
+            sessionsByToken.remove(holder.sessionToken, holder)
+            true
+        }
+        if (!removed) return false
+        holder.releaseResources()
+        logger.info(
+            "sabr_session event=released videoId={} registrySize={} state={}",
+            holder.key.videoId,
+            sessions.size,
+            holder.playbackState(),
+        )
+        return true
+    }
 
     fun remove(holder: SabrSessionHolder): Unit {
         val removed = synchronized(mutationLock) {
@@ -78,19 +100,20 @@ class SabrSessionRegistry {
         return holder
     }
 
+    /**
+     * Makes room for one more session. A session a viewer is playing is never evicted for room: the
+     * client would rebuild it at once, which is a reposition YouTube may answer with an attestation
+     * demand. The count is a target while the bytes all sessions hold stay under [byteBudget].
+     */
     fun ensureCapacity(
         maxSessions: Int,
         activeCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.idleEviction()),
+        playingCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.playingWindow()),
+        byteBudget: Long = SabrSessionStoreDefaults.byteBudget(),
     ) {
         while (sessions.size >= maxSessions) {
-            val oldest = sessions.entries
-                .asSequence()
-                .filterNot { isActiveLive(it.value, activeCutoff) }
-                .minByOrNull { it.value.lastRequestAt }
-            if (oldest == null) {
-                logCapacitySaturated(maxSessions)
-                return
-            }
+            val oldest = evictionCandidate(null, activeCutoff, playingCutoff, byteBudget)
+                ?: return logCapacitySaturated(maxSessions)
             evict(oldest.key, "capacity")
         }
     }
@@ -99,19 +122,30 @@ class SabrSessionRegistry {
         maxSessions: Int,
         protected: SabrSessionHolder,
         activeCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.idleEviction()),
+        playingCutoff: Instant = Instant.now().minus(SabrSessionStoreDefaults.playingWindow()),
+        byteBudget: Long = SabrSessionStoreDefaults.byteBudget(),
     ) {
         while (sessions.size > maxSessions) {
-            val oldest = sessions.entries
-                .asSequence()
-                .filterNot { it.value === protected }
-                .filterNot { isActiveLive(it.value, activeCutoff) }
-                .minByOrNull { it.value.lastRequestAt }
-            if (oldest == null) {
-                logCapacitySaturated(maxSessions)
-                return
-            }
+            val oldest = evictionCandidate(protected, activeCutoff, playingCutoff, byteBudget)
+                ?: return logCapacitySaturated(maxSessions)
             evict(oldest.key, "capacity")
         }
+    }
+
+    private fun evictionCandidate(
+        protected: SabrSessionHolder?,
+        activeCutoff: Instant,
+        playingCutoff: Instant,
+        byteBudget: Long,
+    ): Map.Entry<SabrSessionKey, SabrSessionHolder>? {
+        val others = sessions.entries.filterNot { it.value === protected || isActiveLive(it.value, activeCutoff) }
+        others.filterNot { isPlaying(it.value, playingCutoff) }.minByOrNull { it.value.lastRequestAt }?.let { return it }
+        if (heldBytes() <= byteBudget) return null
+        return others.minByOrNull { it.value.lastRequestAt }
+    }
+
+    private fun heldBytes(): Long = sessions.values.sumOf { holder ->
+        runCatching { holder.session.cachedBytes }.getOrDefault(0L)
     }
 
     fun evictIdle(cutoff: Instant) {
@@ -141,13 +175,15 @@ class SabrSessionRegistry {
         holder?.releaseResources()
     }
 
-    private fun isActiveLive(holder: SabrSessionHolder, cutoff: Instant): Boolean {
-        if (!holder.expectsLive() || holder.lastRequestAt.isBefore(cutoff)) return false
-        return holder.playbackState() !in setOf(
-            SabrPlaybackState.NETWORK_FAILED,
-            SabrPlaybackState.TERMINAL,
-            SabrPlaybackState.STOPPED,
-        )
+    private fun isActiveLive(holder: SabrSessionHolder, cutoff: Instant): Boolean =
+        holder.expectsLive() && isServing(holder, cutoff)
+
+    private fun isPlaying(holder: SabrSessionHolder, cutoff: Instant): Boolean =
+        !holder.expectsLive() && isServing(holder, cutoff)
+
+    private fun isServing(holder: SabrSessionHolder, cutoff: Instant): Boolean {
+        if (holder.lastRequestAt.isBefore(cutoff)) return false
+        return holder.playbackState() !in ENDED_STATES
     }
 
     private fun evict(key: SabrSessionKey, reason: String) {
@@ -169,11 +205,23 @@ class SabrSessionRegistry {
     }
 
     private fun logCapacitySaturated(maxSessions: Int) {
+        val now = System.currentTimeMillis()
+        if (now - lastSaturatedLogAt < SATURATED_LOG_INTERVAL_MS) return
+        lastSaturatedLogAt = now
         logger.warn(
             "sabr_session event=capacity_saturated maxSessions={} registrySize={} liveSessions={}",
             maxSessions,
             sessions.size,
             sessions.values.count { it.expectsLive() },
+        )
+    }
+
+    private companion object {
+        const val SATURATED_LOG_INTERVAL_MS = 60_000L
+        val ENDED_STATES = setOf(
+            SabrPlaybackState.NETWORK_FAILED,
+            SabrPlaybackState.TERMINAL,
+            SabrPlaybackState.STOPPED,
         )
     }
 }

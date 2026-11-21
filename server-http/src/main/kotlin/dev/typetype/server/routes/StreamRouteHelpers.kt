@@ -81,7 +81,8 @@ private suspend fun resolvePublicOrAuthenticatedStreamInfo(
         val publicLive = (publicResult as? ExtractionResult.Success)?.data?.isLive == true
         if (!authenticatedLive || !publicLive) {
             return StreamResolution(
-                authenticatedResult.withPublicStreamMetadata(publicResult),
+                authenticatedResult.withPublicStreamMetadata(publicResult)
+                    .withSponsorBlock(url, dependencies.youtubeSponsorBlock),
                 authenticated = true,
             )
         }
@@ -103,6 +104,15 @@ internal suspend fun StreamResolution.withRelatedVideos(
     if (success.data.relatedStreams.isNotEmpty() || loader == null) return this
     val related = loader(url) as? ExtractionResult.Success<List<VideoItem>> ?: return this
     return copy(result = ExtractionResult.Success(success.data.copy(relatedStreams = related.data)))
+}
+
+private suspend fun ExtractionResult<StreamResponse>.withSponsorBlock(
+    url: String,
+    fill: (suspend (String, StreamResponse) -> StreamResponse)?,
+): ExtractionResult<StreamResponse> {
+    val success = this as? ExtractionResult.Success<StreamResponse> ?: return this
+    if (fill == null || success.data.sponsorBlockSegments.isNotEmpty()) return this
+    return success.copy(data = fill(url, success.data))
 }
 
 internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(
@@ -150,10 +160,12 @@ internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(
             previewFrames = primary.data.previewFrames.ifEmpty { metadata.previewFrames },
             sponsorBlockSegments = primary.data.sponsorBlockSegments
                 .ifEmpty { metadata.sponsorBlockSegments },
+            sponsorBlockAvailable = primary.data.sponsorBlockAvailable && metadata.sponsorBlockAvailable,
             relatedStreams = primary.data.relatedStreams.ifEmpty { metadata.relatedStreams },
             publishedAt = primary.data.publishedAt ?: metadata.publishedAt,
             collections = primary.data.collections.ifEmpty { metadata.collections },
             parts = primary.data.parts.ifEmpty { metadata.parts },
+            endScreenElements = primary.data.endScreenElements.ifEmpty { metadata.endScreenElements },
         ),
     )
 }

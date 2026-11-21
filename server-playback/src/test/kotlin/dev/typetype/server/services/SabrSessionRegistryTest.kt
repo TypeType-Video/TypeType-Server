@@ -38,6 +38,7 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(request) } answers { expected.takeIf { pumps > 0 } }
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         every { streamState.setActiveTrackTypes(false, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
         every { streamState.getSegmentStartMs(audio, 8) } returns 120_000L
@@ -78,6 +79,7 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(request) } answers { expected.takeIf { pumps > 1 } }
         every { session.isBeyondEnd(request) } returns false
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         every { streamState.setActiveTrackTypes(false, true) } returns Unit
         every { streamState.getMinBufferedEndMs() } returns 0L
         every { streamState.getSegmentStartMs(audio, 32) } returns 309_522L
@@ -143,6 +145,7 @@ class SabrSessionPumpTest {
         val streamState = mockk<YoutubeSabrStreamState>()
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
         every { streamState.getSegmentNumberAtOrAfterTimeMs(audio, 60_862L) } returns 7
         every { streamState.getEndSegment(any()) } returns 0L
@@ -181,6 +184,7 @@ class SabrSessionPumpTest {
         val expected = mediaSegment(137, 60_860L, 5_072L, sequence = 13)
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         every { streamState.getSegmentNumberAtOrAfterTimeMs(video, 60_862L) } returns 12
         every { streamState.getEndSegment(any()) } returns 0L
         val holder = sabrHolder(audio, video, session, streamState)
@@ -205,6 +209,7 @@ class SabrSessionPumpTest {
         every { session.getCachedSegment(request) } returns segment
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         val holder = sabrHolder(audio, video, session)
 
         val fetched = SabrSessionPump().fetchSegment(holder, request)
@@ -221,6 +226,7 @@ class SabrSessionPumpTest {
     ): SabrSessionHolder {
         every { session.streamState } returns streamState
         every { streamState.setActiveTrackTypes(true, true) } returns Unit
+        every { streamState.hasSegmentIndex(any()) } returns false
         return SabrSessionHolder(
             session = session,
             info = mockk<YoutubeSabrInfo>(),

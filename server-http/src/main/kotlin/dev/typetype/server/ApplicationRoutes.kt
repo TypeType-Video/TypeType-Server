@@ -1,5 +1,8 @@
 package dev.typetype.server
 
+import dev.typetype.server.routes.twitchRoutes
+import dev.typetype.server.routes.shortLinkRoutes
+import dev.typetype.server.routes.seekbarIconFileRoutes
 import dev.typetype.server.routes.deviceAuthRoutes
 import dev.typetype.server.services.device.DeviceAuthorizationService
 import dev.typetype.server.routes.adminBugReportRoutes
@@ -30,12 +33,14 @@ import dev.typetype.server.routes.pushNotificationRoutes
 import dev.typetype.server.routes.rssPublicRoutes
 import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
+import dev.typetype.server.routes.serverEventRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.BilibiliShortLinkResolver
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.AvatarService
@@ -51,6 +56,7 @@ import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PresenceKeyService
 import dev.typetype.server.services.PresenceService
+import dev.typetype.server.services.ServerNoticeHub
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.portability.PortabilityEngine
 import io.ktor.server.application.Application
@@ -79,9 +85,12 @@ fun Application.installApplicationRoutes(
     restoreService: PipePipeBackupImporterService,
     portabilityEngine: PortabilityEngine,
     deviceAuthorizationService: DeviceAuthorizationService,
+    serverNotices: ServerNoticeHub,
 ) {
+    val bilibiliShortLinks = BilibiliShortLinkResolver()
     routing {
         internalObservabilityRoutes(internalHealthService::check)
+        serverEventRoutes(serverNotices, authService)
         publicMetadataRoutes(instanceService::getInstance)
         rssPublicRoutes(svc.rssFeedReaderService)
         installStreamRoutes(svc, authService, adminSettingsService)
@@ -97,7 +106,7 @@ fun Application.installApplicationRoutes(
                 adminSettingsService,
                 svc.blockedService,
             )
-            commentRoutes(svc.commentService, authService, adminSettingsService)
+            commentRoutes(svc.commentService, authService, adminSettingsService, svc.commentSearchService)
             commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
             bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
             youtubeLiveChatRoutes(svc.youtubeLiveChatService, authService, adminSettingsService)
@@ -109,6 +118,7 @@ fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             channelPostsRoutes(
                 svc.channelPostsService,
@@ -156,6 +166,9 @@ fun Application.installApplicationRoutes(
         rateLimit(USER_DATA_ZONE) { presenceRoutes(authService, presenceKeyService, presenceService) }
         adminBugReportRoutes(authService, svc.bugReportService, gitHubIssueService)
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
+        seekbarIconFileRoutes(svc.seekbarIconService)
+        rateLimit(USER_DATA_ZONE) { twitchRoutes(svc.twitchService, authService, adminSettingsService) }
+        rateLimit(USER_DATA_ZONE) { shortLinkRoutes(bilibiliShortLinks, authService, adminSettingsService) }
         rateLimit(USER_DATA_ZONE) {
             userDataRoutes(
                 svc,

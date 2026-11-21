@@ -29,6 +29,10 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     autoplayCountdownSeconds = this[SettingsTable.autoplayCountdownSeconds],
     skipPlaylistAutoplayScreen = this[SettingsTable.skipPlaylistAutoplayScreen],
     hideUpcomingPlaylistVideos = this[SettingsTable.hideUpcomingPlaylistVideos],
+    ambientLight = this[SettingsTable.ambientLight],
+    ambientLightSpread = this[SettingsTable.ambientLightSpread],
+    ambientLightBlur = this[SettingsTable.ambientLightBlur],
+    ambientLightBrightness = this[SettingsTable.ambientLightBrightness],
     volume = this[SettingsTable.volume],
     muted = this[SettingsTable.muted],
     notificationPopupsEnabled = this[SettingsTable.notificationPopupsEnabled],
@@ -50,6 +54,7 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     hideHomeRecommendations = this[SettingsTable.hideHomeRecommendations],
     hideContinueWatching = this[SettingsTable.hideContinueWatching],
     hideRelatedVideos = this[SettingsTable.hideRelatedVideos],
+    hideEndScreens = this[SettingsTable.hideEndScreens],
     hideComments = this[SettingsTable.hideComments],
     hideShorts = this[SettingsTable.hideShorts],
     hideSubscriptionLiveStreams = this[SettingsTable.hideSubscriptionLiveStreams],
@@ -60,6 +65,13 @@ fun ResultRow.toSettingsItem(): SettingsItem = SettingsItem(
     deArrowThumbnailMode = this[SettingsTable.deArrowThumbnailMode],
     deArrowTrustMode = this[SettingsTable.deArrowTrustMode],
     accessMode = this[SettingsTable.accessMode].toAccessMode(),
+    seekbarIcon = this[SettingsTable.seekbarIcon],
+    seekbarIconUrl = this[SettingsTable.seekbarIconUrl],
+    playerEngine = this[SettingsTable.playerEngine],
+    hideWatchedSubscriptionVideos = this[SettingsTable.hideWatchedSubscriptionVideos],
+    watchedThresholdPercent = this[SettingsTable.watchedThresholdPercent],
+    miniPlayerEnabled = this[SettingsTable.miniPlayerEnabled],
+    hideSearchShorts = this[SettingsTable.hideSearchShorts],
 )
 
 fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
@@ -75,6 +87,10 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.autoplayCountdownSeconds] = settings.autoplayCountdownSeconds
     this[SettingsTable.skipPlaylistAutoplayScreen] = settings.skipPlaylistAutoplayScreen
     this[SettingsTable.hideUpcomingPlaylistVideos] = settings.hideUpcomingPlaylistVideos
+    this[SettingsTable.ambientLight] = settings.ambientLight
+    this[SettingsTable.ambientLightSpread] = settings.ambientLightSpread
+    this[SettingsTable.ambientLightBlur] = settings.ambientLightBlur
+    this[SettingsTable.ambientLightBrightness] = settings.ambientLightBrightness
     this[SettingsTable.volume] = settings.volume
     this[SettingsTable.muted] = settings.muted
     this[SettingsTable.notificationPopupsEnabled] = settings.notificationPopupsEnabled
@@ -96,6 +112,7 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.hideHomeRecommendations] = settings.hideHomeRecommendations
     this[SettingsTable.hideContinueWatching] = settings.hideContinueWatching
     this[SettingsTable.hideRelatedVideos] = settings.hideRelatedVideos
+    this[SettingsTable.hideEndScreens] = settings.hideEndScreens
     this[SettingsTable.hideComments] = settings.hideComments
     this[SettingsTable.hideShorts] = settings.hideShorts
     this[SettingsTable.hideSubscriptionLiveStreams] = settings.hideSubscriptionLiveStreams
@@ -106,6 +123,12 @@ fun UpdateBuilder<*>.writeSettings(settings: SettingsItem) {
     this[SettingsTable.deArrowThumbnailMode] = settings.deArrowThumbnailMode
     this[SettingsTable.deArrowTrustMode] = settings.deArrowTrustMode
     this[SettingsTable.accessMode] = settings.accessMode.toAccessMode()
+    this[SettingsTable.seekbarIcon] = settings.seekbarIcon
+    this[SettingsTable.playerEngine] = settings.playerEngine
+    this[SettingsTable.hideWatchedSubscriptionVideos] = settings.hideWatchedSubscriptionVideos
+    this[SettingsTable.watchedThresholdPercent] = settings.watchedThresholdPercent
+    this[SettingsTable.miniPlayerEnabled] = settings.miniPlayerEnabled
+    this[SettingsTable.hideSearchShorts] = settings.hideSearchShorts
     this[SettingsTable.accessModeAdminManaged] = false
     this[SettingsTable.accessModeAdminManagedAt] = 0
 }
@@ -119,14 +142,23 @@ fun SettingsItem.normalized(): SettingsItem = copy(
     holdPlaybackSpeed = holdPlaybackSpeed.takeIf { it in HOLD_PLAYBACK_SPEEDS } ?: 2.0,
     accessMode = accessMode.toAccessMode(),
     autoplayCountdownSeconds = autoplayCountdownSeconds.coerceIn(0, 60),
+    ambientLightSpread = ambientLightSpread.coerceIn(0, 200),
+    ambientLightBlur = ambientLightBlur.coerceIn(0, 100),
+    ambientLightBrightness = ambientLightBrightness.coerceIn(50, 150),
     sponsorBlockCategoryActions = sponsorBlockCategoryActions.withDefaultSponsorBlockCategoryActions(),
     sponsorBlockMinimumDuration = sponsorBlockMinimumDuration.coerceAtLeast(0),
     deArrowTitleMode = deArrowTitleMode.takeIf { it in DEARROW_TITLE_MODES } ?: "dearrow",
     deArrowThumbnailMode = deArrowThumbnailMode.takeIf { it in DEARROW_THUMBNAIL_MODES } ?: "dearrow_or_random",
     deArrowTrustMode = deArrowTrustMode.takeIf { it in DEARROW_TRUST_MODES } ?: "accepted",
+    seekbarIcon = seekbarIcon.takeIf { it in SEEKBAR_ICONS } ?: "typetype",
+    playerEngine = playerEngine.takeIf { it in PLAYER_ENGINES } ?: "vidstack",
+    watchedThresholdPercent = watchedThresholdPercent.takeIf { it == 0 || it in WATCHED_THRESHOLD_PERCENTS } ?: 0,
 )
 
 private val DEARROW_TITLE_MODES = setOf("original", "dearrow")
+private val SEEKBAR_ICONS = setOf("typetype", "custom", "none")
+private val PLAYER_ENGINES = setOf("vidstack", "videojs")
+private val WATCHED_THRESHOLD_PERCENTS = 50..100
 private val VIDEO_GRID_COLUMNS = setOf(0, 4, 5, 6)
 private val RELATED_VIDEO_SIZES = setOf("default", "large")
 private val HOLD_PLAYBACK_SPEEDS = setOf(1.5, 2.0, 2.5, 3.0, 4.0)

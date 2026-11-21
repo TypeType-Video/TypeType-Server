@@ -1,0 +1,170 @@
+x-json: &json
+  content:
+    application/json:
+      schema: { type: object, additionalProperties: true }
+x-page: &page
+  - { name: first, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+  - { name: after, in: query, schema: { type: string } }
+x-relay: &relay
+  '200': { description: Answer of the TypeType-Live service, passed through., <<: *json }
+  '400': { description: Invalid parameter. }
+  '404': { description: Twitch disabled on this instance, channel offline or not found., <<: *json }
+  '502': { description: TypeType-Live or Twitch unavailable., <<: *json }
+x-login: &login { name: login, in: path, required: true, schema: { type: string, pattern: '^[a-zA-Z0-9_]{1,25}$' } }
+x-auth: &auth
+  - bearerAuth: []
+
+Streams:
+  get: { tags: [twitch], summary: Most watched Twitch lives, parameters: *page, responses: *relay }
+Games:
+  get: { tags: [twitch], summary: Top Twitch categories, parameters: *page, responses: *relay }
+GameStreams:
+  get:
+    tags: [twitch]
+    summary: Lives of a Twitch category
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+      - { name: first, in: query, schema: { type: integer } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
+TagStreams:
+  get:
+    tags: [twitch]
+    summary: Lives carrying a Twitch tag, most watched first
+    parameters:
+      - { name: tag, in: path, required: true, schema: { type: string, pattern: '^[\p{L}\p{Nd}]{1,25}$' } }
+      - { name: first, in: query, schema: { type: integer } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
+Channel:
+  get: { tags: [twitch], summary: Twitch channel and its current live, parameters: [*login], responses: *relay }
+ChannelVideos:
+  get: { tags: [twitch], summary: Past broadcasts of a channel, parameters: [*login], responses: *relay }
+ChannelClips:
+  get: { tags: [twitch], summary: Clips of a channel, parameters: [*login], responses: *relay }
+Live:
+  get:
+    tags: [twitch]
+    summary: Current live with a signed HLS link served by TypeType-Live
+    description: Sends the linked Twitch account token when the caller has one, for subscriber lives and ad free playback.
+    parameters: [*login]
+    responses: *relay
+Video:
+  get:
+    tags: [twitch]
+    summary: Past broadcast with a signed HLS link
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }]
+    responses: *relay
+VideoChapters:
+  get:
+    tags: [twitch]
+    summary: Game chapters of a past broadcast
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }
+    responses: *relay
+VideoComments:
+  get:
+    tags: [twitch]
+    summary: Chat of a past broadcast, from an offset in seconds or a page cursor
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }
+      - { name: offset, in: query, schema: { type: integer } }
+      - { name: cursor, in: query, schema: { type: string } }
+    responses: *relay
+Clip:
+  get:
+    tags: [twitch]
+    summary: Clip with proxied MP4 qualities
+    parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+    responses: *relay
+Search:
+  get:
+    tags: [twitch]
+    summary: Search Twitch channels, categories or lives
+    parameters:
+      - { name: q, in: query, required: true, schema: { type: string, maxLength: 100 } }
+      - { name: type, in: query, schema: { type: string, enum: [channels, games, streams] } }
+      - { name: first, in: query, schema: { type: integer } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
+Account:
+  get:
+    tags: [twitch]
+    summary: Linked Twitch account of the signed in user
+    security: *auth
+    responses: { '200': { description: Link status., <<: *json }, '401': { description: Not signed in. } }
+  delete:
+    tags: [twitch]
+    summary: Unlink the Twitch account and revoke its token
+    security: *auth
+    responses: { '204': { description: Unlinked. }, '401': { description: Not signed in. } }
+AccountDevice:
+  post:
+    tags: [twitch]
+    summary: Start a Twitch device code login (code to type on twitch.tv/activate)
+    security: *auth
+    responses: *relay
+AccountPoll:
+  post:
+    tags: [twitch]
+    summary: Poll the device code login; stores the encrypted token when Twitch confirms
+    security: *auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [deviceCode], properties: { deviceCode: { type: string } } }
+    responses: { '200': { description: pending, slow_down or ok with the account., <<: *json }, '401': { description: Not signed in. } }
+MeLive:
+  get: { tags: [twitch], summary: Live channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
+MeVideos:
+  get: { tags: [twitch], summary: Past broadcasts of the channels the linked account follows, newest first, security: *auth, parameters: *page, responses: *relay }
+MeFollows:
+  get: { tags: [twitch], summary: Channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
+MeFollow:
+  get: { tags: [twitch], summary: Whether the linked account follows a channel, security: *auth, parameters: [*login], responses: *relay }
+  put: { tags: [twitch], summary: Follow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
+  delete: { tags: [twitch], summary: Unfollow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
+MeEmotes:
+  get: { tags: [twitch], summary: Twitch emotes the linked account can use in a channel, security: *auth, parameters: [*login], responses: *relay }
+ChatAssets:
+  get: { tags: [twitch], summary: Global chat badges and emotes, responses: *relay }
+ChannelChatAssets:
+  get: { tags: [twitch], summary: Chat badges and 7TV, BTTV and FFZ emotes of a channel, parameters: [*login], responses: *relay }
+ChatHighlights:
+  get: { tags: [twitch], summary: The running poll and the pinned message of a live chat, parameters: [*login], responses: *relay }
+ChatEvents:
+  get:
+    tags: [twitch]
+    summary: Live chat as server sent events
+    parameters: [*login]
+    responses: { '200': { description: Event stream., content: { text/event-stream: { schema: { type: string } } } } }
+ChatMessages:
+  post:
+    tags: [twitch]
+    summary: Send a chat message with the linked account
+    security: *auth
+    parameters: [*login]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 500 } } }
+    responses: { '204': { description: Sent. }, '409': { description: No Twitch account linked. } }
+PollVote:
+  post:
+    tags: [twitch]
+    summary: Vote in the running poll of a chat with the linked account
+    security: *auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [pollId, choiceId]
+            properties: { pollId: { type: string, maxLength: 64 }, choiceId: { type: string, maxLength: 64 } }
+    responses:
+      '204': { description: Vote counted. }
+      '403': { description: Twitch refused the vote; code says why. }
+      '409': { description: No Twitch account linked. }

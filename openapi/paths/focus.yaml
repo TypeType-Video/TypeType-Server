@@ -1,0 +1,28 @@
+Focus:
+  get:
+    tags: [user-data]
+    summary: Read the focus mode of the current profile
+    responses:
+      '200':
+        description: Focus settings and progress.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusSettingsItem }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+  put:
+    tags: [user-data]
+    summary: Turn the focus mode on, schedule its exit, or change it while off
+    description: Settings only change while the mode is off. While it is on, enabled false schedules the exit one day later.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/focus.yaml#/FocusSettingsRequest }
+    responses:
+      '200':
+        description: Focus settings after the change.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusSettingsItem }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }

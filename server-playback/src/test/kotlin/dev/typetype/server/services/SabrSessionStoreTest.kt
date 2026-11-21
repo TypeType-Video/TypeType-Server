@@ -46,6 +46,51 @@ class SabrSessionRegistryTest {
     }
 
     @Test
+    fun `capacity eviction keeps a session a viewer is playing and lets the registry grow`() {
+        val registry = SabrSessionRegistry()
+        val playing = holder("playing", Instant.now())
+        val paused = holder("paused", Instant.now().minusSeconds(120))
+        registry.put(playing.key, playing)
+        registry.put(paused.key, paused)
+
+        registry.ensureCapacity(2, playingCutoff = Instant.now().minusSeconds(30), byteBudget = Long.MAX_VALUE)
+        assertSame(playing, registry.get(playing.key))
+        assertNull(registry.get(paused.key))
+
+        val next = holder("next", Instant.now())
+        registry.put(next.key, next)
+        registry.ensureCapacity(1, playingCutoff = Instant.now().minusSeconds(30), byteBudget = Long.MAX_VALUE)
+        assertSame(playing, registry.get(playing.key))
+        assertSame(next, registry.get(next.key))
+    }
+
+    @Test
+    fun `capacity eviction takes the oldest playing session once sessions hold too many bytes`() {
+        val registry = SabrSessionRegistry()
+        val older = holder("older", Instant.now().minusSeconds(5)).also { every { it.session.cachedBytes } returns 600L }
+        val newer = holder("newer", Instant.now()).also { every { it.session.cachedBytes } returns 600L }
+        registry.put(older.key, older)
+        registry.put(newer.key, newer)
+
+        registry.ensureCapacity(1, playingCutoff = Instant.now().minusSeconds(30), byteBudget = 1_000L)
+
+        assertNull(registry.get(older.key))
+        assertSame(newer, registry.get(newer.key))
+    }
+
+    @Test
+    fun `release frees the session and its token once`() {
+        val registry = SabrSessionRegistry()
+        val released = holder("released", Instant.now())
+        registry.put(released.key, released)
+
+        assertTrue(registry.releaseByClient(released))
+        assertNull(registry.get(released.key))
+        assertNull(registry.lookupByToken(released.sessionToken))
+        assertTrue(!registry.releaseByClient(released))
+    }
+
+    @Test
     fun `idle eviction removes stale sessions`() {
         val registry = SabrSessionRegistry()
         val staleKey = key("stale")

@@ -13,4 +13,6 @@ data class ChannelResponse(
     val videos: List<VideoItem>,
     val nextpage: String?,
     val verification: String? = null,
+    val hasCourses: Boolean = false,
+    val focusArchiveDays: Int? = null,
 )

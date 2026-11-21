@@ -16,7 +16,7 @@ class SettingsService {
 
     suspend fun upsert(userId: String, settings: SettingsItem): SettingsItem {
         val saved = settings.normalized()
-        DatabaseFactory.query {
+        val seekbarIconUrl = DatabaseFactory.query {
             val updated = SettingsTable.update({ SettingsTable.userId eq userId }) {
                 it.writeSettings(saved)
             }
@@ -26,8 +26,9 @@ class SettingsService {
                     it.writeSettings(saved)
                 }
             }
+            SettingsTable.selectAll().where { SettingsTable.userId eq userId }.single()[SettingsTable.seekbarIconUrl]
         }
-        return saved
+        return saved.copy(seekbarIconUrl = seekbarIconUrl)
     }
 
     suspend fun isWatchHistoryDisabled(userId: String): Boolean = DatabaseFactory.query {

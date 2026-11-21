@@ -19,6 +19,7 @@ class SabrPlaybackCachedSegmentLocatorTest {
         val format = mockk<YoutubeSabrFormat>()
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
+        every { state.hasSegmentIndex(any()) } returns false
         every { format.itag } returns 140
         every { holder.observedMediaSegment(format) } returns null
         every { holder.session } returns session
@@ -51,6 +52,7 @@ class SabrPlaybackCachedSegmentLocatorTest {
         val format = mockk<YoutubeSabrFormat>()
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
+        every { state.hasSegmentIndex(any()) } returns false
         every { format.itag } returns 140
         every { holder.observedMediaSegment(format) } returns null
         every { holder.session } returns session
@@ -81,6 +83,7 @@ class SabrPlaybackCachedSegmentLocatorTest {
         val format = mockk<YoutubeSabrFormat>()
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
+        every { state.hasSegmentIndex(any()) } returns false
         every { format.itag } returns 140
         every { holder.observedMediaSegment(format) } returns null
         every { holder.session } returns session
@@ -111,6 +114,7 @@ class SabrPlaybackCachedSegmentLocatorTest {
         val format = mockk<YoutubeSabrFormat>()
         val session = mockk<YoutubeSabrSession>()
         val state = mockk<YoutubeSabrStreamState>()
+        every { state.hasSegmentIndex(any()) } returns false
         every { format.itag } returns 140
         every { holder.observedMediaSegment(format) } returns null
         every { holder.session } returns session

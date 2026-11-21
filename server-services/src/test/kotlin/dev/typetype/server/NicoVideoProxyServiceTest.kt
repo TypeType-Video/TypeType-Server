@@ -1,5 +1,6 @@
 package dev.typetype.server
 
+import dev.typetype.server.services.nicoBidCookieHeader
 import dev.typetype.server.services.parseNicoCookie
 import dev.typetype.server.services.rewriteNicoManifest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -12,6 +13,23 @@ class NicoVideoProxyServiceTest {
     fun `parseNicoCookie extracts domand_bid from encoded fragment`() {
         val fragment = "cookie=domand_bid%3DaAbBcC123&length=1234"
         assertEquals("aAbBcC123", parseNicoCookie(fragment))
+    }
+
+    @Test
+    fun `parseNicoCookie extracts the dlive_bid cookie of a live`() {
+        assertEquals("liveBid42", parseNicoCookie("cookie=dlive_bid=liveBid42"))
+    }
+
+    @Test
+    fun `nicoBidCookieHeader names the cookie after the CDN`() {
+        assertEquals(
+            "dlive_bid=b",
+            nicoBidCookieHeader("https://livedelivery.dlive.nicovideo.jp/hls/key", "b"),
+        )
+        assertEquals(
+            "domand_bid=b",
+            nicoBidCookieHeader("https://delivery.domand.nicovideo.jp/hlsbid/abc/video.m3u8", "b"),
+        )
     }
 
     @Test

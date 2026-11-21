@@ -43,6 +43,7 @@ class SubscriptionFeedService(
         hideMembersOnlyContent: Boolean = false,
         selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
+        oldestFirst: Boolean = false,
     ): SubscriptionFeedPageResult {
         planner.touch(userId)
         val current = store.current(userId)
@@ -60,6 +61,9 @@ class SubscriptionFeedService(
             return SubscriptionFeedPageResult.InvalidCursor
         }
         if (cursorState != null && cursorState.filterKey != selection.cursorKey) {
+            return SubscriptionFeedPageResult.InvalidCursor
+        }
+        if (cursorState != null && cursorState.oldestFirst != oldestFirst) {
             return SubscriptionFeedPageResult.InvalidCursor
         }
         val snapshot = when {
@@ -85,6 +89,7 @@ class SubscriptionFeedService(
             selection,
             selected.channelUrls,
             selected.token,
+            oldestFirst,
         )
         if (cursorState == null && response.nextpage != null && !selections.persist(userId, selection, selected)) {
             return SubscriptionFeedPageResult.CursorCapacityReached

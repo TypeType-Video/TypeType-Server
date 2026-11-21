@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.db.tables.TwitchAccountsTable
 import dev.typetype.server.db.tables.AllowedChannelsTable
 import dev.typetype.server.db.tables.AllowedPlaylistsTable
 import dev.typetype.server.db.tables.BlockedChannelsTable
@@ -27,6 +28,7 @@ import dev.typetype.server.db.tables.RecommendationOnboardingStateTable
 import dev.typetype.server.db.tables.RssFeedChannelsTable
 import dev.typetype.server.db.tables.RssFeedServicesTable
 import dev.typetype.server.db.tables.RecommenderFeedbackTable
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.RecommenderUserSettingsTable
 import dev.typetype.server.db.tables.RssFeedsTable
 import dev.typetype.server.db.tables.RssUserPoliciesTable
@@ -38,6 +40,7 @@ import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
 import dev.typetype.server.db.tables.UserAvatarsTable
+import dev.typetype.server.db.tables.UserSeekbarIconsTable
 import dev.typetype.server.db.tables.UserChannelInterestTable
 import dev.typetype.server.db.tables.UserTopicInterestTable
 import dev.typetype.server.db.tables.WatchLaterTable
@@ -100,9 +103,11 @@ internal object ProfileDataDeletionService {
             { PasswordResetTable.deleteWhere { PasswordResetTable.userId eq userId } },
             { SessionsTable.deleteWhere { SessionsTable.userId eq userId } },
             { UserAvatarsTable.deleteWhere { UserAvatarsTable.userId eq userId } },
+            { UserSeekbarIconsTable.deleteWhere { UserSeekbarIconsTable.userId eq userId } },
             { UserChannelInterestTable.deleteWhere { UserChannelInterestTable.userId eq userId } },
             { UserTopicInterestTable.deleteWhere { UserTopicInterestTable.userId eq userId } },
             { YoutubeSessionsTable.deleteWhere { YoutubeSessionsTable.userId eq userId } },
+            { TwitchAccountsTable.deleteWhere { TwitchAccountsTable.userId eq userId } },
             { YoutubeSessionPairingsTable.deleteWhere { YoutubeSessionPairingsTable.userId eq userId } },
             { YoutubeTakeoutImportJobsTable.deleteWhere { YoutubeTakeoutImportJobsTable.userId eq userId } },
             { YoutubeTakeoutPlaylistKeysTable.deleteWhere { YoutubeTakeoutPlaylistKeysTable.userId eq userId } },
@@ -112,6 +117,7 @@ internal object ProfileDataDeletionService {
             { RecommendationOnboardingPreferencesTable.deleteWhere { RecommendationOnboardingPreferencesTable.userId eq userId } },
             { RecommendationOnboardingStateTable.deleteWhere { RecommendationOnboardingStateTable.userId eq userId } },
             { RecommenderUserSettingsTable.deleteWhere { RecommenderUserSettingsTable.userId eq userId } },
+            { FocusSettingsTable.deleteWhere { FocusSettingsTable.userId eq userId } },
             { RecommenderFeedbackTable.deleteWhere { RecommenderFeedbackTable.userId eq userId } },
             { RssUserPoliciesTable.deleteWhere { RssUserPoliciesTable.userId eq userId } },
         ).forEach { it() }

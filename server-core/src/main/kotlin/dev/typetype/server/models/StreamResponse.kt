@@ -39,6 +39,7 @@ data class StreamResponse(
     val subtitles: List<SubtitleItem>,
     val previewFrames: List<PreviewFrameItem>,
     val sponsorBlockSegments: List<SponsorBlockSegmentItem>,
+    val sponsorBlockAvailable: Boolean = true,
     val relatedStreams: List<VideoItem>,
     val publishedAt: Long? = null,
     val isLive: Boolean = false,
@@ -47,6 +48,7 @@ data class StreamResponse(
     val hasLiveManifest: Boolean = false,
     val collections: List<StreamCollectionItem> = emptyList(),
     val parts: List<StreamPartItem> = emptyList(),
+    val endScreenElements: List<EndScreenItem> = emptyList(),
     @Transient
     val providerMediaAlternates: Map<String, List<String>> = emptyMap(),
 )

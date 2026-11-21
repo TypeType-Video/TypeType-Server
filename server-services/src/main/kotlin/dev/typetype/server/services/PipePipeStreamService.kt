@@ -1,15 +1,15 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.PlaybackTraceLog
-import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.models.AudioStreamItem
 import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.models.VideoStreamItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runInterruptible
@@ -42,6 +42,8 @@ class PipePipeStreamService(
     private val sabrInfoSink: ((String, YoutubeSabrInfo) -> Unit)? = null,
     private val fetchSupplementalSubtitles: Boolean = true,
     private val earlyMediaWarmup: ((ProviderMediaType, List<VideoStreamItem>, List<AudioStreamItem>) -> Unit)? = null,
+    private val sponsorBlockSegments: SponsorBlockSegmentResolver =
+        SponsorBlockSegmentResolver(cache, CoroutineScope(SupervisorJob() + Dispatchers.IO)),
 ) : StreamService {
 
     override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
@@ -69,8 +71,10 @@ class PipePipeStreamService(
                         }
                         val streamInfo = streamInfoDeferred.await()
                         rememberSabrInfo(streamInfo)
-                        streamInfo.setSponsorBlockSegments(segmentsDeferred.await())
+                        val sponsorBlock = segmentsDeferred.await()
+                        streamInfo.setSponsorBlockSegments(sponsorBlock.segments)
                         val response = StreamAudioContractResolver.apply(streamInfo.toStreamResponse())
+                            .copy(sponsorBlockAvailable = sponsorBlock.available)
                         val withSubtitles = when {
                             !fetchSupplementalSubtitles -> response.also {
                                 PlaybackTraceLog.record("supplemental_subtitles", "status=disabled")
@@ -142,40 +146,28 @@ class PipePipeStreamService(
         sink(streamInfo.id, info)
     }
 
-    private suspend fun resolveSegments(
-        extractor: StreamExtractor,
-    ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
+    /**
+     * A signed-in playback (age-restricted or members-only videos) is built without the public extractor, so it
+     * carries no SponsorBlock segments: they are looked up here by id, through the same resolver and cache.
+     */
+    suspend fun withSponsorBlock(url: String, response: StreamResponse): StreamResponse {
+        if (response.sponsorBlockSegments.isNotEmpty()) return response
+        val extractor = runCatching { NewPipe.getServiceByUrl(url).getStreamExtractor(url) }.getOrNull()
+            ?: return response
+        val resolution = resolveSegments(extractor)
+        return response.copy(
+            sponsorBlockSegments = resolution.segments.map { it.toSegmentItem() },
+            sponsorBlockAvailable = resolution.available,
+        )
+    }
+
+    private suspend fun resolveSegments(extractor: StreamExtractor): SponsorBlockResolution {
         val hasSponsorBlock = extractor.getService().serviceInfo.mediaCapabilities
             .contains(MediaCapability.SPONSORBLOCK)
-        if (!hasSponsorBlock) return emptyArray()
-        val cacheKey = "sponsorblock:${extractor.id}"
-        runExtractionCatching { cache.get(cacheKey) }.getOrNull()?.let { cached ->
-            return runCatching {
-                val items = CacheJson.decodeFromString<List<SponsorBlockSegmentItem>>(cached)
-                items.toSponsorBlockSegments()
-            }.getOrElse { fetchAndCacheSegments(extractor, cacheKey) }
+        if (!hasSponsorBlock) return SponsorBlockResolution(emptyArray(), available = true)
+        return sponsorBlockSegments.resolve(extractor.id) {
+            runPipePipeCall { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
         }
-        return fetchAndCacheSegments(extractor, cacheKey)
-    }
-
-    private suspend fun fetchAndCacheSegments(
-        extractor: StreamExtractor,
-        cacheKey: String,
-    ): Array<org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment> {
-        val segments = runExtractionCatching {
-            withTimeout(15_000L) {
-                runPipePipeCall { SponsorBlockExtractorHelper.getSegments(extractor, ALL_SPONSOR_BLOCK_SETTINGS) }
-            }
-        }.getOrElse { emptyArray() }
-        runCatching {
-            val items = segments.map { it.toSegmentItem() }
-            cache.set(cacheKey, CacheJson.encodeToString(items), SPONSORBLOCK_TTL_SECONDS)
-        }
-        return segments
-    }
-
-    private companion object {
-        const val SPONSORBLOCK_TTL_SECONDS = 21600L
     }
 }
 

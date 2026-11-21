@@ -1,6 +1,8 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.services.BilibiliMirrorSpeedTracker
+import dev.typetype.server.services.RetryingProxyInputStream
 import dev.typetype.server.services.readBilibiliRangeWithRetry
 import kotlinx.coroutines.CancellationException
 import okhttp3.MediaType
@@ -25,6 +27,94 @@ import java.lang.management.ManagementFactory
 class RetryingProxyInputStreamTest {
     private val request = Request.Builder().url("https://video.bilivideo.com/test.m4s")
         .header("Range", "bytes=0-").build()
+
+    @Test
+    fun `records throughput when completed stream is at least minimum sample bytes`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val uposUrl = "https://upos-sz-mirrorcosov.bilivideo.com/test.m4s"
+        val uposRequest = Request.Builder().url(uposUrl).header("Range", "bytes=0-524287").build()
+        val body = GeneratedBody(512 * 1024)
+        val resp = Response.Builder()
+            .request(uposRequest).protocol(Protocol.HTTP_1_1).code(206).message("Partial Content")
+            .header("Content-Type", "video/mp4")
+            .header("Content-Range", "bytes 0-524287/10000000")
+            .body(body).build()
+
+        var currentNano = 100_000_000L
+        val stream = RetryingProxyInputStream(
+            execute = { resp },
+            request = uposRequest,
+            initialResponse = resp,
+            attemptsRemaining = 1,
+            nanoTime = { currentNano.also { currentNano += 10_000_000L } },
+        )
+        stream.use {
+            val buf = ByteArray(64 * 1024)
+            while (it.read(buf) != -1) {
+                // drain
+            }
+        }
+        val expectedMs = BilibiliMirrorSpeedTracker.expectedSegmentMillis(uposUrl)
+        assertTrue(expectedMs < 10_000.0)
+    }
+
+    @Test
+    fun `does not pollute smoothedLatencyMs with normalized payload duration on stream close`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val uposUrl = "https://upos-sz-mirrorcosov.bilivideo.com/test.m4s"
+        BilibiliMirrorSpeedTracker.recordSuccess(uposUrl, 40)
+
+        val uposRequest = Request.Builder().url(uposUrl).header("Range", "bytes=0-524287").build()
+        val body = GeneratedBody(512 * 1024)
+        val resp = Response.Builder()
+            .request(uposRequest).protocol(Protocol.HTTP_1_1).code(206).message("Partial Content")
+            .header("Content-Type", "video/mp4")
+            .header("Content-Range", "bytes 0-524287/10000000")
+            .body(body).build()
+
+        var currentNano = 100_000_000L
+        val stream = RetryingProxyInputStream(
+            execute = { resp },
+            request = uposRequest,
+            initialResponse = resp,
+            attemptsRemaining = 1,
+            nanoTime = { currentNano.also { currentNano += 50_000_000L } },
+        )
+        stream.use {
+            val buf = ByteArray(64 * 1024)
+            while (it.read(buf) != -1) {
+            }
+        }
+        assertEquals(40.0, BilibiliMirrorSpeedTracker.score(uposUrl, null))
+    }
+
+    @Test
+    fun `slow connection opening does not lower the recorded transfer rate`() {
+        BilibiliMirrorSpeedTracker.reset()
+        val uposUrl = "https://upos-sz-mirrorcosov.bilivideo.com/test.m4s"
+        val uposRequest = Request.Builder().url(uposUrl).header("Range", "bytes=0-524287").build()
+        val resp = Response.Builder()
+            .request(uposRequest).protocol(Protocol.HTTP_1_1).code(206).message("Partial Content")
+            .header("Content-Type", "video/mp4")
+            .header("Content-Range", "bytes 0-524287/10000000")
+            .body(GeneratedBody(512 * 1024)).build()
+
+        var currentNano = 100_000_000L
+        val stream = RetryingProxyInputStream(
+            execute = { resp },
+            request = uposRequest,
+            initialResponse = resp,
+            attemptsRemaining = 1,
+            initialOpenNanos = 5_000_000_000L,
+            nanoTime = { currentNano.also { currentNano += 5_000_000L } },
+        )
+        stream.use {
+            val buf = ByteArray(64 * 1024)
+            while (it.read(buf) != -1) {
+            }
+        }
+        assertTrue(BilibiliMirrorSpeedTracker.expectedSegmentMillis(uposUrl) < 1_000.0)
+    }
 
     @Test
     fun `large range is read on demand without a body-sized allocation`() {

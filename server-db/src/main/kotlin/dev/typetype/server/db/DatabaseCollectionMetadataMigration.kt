@@ -18,6 +18,9 @@ object DatabaseCollectionMetadataMigration {
         exec("ALTER TABLE watch_later ADD COLUMN IF NOT EXISTS published_at BIGINT NOT NULL DEFAULT -1")
         exec("ALTER TABLE favorites ADD COLUMN IF NOT EXISTS view_count BIGINT NOT NULL DEFAULT 0")
         exec("ALTER TABLE favorites ADD COLUMN IF NOT EXISTS published_at BIGINT NOT NULL DEFAULT -1")
+        exec("ALTER TABLE watch_later ADD COLUMN IF NOT EXISTS metadata_refreshed_at BIGINT NOT NULL DEFAULT 0")
+        exec("ALTER TABLE favorites ADD COLUMN IF NOT EXISTS metadata_refreshed_at BIGINT NOT NULL DEFAULT 0")
+        exec("ALTER TABLE playlist_videos ADD COLUMN IF NOT EXISTS metadata_refreshed_at BIGINT NOT NULL DEFAULT 0")
     }
 
     private fun repairWatchLaterFromPlaylists() {

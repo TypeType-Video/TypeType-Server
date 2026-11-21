@@ -23,6 +23,7 @@ import dev.typetype.server.services.NewPipeInitializer
 import dev.typetype.server.services.OidcAuthService
 import dev.typetype.server.services.OidcConfigLoader
 import dev.typetype.server.services.SecretConfigReader
+import dev.typetype.server.services.ServerNoticeHub
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.services.PushNotificationScheduler
 import dev.typetype.server.services.BiliBiliSessionRefreshScheduler
@@ -30,6 +31,7 @@ import dev.typetype.server.services.YoutubeSessionRefreshScheduler
 import dev.typetype.server.services.SubscriptionFeedRefreshScheduler
 import dev.typetype.server.portability.PortabilityEngineFactory
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopPreparing
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.netty.EngineMain
 import kotlinx.coroutines.CoroutineScope
@@ -104,6 +106,7 @@ fun Application.module() {
         oidcConfigProvider = oidcAuthService::publicConfig,
         pushNotificationCapabilityProvider = svc.pushNotificationService::capability,
         recommenderInstalled = { svc.recommenderServices.config.installed },
+        twitchEnabled = { svc.twitchService.enabled },
     )
     val downloaderGatewayService = DownloaderGatewayService(downloaderServiceUrl)
     val openMojiProxyService = OpenMojiProxyService(cache)
@@ -117,6 +120,8 @@ fun Application.module() {
         svc.sabrSessionStore.release()
         cache.close()
     }
+    val serverNotices = ServerNoticeHub()
+    monitor.subscribe(ApplicationStopPreparing) { serverNotices.shutdown() }
     configurePlugins(authService)
     installApplicationRoutes(
         svc = svc,
@@ -145,5 +150,6 @@ fun Application.module() {
             enabled = { adminSettingsService.get().deviceLoginEnabled },
             ownerOf = profileAccountService::ownerUserId,
         ),
+        serverNotices = serverNotices,
     )
 }

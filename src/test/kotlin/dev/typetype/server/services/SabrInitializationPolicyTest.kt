@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.testStreamResponse
+import dev.typetype.server.models.EndScreenItem
 import dev.typetype.server.models.ExtractionResult
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -101,6 +102,25 @@ class SabrFallbackStreamServiceTest {
     }
 
     @Test
+    fun `reads end screens for the token session visitor when recovering`() = runTest {
+        val delegate = mockk<StreamService>()
+        val tokenSessionClient = mockk<TypetypeTokenYoutubeSessionClient>()
+        coEvery { delegate.getStreamInfo(YOUTUBE_URL) } returns ExtractionResult.Failure("blocked")
+        coEvery { tokenSessionClient.fetchPlaybackSession(VIDEO_ID) } returns tokenSession()
+        val asked = mutableListOf<Pair<String, String>>()
+        val element = EndScreenItem("e", "video", "Next", "https://www.youtube.com/watch?v=next", "", 1, 2, 0.1, 0.1, 0.3, 1.78)
+        val service = SabrFallbackStreamService(delegate, mockk(), tokenSessionClient) { id, visitor ->
+            asked += id to visitor
+            listOf(element)
+        }
+
+        val response = (service.getStreamInfo(YOUTUBE_URL) as ExtractionResult.Success).data
+
+        assertEquals(listOf(element), response.endScreenElements)
+        assertEquals(listOf(VIDEO_ID to VISITOR_DATA), asked)
+    }
+
+    @Test
     fun `preserves token hls when recovering a live stream`() = runTest {
         val delegate = mockk<StreamService>()
         val sessionStore = mockk<SabrSessionStore>()
@@ -144,6 +164,7 @@ class SabrFallbackStreamServiceTest {
         every { audio.bitrate } returns 129_000
         val info = mockk<YoutubeSabrInfo>()
         every { info.formats } returns listOf(video, audio)
+        every { info.visitorData } returns VISITOR_DATA
         return SabrPreparedInfo(info, null)
     }
 
@@ -171,5 +192,6 @@ class SabrFallbackStreamServiceTest {
         const val VIDEO_ID = "Vj6ReOur1Kk"
         const val YOUTUBE_URL = "https://www.youtube.com/watch?v=$VIDEO_ID"
         const val LIVE_HLS_URL = "https://example.com/live.m3u8"
+        const val VISITOR_DATA = "visitor"
     }
 }

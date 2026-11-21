@@ -122,14 +122,17 @@ internal class SabrPlaybackWindowHandler(
     private suspend fun SabrSessionHolder.preparingResponse(
         request: SabrPlaybackWindowRequest,
         window: SabrPlaybackWindowBuildResult,
-    ): SabrPlaybackWindowPreparingResponse =
-        SabrPlaybackWindowPreparingResponse(
+    ): SabrPlaybackWindowPreparingResponse {
+        val recoveryAction = recovery.action(this)
+        val awaitsToken = recovery.awaitsTokenSession(this)
+        return SabrPlaybackWindowPreparingResponse(
             sessionId = sessionToken,
             generation = activeGeneration(),
             ready = false,
-            retryAfterMs = retryAfterMs(window),
+            retryAfterMs = if (awaitsToken) SabrPlaybackRecovery.TOKEN_SESSION_RETRY_MS else retryAfterMs(window),
             status = playbackState().name.lowercase(),
-            blockedBy = SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending",
+            blockedBy = if (awaitsToken) SabrPlaybackRecovery.TOKEN_SESSION_BLOCKER
+            else SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending",
             playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
             readerHeadMs = readerHeadMs(),
             readerTailMs = readerTailMs(),
@@ -137,37 +140,50 @@ internal class SabrPlaybackWindowHandler(
             pendingRefetch = pendingRefetchRequest()?.summary(),
             pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
             pendingSegmentDemand = pendingSegmentDemandSummary(),
-            terminalError = terminalFailure() ?: networkFailure(),
-            recoveryAction = recovery.action(this),
+            terminalError = if (awaitsToken) null else terminalFailure() ?: networkFailure(),
+            recoveryAction = recoveryAction,
             retryVideoItags = recovery.retryVideoItags(),
             live = livePlaybackSnapshot()?.toResponse(),
         )
+    }
 
     private suspend fun SabrSessionHolder.prefetchResponse(
         request: SabrPlaybackWindowRequest,
         window: SabrPlaybackWindowBuildResult,
         ready: Boolean,
-    ): SabrPlaybackPrefetchResponse = SabrPlaybackPrefetchResponse(
-        sessionId = sessionToken,
-        generation = activeGeneration(),
-        ready = ready,
-        retryAfterMs = if (ready) null else retryAfterMs(window),
-        status = playbackState().name.lowercase(),
-        segmentsUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/segments",
-        stateUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/state",
-        blockedBy = if (ready) null else SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending",
-        playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
-        readerHeadMs = readerHeadMs(),
-        readerTailMs = readerTailMs(),
-        bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
-        pendingRefetch = pendingRefetchRequest()?.summary(),
-        pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
-        pendingSegmentDemand = pendingSegmentDemandSummary(),
-        terminalError = terminalFailure() ?: networkFailure(),
-        recoveryAction = recovery.action(this),
-        retryVideoItags = recovery.retryVideoItags(),
-        live = livePlaybackSnapshot()?.toResponse(),
-    )
+    ): SabrPlaybackPrefetchResponse {
+        val recoveryAction = recovery.action(this)
+        val awaitsToken = !ready && recovery.awaitsTokenSession(this)
+        return SabrPlaybackPrefetchResponse(
+            sessionId = sessionToken,
+            generation = activeGeneration(),
+            ready = ready,
+            retryAfterMs = when {
+                ready -> null
+                awaitsToken -> SabrPlaybackRecovery.TOKEN_SESSION_RETRY_MS
+                else -> retryAfterMs(window)
+            },
+            status = playbackState().name.lowercase(),
+            segmentsUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/segments",
+            stateUrl = "${SabrPlaybackPaths.mediaBasePath(sessionToken)}/state",
+            blockedBy = when {
+                ready -> null
+                awaitsToken -> SabrPlaybackRecovery.TOKEN_SESSION_BLOCKER
+                else -> SabrPlaybackDiagnostics.blocker(this) ?: window.blockedBy ?: "window pending"
+            },
+            playerTimeMs = request.playerTimeMs.coerceAtLeast(0L),
+            readerHeadMs = readerHeadMs(),
+            readerTailMs = readerTailMs(),
+            bufferedEdgeMs = session.streamState.getMinBufferedEndMs(),
+            pendingRefetch = pendingRefetchRequest()?.summary(),
+            pendingForwardSeek = pendingForwardSeekRequest()?.summary(),
+            pendingSegmentDemand = pendingSegmentDemandSummary(),
+            terminalError = if (awaitsToken) null else terminalFailure() ?: networkFailure(),
+            recoveryAction = recoveryAction,
+            retryVideoItags = recovery.retryVideoItags(),
+            live = livePlaybackSnapshot()?.toResponse(),
+        )
+    }
 
     private suspend fun validatedHolder(
         call: ApplicationCall,
@@ -175,7 +191,7 @@ internal class SabrPlaybackWindowHandler(
         request: SabrPlaybackWindowRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return call.respondMissingSabrSession(sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Window formats do not match session")).let { null }
         }
@@ -194,7 +210,7 @@ internal class SabrPlaybackWindowHandler(
         request: SabrPlaybackPositionRequest,
     ): SabrSessionHolder? {
         val holder = sabrSessionStore.lookupByToken(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session")).let { null }
+            ?: return call.respondMissingSabrSession(sessionId)
         if (!holder.matches(request)) {
             return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Position formats do not match session")).let { null }
         }

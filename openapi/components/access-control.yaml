@@ -23,6 +23,11 @@ SettingsItem:
     relatedVideoSize: { type: string, enum: [default, large], default: default }
     autoplay: { type: boolean, default: true }
     autoplayOnOpen: { type: boolean, default: true }
+    playerEngine: { type: string, enum: [vidstack, videojs], default: vidstack, description: Web player engine. Video.js is optional during the migration. }
+    hideWatchedSubscriptionVideos: { type: boolean, default: false, description: Clients hide watched videos from the subscription feed. }
+    watchedThresholdPercent: { type: integer, minimum: 0, maximum: 100, default: 0, description: Percent of a video after which clients count it as watched. 0 keeps the default rule, the last minute or 90 percent of a video shorter than a minute. Other values are 50 to 100. }
+    miniPlayerEnabled: { type: boolean, default: true, description: The web keeps playing in a mini player after leaving the watch page. }
+    hideSearchShorts: { type: boolean, default: true, description: Clients leave Shorts out of search results. The Shorts page stays available. }
     autoplayCountdownSeconds:
       type: integer
       minimum: 0
@@ -33,6 +38,26 @@ SettingsItem:
       type: boolean
       default: false
       description: Hide upcoming playlist titles and thumbnails by default.
+    ambientLight:
+      type: boolean
+      default: false
+      description: Light the page around the player with the colors of the video.
+    ambientLightSpread:
+      type: integer
+      minimum: 0
+      maximum: 200
+      default: 100
+      description: How far the ambient light reaches around the player, in percent of the player size.
+    ambientLightBlur:
+      type: integer
+      minimum: 0
+      maximum: 100
+      default: 50
+    ambientLightBrightness:
+      type: integer
+      minimum: 50
+      maximum: 150
+      default: 100
     muted: { type: boolean, default: false }
     notificationPopupsEnabled: { type: boolean, default: true }
     subtitlesEnabled: { type: boolean, default: false }
@@ -53,6 +78,7 @@ SettingsItem:
     hideHomeRecommendations: { type: boolean, default: false }
     hideContinueWatching: { type: boolean, default: false }
     hideRelatedVideos: { type: boolean, default: false }
+    hideEndScreens: { type: boolean, default: false }
     hideComments: { type: boolean, default: false }
     hideShorts: { type: boolean, default: false }
     hideSubscriptionLiveStreams: { type: boolean, default: false }

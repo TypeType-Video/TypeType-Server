@@ -6,6 +6,7 @@ class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis)
     private val startedAtMs = clock()
     private val protectedResponseGuard = SabrProtectedResponseGuard()
     private var lastRequestMs = 0L
+    private var protectionPendingSeen = false
     private var seekModeUntilMs = 0L
     private var demandKey: String? = null
     private var demandTrackReadvertised = false
@@ -16,6 +17,13 @@ class SabrPumpRuntime(private val clock: () -> Long = System::currentTimeMillis)
 
     fun recordRequest(): Unit {
         lastRequestMs = clock()
+    }
+
+    /** True once, the first time the provider puts this session on hold instead of accepting it. */
+    fun protectionTurnedPending(holder: SabrSessionHolder): Boolean {
+        if (protectionPendingSeen || holder.session.maxStreamProtectionStatus < SabrEgressExitCheck.PENDING_STATUS) return false
+        protectionPendingSeen = true
+        return true
     }
 
     fun verifyProtectedResponse(holder: SabrSessionHolder): Unit =

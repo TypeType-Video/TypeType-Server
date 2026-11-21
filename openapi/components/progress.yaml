@@ -28,3 +28,24 @@ ProgressBatchRequest:
         type: string
         format: uri
         maxLength: 2048
+
+ProgressBatchWriteRequest:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items:
+        type: object
+        required: [videoUrl, position]
+        properties:
+          videoUrl:
+            type: string
+            format: uri
+            maxLength: 2048
+          position:
+            type: integer
+            format: int64
+            description: Playback position in milliseconds.

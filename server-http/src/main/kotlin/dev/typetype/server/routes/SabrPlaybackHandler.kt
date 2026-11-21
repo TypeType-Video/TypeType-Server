@@ -45,11 +45,19 @@ internal class SabrPlaybackHandler(
         val isPrewarm = call.request.queryParameters["prewarm"]?.toBooleanStrictOrNull() == true
         val handoffKey = prewarmHandoffs.key(access.userId, videoId, request, startTimeMs)
         if (!isPrewarm) {
-            val handoff = handoffKey?.let(prewarmHandoffs::take)
+            val (handoff, missReason) = handoffKey?.let(prewarmHandoffs::takeOrDiagnose) ?: (null to null)
             val existing = handoff?.let { playbackService.lookup(it.sessionToken) }
             if (existing != null && existing.terminalFailure() == null) {
                 PlaybackTraceLog.record("sabr_prewarm_handoff", "result=hit videoItag=${existing.videoFormat.itag} audioItag=${existing.audioFormat.itag} audioTrackId=${existing.audioFormat.audioTrackId} startTimeMs=${handoff.startTimeMs} ready=${handoff.ready}")
                 return respondPrepared(call, existing, videoId, handoff.startTimeMs, handoff.ready)
+            }
+            if (handoffKey != null) {
+                val reason = when {
+                    handoff == null -> missReason ?: "no_entry"
+                    existing == null -> "session_missing"
+                    else -> "session_failed"
+                }
+                PlaybackTraceLog.record("sabr_prewarm_handoff", "result=miss reason=$reason videoItag=${request.videoItag} audioItag=${request.audioItag} audioTrackId=${request.audioTrackId} startTimeMs=$startTimeMs")
             }
         }
         val infoStartedAt = System.nanoTime()
@@ -79,8 +87,7 @@ internal class SabrPlaybackHandler(
     }
 
     suspend fun seek(call: ApplicationCall, sessionId: String) {
-        val holder = playbackService.lookup(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         val request = call.playbackRequest()
         val playerTimeMs = request.effectiveStartTimeMs()
         if (request.keepsCurrentFormats(holder)) {
@@ -110,16 +117,14 @@ internal class SabrPlaybackHandler(
     }
 
     suspend fun manifest(call: ApplicationCall, sessionId: String) {
-        val holder = playbackService.lookup(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         playbackService.startPump(holder)
         playbackService.warmPlayback(holder)
         call.respondSabrPlaybackManifest(holder)
     }
 
     suspend fun segment(call: ApplicationCall, sessionId: String, isInit: Boolean, seq: Int) {
-        val holder = playbackService.lookup(sessionId)
-            ?: return call.respond(HttpStatusCode.NotFound, ErrorResponse("No active SABR playback session"))
+        val holder = playbackService.lookup(sessionId) ?: call.respondMissingSabrSession(sessionId) ?: return
         val itag = call.parameters["itag"]?.toIntOrNull()
             ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid itag"))
         val format = holder.formatForItag(itag)

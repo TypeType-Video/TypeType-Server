@@ -8,6 +8,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.withLock
 import dev.typetype.server.sabr.SabrMediaSegment
 import dev.typetype.server.sabr.SabrSegmentRequest
@@ -25,10 +27,11 @@ class SabrSessionStore(
     private val sessionClient: TypetypeTokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(tokenServiceUrl),
     internal val initCache: CacheService? = null,
     val sessionEpoch: ProviderSessionEpoch = tokenClient.sessionEpoch,
+    private val egressRotation: GluetunEgressRotation? = null,
 ) {
     private val registry = SabrSessionRegistry()
     private val segmentCache = SabrSegmentCache()
-    private val pump = SabrSessionPump(segmentCache) { holder ->
+    private val pump = SabrSessionPump(segmentCache, ::reportProtectionPending) { holder ->
         val binding = holder.playerContextToken?.sessionBinding
         if (binding == null) tokenClient.fetch(holder.key.videoId, refreshVideo = true)
         else tokenClient.fetchSession(holder.key.videoId, binding, refreshVideo = true)
@@ -44,8 +47,19 @@ class SabrSessionStore(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val idleCheckJob: Job = scope.launch { idleEvictionLoop() }
 
+    private val exitCheck = SabrEgressExitCheck(this)
+    private val acceptance = TokenSessionAcceptance(exitCheck, egressRotation, scope)
+
+    private val sessionWatch = TokenSessionWatch(
+        generation = { videoId -> withContext(Dispatchers.IO) { tokenClient.fetch(videoId) }?.generation },
+        check = exitCheck,
+        acceptance = acceptance,
+    )
+
     init {
         runCatching { NewPipeInitializer.init() }
+        egressRotation?.exitCheck = exitCheck
+        scope.launch { sessionWatch.run() }
     }
     fun getOrCreate(
         videoId: String,
@@ -61,6 +75,7 @@ class SabrSessionStore(
         initialGeneration: Long = 0L,
         source: SabrPreparedSource = SabrPreparedSource.PUBLIC,
     ): SabrSessionHolder {
+        if (userId != SabrEgressExitCheck.PROBE_USER) sessionWatch.played(videoId)
         val sessionToken = SabrSessionTokenGenerator.newToken()
         val isolatedSourceId = sessionToken.takeIf {
             purpose == SabrSessionPurpose.PLAYBACK || purpose == SabrSessionPurpose.DOWNLOAD
@@ -118,6 +133,7 @@ class SabrSessionStore(
     fun lookupByToken(videoId: String, token: String, itag: Int): SabrSessionHolder? = registry.lookupByToken(videoId, token, itag)
     fun lookupByToken(videoId: String, token: String): SabrSessionHolder? = registry.lookupByToken(videoId, token)
     fun lookupByToken(token: String): SabrSessionHolder? = registry.lookupByToken(token)
+    fun releaseByClient(holder: SabrSessionHolder): Boolean = registry.releaseByClient(holder)
 
     suspend fun ensureWarmed(holder: SabrSessionHolder, maxPumps: Int = 8): Unit = pump.ensureWarmed(holder, maxPumps)
 
@@ -163,11 +179,45 @@ class SabrSessionStore(
     suspend fun invalidatePlaybackInfo(videoId: String): Unit = infoFetcher.invalidatePlayback(videoId)
     fun hasPreparedInfo(videoId: String): Boolean = infoFetcher.hasPreparedInfo(videoId)
 
-    suspend fun recoverProtectedPlaybackInfo(holder: SabrSessionHolder): Unit =
+    /**
+     * The token service ignores a forced refresh for a while after its last one, so this asks again
+     * until the session generation changes, also while the token service cannot answer because the
+     * exit is reconnecting: a check run on the previous session would judge the previous exit.
+     */
+    suspend fun renewTokenSession(videoId: String) {
+        val previous = withContext(Dispatchers.IO) { tokenClient.fetch(videoId) }?.generation
+        withTimeoutOrNull(TOKEN_RENEWAL_WAIT_MS) {
+            while (true) {
+                val renewed = withContext(Dispatchers.IO) { tokenClient.fetch(videoId, forceRefresh = true) }?.generation
+                if (renewed != null && renewed != previous) break
+                delay(TOKEN_RENEWAL_RETRY_MS)
+            }
+        }
+        infoFetcher.invalidatePlayback(videoId)
+    }
+
+    /**
+     * Recovers with the last video that played, not the one that raised the signal: that one may be
+     * unplayable for its own reasons and would fail every check.
+     */
+    fun recoverTokenSession(reason: String): Boolean =
+        sessionWatch.videoId?.let { acceptance.onHold(reason, it) } ?: false
+
+    val tokenServiceUnavailable: Boolean get() = tokenClient.unavailable
+    val tokenSessionRenewing: Boolean get() = acceptance.recovering
+
+    private fun reportProtectionPending(holder: SabrSessionHolder) {
+        if (holder.key.userId == SabrEgressExitCheck.PROBE_USER) return
+        acceptance.onHold("sabr_attestation_pending", holder.key.videoId)
+    }
+
+    suspend fun recoverProtectedPlaybackInfo(holder: SabrSessionHolder) {
+        acceptance.onHold("sabr_attestation", holder.key.videoId)
         infoFetcher.recoverProtectedPlayback(
             holder.key.videoId,
             holder.playerContextToken?.visitorData ?: holder.info.visitorData,
         )
+    }
 
     fun refreshVideoPoToken(videoId: String): SabrTokenBundle? =
         tokenClient.fetch(videoId, refreshVideo = true)
@@ -224,5 +274,10 @@ class SabrSessionStore(
             infoFetcher.evictExpired()
             SabrInitializationData.evictExpired()
         }
+    }
+
+    private companion object {
+        const val TOKEN_RENEWAL_WAIT_MS = 45_000L
+        const val TOKEN_RENEWAL_RETRY_MS = 5_000L
     }
 }

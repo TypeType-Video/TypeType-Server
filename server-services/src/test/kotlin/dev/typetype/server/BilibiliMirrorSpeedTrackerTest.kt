@@ -130,4 +130,26 @@ class BilibiliMirrorSpeedTrackerTest {
         BilibiliMirrorSpeedTracker.recordFailure(urls[0])
         assertEquals(urls.reversed(), BilibiliMirrorSpeedTracker.rankByExpectedTime(urls))
     }
+
+    @Test
+    fun `exponentially increases penalty duration on repeated consecutive failures`() {
+        assertEquals(0L, BilibiliMirrorSpeedTracker.penaltyDuration(0))
+        assertEquals(120_000L, BilibiliMirrorSpeedTracker.penaltyDuration(1))
+        assertEquals(240_000L, BilibiliMirrorSpeedTracker.penaltyDuration(2))
+        assertEquals(480_000L, BilibiliMirrorSpeedTracker.penaltyDuration(3))
+        assertEquals(960_000L, BilibiliMirrorSpeedTracker.penaltyDuration(4))
+        assertEquals(1920_000L, BilibiliMirrorSpeedTracker.penaltyDuration(5))
+    }
+
+    @Test
+    fun `detects fresh measurement from recent throughput or latency sample`() {
+        val url = "https://upos-sz-mirrorcosov.bilivideo.com/v.m4s"
+        org.junit.jupiter.api.Assertions.assertFalse(BilibiliMirrorSpeedTracker.hasFreshMeasurement(url, nowMs = 1_000))
+
+        BilibiliMirrorSpeedTracker.recordThroughput(url, 3_000_000.0, nowMs = 1_000)
+        assertTrue(BilibiliMirrorSpeedTracker.hasFreshMeasurement(url, nowMs = 1_000))
+        org.junit.jupiter.api.Assertions.assertFalse(
+            BilibiliMirrorSpeedTracker.hasFreshMeasurement(url, nowMs = 1_000 + BilibiliMirrorSpeedTracker.FRESHNESS_WINDOW_MS + 1)
+        )
+    }
 }
