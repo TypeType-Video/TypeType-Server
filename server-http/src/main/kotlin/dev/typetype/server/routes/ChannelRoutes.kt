@@ -104,6 +104,10 @@ fun Route.channelRoutes(
         if (!access.profile.allowsChannel(url)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
         }
+        val focus = access.userId?.let { focusService?.profileFor(it) }
+        if (call.respondIfFocusBlocksChannel(focus, url)) {
+            return@get
+        }
 
         val listUrl = when (call.request.queryParameters["tab"]) {
             null, "playlists" -> url

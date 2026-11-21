@@ -10,12 +10,14 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.StreamService
 import dev.typetype.server.services.filterAllowed
 import dev.typetype.server.services.filterBlocked
+import dev.typetype.server.services.filterFocus
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
@@ -30,6 +32,7 @@ fun Route.streamRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     blockedService: BlockedService? = null,
+    focusService: FocusService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     providerMediaHandleService: ProviderMediaHandleService? = null,
     providerMediaWarmup: ProviderMediaWarmup? = null,
@@ -50,6 +53,7 @@ fun Route.streamRoutes(
         accessControlService = accessControlService,
         adminSettingsService = adminSettingsService,
         blockedService = blockedService,
+        focusService = focusService,
         publicHlsManifestTokenService = publicHlsManifestTokenService,
         providerMediaHandleService = providerMediaHandleService,
         providerMediaWarmup = providerMediaWarmup,
@@ -147,6 +151,10 @@ private fun Route.streamRoute(
                         ErrorResponse("Channel is blocked", "content_blocked"),
                     )
                 }
+                val focusProfile = access.userId?.let { dependencies.focusService?.profileFor(it) }
+                if (call.respondIfFocusBlocksStream(focusProfile, url, result.data)) {
+                    return@get
+                }
                 val selected = if (deliveryMode.isSabr()) {
                     result.data.forSabrPlayback()
                 } else if (deliveryMode == StreamDeliveryMode.YoutubeLiveHls) {
@@ -157,6 +165,7 @@ private fun Route.streamRoute(
                 val filtered = selected
                     .filterAllowed(accessProfile)
                     .filterBlocked(blockedProfile)
+                    .filterFocus(focusProfile)
                     .withSignedPublicHlsUrl(
                         deliveryMode.isSabr() && selected.isLive ||
                             deliveryMode == StreamDeliveryMode.YoutubeLiveHls && selected.isLive ||

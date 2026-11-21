@@ -7,6 +7,7 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrPlaybackSessionService
 import dev.typetype.server.services.SabrPlaybackInfoResolver
@@ -28,6 +29,7 @@ internal class SabrPlaybackHandler(
     private val adminSettingsService: AdminSettingsService?,
     authenticatedSabrInfoService: AuthenticatedSabrInfoService? = null,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    private val focusService: FocusService? = null,
 ) {
     private val playbackService = SabrPlaybackSessionService(sabrSessionStore)
     private val infoResolver = SabrPlaybackInfoResolver(sabrSessionStore, authenticatedSabrInfoService) { videoId ->
@@ -142,14 +144,18 @@ internal class SabrPlaybackHandler(
         call.respondSabrPreparation(sabrSessionStore, holder, videoId, startTimeMs, ready, RETRY_AFTER_MS)
 
     private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
-        if (!access.profile.enabled) return true
+        val focus = access.userId?.let { focusService?.profileFor(it) }
+        if (!access.profile.enabled && focus == null) return true
+        val url = "https://www.youtube.com/watch?v=$videoId"
         return when (val result = accessValidator.resolve(access.userId, videoId)) {
             is ExtractionResult.Success -> {
                 val allowed = !access.profile.enabled ||
                     access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)
-                if (allowed) true else {
+                if (!allowed) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                     false
+                } else {
+                    !call.respondIfFocusBlocksStream(focus, url, result.data)
                 }
             }
             is ExtractionResult.Failure -> {

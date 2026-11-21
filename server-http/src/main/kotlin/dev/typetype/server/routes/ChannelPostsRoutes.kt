@@ -8,6 +8,7 @@ import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.BlockedService
 import dev.typetype.server.services.ChannelPostsService
+import dev.typetype.server.services.FocusService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -19,6 +20,7 @@ fun Route.channelPostsRoutes(
     accessControlService: AccessControlService? = null,
     adminSettingsService: AdminSettingsService? = null,
     blockedService: BlockedService? = null,
+    focusService: FocusService? = null,
 ) {
     get("/channel/posts") {
         val url = call.request.queryParameters["url"]
@@ -26,6 +28,7 @@ fun Route.channelPostsRoutes(
         val nextpage = call.request.queryParameters["nextpage"]?.takeIf { it.isNotBlank() }
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return@get
         val blocked = access.userId?.let { blockedService?.profileFor(it) } ?: BlockedContentProfile.empty
+        val focus = access.userId?.let { focusService?.profileFor(it) }
 
         when (val result = postsService.getPosts(url = url, nextpage = nextpage)) {
             is ExtractionResult.Success -> {
@@ -35,6 +38,9 @@ fun Route.channelPostsRoutes(
                 }
                 if (!blocked.allowsChannel(url = url, name = name)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is blocked", "content_blocked"))
+                }
+                if (call.respondIfFocusBlocksChannel(focus, url, name)) {
+                    return@get
                 }
                 call.respond(result.data)
             }

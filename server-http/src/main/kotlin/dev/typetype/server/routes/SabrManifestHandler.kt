@@ -6,6 +6,7 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrSessionHolder
@@ -27,6 +28,7 @@ internal class SabrManifestHandler(
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
     private val audioOnlyTokenService: AudioOnlyMediaTokenService?,
+    private val focusService: FocusService? = null,
 ) {
     private val accessResolver = SabrManifestAccessResolver(audioOnlyTokenService)
     private val responder = SabrManifestResponder(sabrSessionStore)
@@ -61,11 +63,15 @@ internal class SabrManifestHandler(
                 call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         }
         val url = "https://www.youtube.com/watch?v=$videoId"
-        if (access?.profile?.enabled == true) {
+        val focus = access?.userId?.let { focusService?.profileFor(it) }
+        if (access?.profile?.enabled == true || focus != null) {
             when (val result = streamService.getStreamInfo(url)) {
                 is ExtractionResult.Success -> {
-                    if (!access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
+                    if (access != null && access.profile.enabled && !access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                         return call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                    }
+                    if (call.respondIfFocusBlocksStream(focus, url, result.data)) {
+                        return
                     }
                 }
                 is ExtractionResult.Failure ->

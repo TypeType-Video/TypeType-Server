@@ -1,6 +1,7 @@
 package dev.typetype.server.services
 
 import dev.typetype.server.db.DatabaseFactory
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.db.tables.SubscriptionsTable
@@ -12,6 +13,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import java.sql.SQLException
@@ -111,6 +113,9 @@ class SubscriptionGroupsService {
             (SubscriptionsTable.userId eq userId) and (SubscriptionsTable.channelUrl inList channelUrls)
         }.mapTo(hashSetOf()) { it[SubscriptionsTable.channelUrl] }
         if (subscribed.size != channelUrls.size) return@query SubscriptionGroupMembershipResult.SubscriptionNotFound
+        if (conflictsWithFocusEntertainment(userId, groupId, channelUrls)) {
+            return@query SubscriptionGroupMembershipResult.FocusEntertainmentConflict
+        }
         val existing = SubscriptionGroupMembershipsTable.selectAll().where {
             (SubscriptionGroupMembershipsTable.groupId eq groupId) and
                 (SubscriptionGroupMembershipsTable.userId eq userId) and
@@ -169,6 +174,21 @@ class SubscriptionGroupsService {
     }
 
     private fun groupExists(userId: String, groupId: String): Boolean = SubscriptionGroupQueries.exists(userId, groupId)
+
+    private fun conflictsWithFocusEntertainment(userId: String, groupId: String, channelUrls: Set<String>): Boolean {
+        val focusRow = FocusSettingsTable.selectAll().where { FocusSettingsTable.userId eq userId }.singleOrNull()
+            ?: return false
+        if (!focusRow[FocusSettingsTable.enabled] || focusRow[FocusSettingsTable.studyGroupId] != groupId) return false
+        val entertainmentGroupId = focusRow[FocusSettingsTable.entertainmentGroupId] ?: return false
+        val entertainmentKeys = SubscriptionGroupMembershipsTable
+            .select(SubscriptionGroupMembershipsTable.channelUrl)
+            .where {
+                (SubscriptionGroupMembershipsTable.groupId eq entertainmentGroupId) and
+                    (SubscriptionGroupMembershipsTable.userId eq userId)
+            }
+            .mapTo(hashSetOf()) { normalizeChannelKey(it[SubscriptionGroupMembershipsTable.channelUrl]) }
+        return channelUrls.any { normalizeChannelKey(it) in entertainmentKeys }
+    }
 
     private fun nameExists(userId: String, normalizedName: String): Boolean =
         SubscriptionGroupsTable.selectAll().where {

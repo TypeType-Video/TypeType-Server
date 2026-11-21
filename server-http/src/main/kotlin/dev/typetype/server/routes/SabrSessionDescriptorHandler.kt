@@ -5,6 +5,7 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrSessionHolder
 import dev.typetype.server.services.SabrSessionStore
@@ -25,16 +26,21 @@ internal class SabrSessionDescriptorHandler(
     private val authService: AuthService?,
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
+    private val focusService: FocusService? = null,
 ) {
     suspend fun handle(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)
             ?: return
         val url = "https://www.youtube.com/watch?v=$videoId"
-        if (access.profile.enabled) {
+        val focus = access.userId?.let { focusService?.profileFor(it) }
+        if (access.profile.enabled || focus != null) {
             when (val result = streamService.getStreamInfo(url)) {
                 is ExtractionResult.Success -> {
-                    if (!access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
+                    if (access.profile.enabled && !access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
                         return call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                    }
+                    if (call.respondIfFocusBlocksStream(focus, url, result.data)) {
+                        return
                     }
                 }
                 is ExtractionResult.Failure -> return call.respond(
