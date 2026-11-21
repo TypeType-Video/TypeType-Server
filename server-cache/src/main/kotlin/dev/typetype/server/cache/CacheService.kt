@@ -12,4 +12,5 @@ interface CacheService {
     suspend fun getAndDelete(key: String): String? =
         throw UnsupportedOperationException("Atomic get-and-delete is not supported")
     suspend fun delete(key: String)
+    suspend fun deleteMatching(pattern: String): Int = 0
 }

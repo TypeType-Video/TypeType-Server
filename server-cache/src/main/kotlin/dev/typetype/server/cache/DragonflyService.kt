@@ -1,6 +1,8 @@
 package dev.typetype.server.cache
 
 import io.lettuce.core.RedisClient
+import io.lettuce.core.ScanArgs
+import io.lettuce.core.ScanCursor
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -45,6 +47,21 @@ class DragonflyService(url: String) : CacheService {
     override suspend fun delete(key: String): Unit =
         async.del(key).await().let {}
 
+    override suspend fun deleteMatching(pattern: String): Int {
+        var deleted = 0
+        var cursor: ScanCursor = ScanCursor.INITIAL
+        val args = ScanArgs.Builder.matches(pattern).limit(SCAN_BATCH_SIZE)
+        do {
+            val page = async.scan(cursor, args).await()
+            val keys = page.keys
+            if (keys.isNotEmpty()) {
+                deleted += async.del(*keys.toTypedArray()).await().toInt()
+            }
+            cursor = page
+        } while (!page.isFinished)
+        return deleted
+    }
+
     suspend fun ping(): Boolean = async.ping().await() == "PONG"
 
     fun close() {
@@ -53,6 +70,7 @@ class DragonflyService(url: String) : CacheService {
     }
 
     private companion object {
+        const val SCAN_BATCH_SIZE = 200L
         const val REFRESH_IF_VALUE_MATCHES =
             "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) end return 0"
         const val INCREMENT_WITH_EXPIRY =
