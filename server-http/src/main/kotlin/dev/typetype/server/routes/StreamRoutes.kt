@@ -67,13 +67,7 @@ fun Route.streamRoutes(
     val bootstrapDependencies = dependencies.copy(youtubeRelatedVideos = null)
     streamRoute("/streams/youtube/sabr", StreamDeliveryMode.YoutubeSabr, streamService, dependencies, previewsEnabled)
     streamRoute("/streams/youtube/live", StreamDeliveryMode.YoutubeLiveHls, youtubeLiveHlsStreamService, dependencies, previewsEnabled)
-    streamRoute(
-        "/streams/youtube/sabr/bootstrap",
-        StreamDeliveryMode.YoutubeSabr,
-        sabrBootstrapStreamService,
-        bootstrapDependencies,
-        previewsEnabled,
-    )
+    streamRoute("/streams/youtube/sabr/bootstrap", StreamDeliveryMode.YoutubeSabr, sabrBootstrapStreamService, bootstrapDependencies, previewsEnabled)
     streamRoute("/streams/niconico", StreamDeliveryMode.NicoNico, nicoNicoStreamService, dependencies, previewsEnabled)
     streamRoute("/streams/bilibili", StreamDeliveryMode.BiliBili, bilibiliStreamService, dependencies, previewsEnabled)
 }
@@ -89,10 +83,7 @@ private fun Route.streamRoute(
         val url = call.request.queryParameters["url"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing 'url' parameter"))
         if (!deliveryMode.accepts(url)) {
-            return@get call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("URL does not match stream endpoint", "provider_mismatch"),
-            )
+            return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("URL does not match stream endpoint", "provider_mismatch"))
         }
         PlaybackTraceLog.record("stream_route_start", "deliveryMode=$deliveryMode")
         val accessStartedAt = System.nanoTime()
@@ -110,10 +101,7 @@ private fun Route.streamRoute(
             "durationMs=${(System.nanoTime() - accessStartedAt) / 1_000_000} guest=${access.userId == null}",
         )
         if (blockedProfile.blocksVideo(url)) {
-            return@get call.respond(
-                HttpStatusCode.Forbidden,
-                ErrorResponse("Video is blocked", "content_blocked"),
-            )
+            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Video is blocked", "content_blocked"))
         }
         val providerStartedAt = System.nanoTime()
         val preview = StreamPreview(call.request.queryParameters["intent"], previewsEnabled)
@@ -142,17 +130,8 @@ private fun Route.streamRoute(
         )
         when (val result = resolution.result) {
             is ExtractionResult.Success -> {
-                if (!accessProfile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
-                    return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
-                }
-                if (!blockedProfile.allowsRequestedVideo(url, result.data.uploaderUrl, result.data.uploaderName)) {
-                    return@get call.respond(
-                        HttpStatusCode.Forbidden,
-                        ErrorResponse("Channel is blocked", "content_blocked"),
-                    )
-                }
                 val focusProfile = access.userId?.let { dependencies.focusService?.profileFor(it) }
-                if (call.respondIfFocusBlocksStream(focusProfile, url, result.data)) {
+                if (call.respondIfStreamResponseBlocked(accessProfile, blockedProfile, focusProfile, url, result.data)) {
                     return@get
                 }
                 val selected = if (deliveryMode.isSabr()) {

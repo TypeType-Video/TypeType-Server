@@ -41,6 +41,7 @@ fun ChannelResponse.limitFocusArchive(profile: FocusProfile?, channelUrl: String
             focusArchiveDays = profile.archiveDays,
         )
     }
+    if (!profile.strictBlocking) return this
     if (profile.isStudy(channelUrl) || (resolvedUploaderUrl != null && profile.isStudy(resolvedUploaderUrl))) {
         return this
     }

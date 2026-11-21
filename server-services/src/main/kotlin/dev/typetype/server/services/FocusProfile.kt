@@ -6,13 +6,13 @@ enum class FocusChannelAccess {
     ALLOW_STUDY,
     ENTERTAINMENT,
     PENDING_STUDY,
-    CHALLENGE_REQUIRED,
+    OUTSIDE_STUDY,
 }
 
 sealed interface FocusBlockReason {
     data object Entertainment : FocusBlockReason
     data class StudyPending(val unlockAt: Long) : FocusBlockReason
-    data object ChallengeRequired : FocusBlockReason
+    data object OutsideStudy : FocusBlockReason
 }
 
 data class FocusProfile(
@@ -23,6 +23,7 @@ data class FocusProfile(
     val entertainmentShare: Double,
     val archiveDays: Int,
     val archiveCutoffMs: Long,
+    val strictBlocking: Boolean = false,
 ) {
     fun isEntertainment(channelUrl: String): Boolean =
         channelUrl.isNotBlank() && normalizeChannelKey(channelUrl) in entertainmentChannels
@@ -39,7 +40,7 @@ data class FocusProfile(
         isEntertainment(channelUrl) -> FocusChannelAccess.ENTERTAINMENT
         isStudy(channelUrl) -> FocusChannelAccess.ALLOW_STUDY
         pendingUnlockAt(channelUrl) != null -> FocusChannelAccess.PENDING_STUDY
-        else -> FocusChannelAccess.CHALLENGE_REQUIRED
+        else -> FocusChannelAccess.OUTSIDE_STUDY
     }
 
     // A hash of the profile and the video keeps the same videos hidden on every page and every reload,
@@ -58,19 +59,20 @@ data class FocusProfile(
             FocusChannelAccess.ALLOW_STUDY -> true
             FocusChannelAccess.ENTERTAINMENT -> withinArchive(publishedAt) && keepsVideo(url, uploaderUrl)
             FocusChannelAccess.PENDING_STUDY,
-            FocusChannelAccess.CHALLENGE_REQUIRED,
-            -> false
+            FocusChannelAccess.OUTSIDE_STUDY,
+            -> !strictBlocking
         }
 
     fun blockReasonForPlayback(url: String, uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? {
-        if (uploaderUrl.isBlank()) return FocusBlockReason.ChallengeRequired
+        if (!strictBlocking) return null
+        if (uploaderUrl.isBlank()) return FocusBlockReason.OutsideStudy
         return when (accessFor(uploaderUrl)) {
             FocusChannelAccess.ALLOW_STUDY -> null
             FocusChannelAccess.ENTERTAINMENT ->
                 if (withinArchive(publishedAt) && keepsVideo(url, uploaderUrl)) null else FocusBlockReason.Entertainment
             FocusChannelAccess.PENDING_STUDY ->
                 FocusBlockReason.StudyPending(requireNotNull(pendingUnlockAt(uploaderUrl)))
-            FocusChannelAccess.CHALLENGE_REQUIRED -> FocusBlockReason.ChallengeRequired
+            FocusChannelAccess.OUTSIDE_STUDY -> FocusBlockReason.OutsideStudy
         }
     }
 

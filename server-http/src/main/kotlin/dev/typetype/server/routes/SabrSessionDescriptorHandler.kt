@@ -1,7 +1,6 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
@@ -32,26 +31,11 @@ internal class SabrSessionDescriptorHandler(
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService)
             ?: return
         val url = "https://www.youtube.com/watch?v=$videoId"
-        val focus = access.userId?.let { focusService?.profileFor(it) }
-        if (access.profile.enabled || focus != null) {
-            when (val result = streamService.getStreamInfo(url)) {
-                is ExtractionResult.Success -> {
-                    if (access.profile.enabled && !access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
-                        return call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
-                    }
-                    if (call.respondIfFocusBlocksStream(focus, url, result.data)) {
-                        return
-                    }
-                }
-                is ExtractionResult.Failure -> return call.respond(
-                    HttpStatusCode.UnprocessableEntity,
-                    ErrorResponse(result.message, result.code),
-                )
-                is ExtractionResult.BadRequest -> return call.respond(
-                    HttpStatusCode.BadRequest,
-                    ErrorResponse(result.message, result.code),
-                )
+        if (call.respondIfStreamGuardBlocks(access.profile, access.userId, focusService, url) {
+                streamService.getStreamInfo(url)
             }
+        ) {
+            return
         }
         val startTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: call.request.queryParameters["startTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)

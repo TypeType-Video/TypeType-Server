@@ -26,6 +26,5 @@ data class FocusBlockedErrorResponse(
     val channelAvatarUrl: String = "",
     val videoTitle: String = "",
     val unlockAt: Long? = null,
-    val focusAiEnabled: Boolean = false,
     val requestId: String? = currentRequestId(),
 )

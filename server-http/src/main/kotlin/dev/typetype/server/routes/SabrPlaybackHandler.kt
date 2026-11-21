@@ -41,7 +41,13 @@ internal class SabrPlaybackHandler(
 
     suspend fun create(call: ApplicationCall, videoId: String) {
         val access = call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
-        if (!validateAccess(call, videoId, access)) return
+        val url = "https://www.youtube.com/watch?v=$videoId"
+        if (call.respondIfStreamGuardBlocks(access.profile, access.userId, focusService, url) {
+                accessValidator.resolve(access.userId, videoId)
+            }
+        ) {
+            return
+        }
         val request = call.playbackRequest()
         val startTimeMs = request.effectiveStartTimeMs()
         val isPrewarm = call.request.queryParameters["prewarm"]?.toBooleanStrictOrNull() == true
@@ -142,33 +148,6 @@ internal class SabrPlaybackHandler(
 
     private suspend fun respondPrepared(call: ApplicationCall, holder: SabrSessionHolder, videoId: String, startTimeMs: Long, ready: Boolean) =
         call.respondSabrPreparation(sabrSessionStore, holder, videoId, startTimeMs, ready, RETRY_AFTER_MS)
-
-    private suspend fun validateAccess(call: ApplicationCall, videoId: String, access: AccessRouteProfile): Boolean {
-        val focus = access.userId?.let { focusService?.profileFor(it) }
-        if (!access.profile.enabled && focus == null) return true
-        val url = "https://www.youtube.com/watch?v=$videoId"
-        return when (val result = accessValidator.resolve(access.userId, videoId)) {
-            is ExtractionResult.Success -> {
-                val allowed = !access.profile.enabled ||
-                    access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)
-                if (!allowed) {
-                    call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
-                    false
-                } else {
-                    !call.respondIfFocusBlocksStream(focus, url, result.data)
-                }
-            }
-            is ExtractionResult.Failure -> {
-                call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
-                false
-            }
-            is ExtractionResult.BadRequest -> {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
-                false
-            }
-        }
-    }
-
 
     private suspend fun selectAudio(
         call: ApplicationCall,

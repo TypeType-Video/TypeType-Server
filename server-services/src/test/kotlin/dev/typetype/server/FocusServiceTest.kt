@@ -50,8 +50,11 @@ class FocusServiceTest {
             focus.update(TEST_USER_ID, FocusSettingsRequest(enabled = true, entertainmentGroupId = group, transitionDays = 0)),
         )
         val enabled = focus.update(TEST_USER_ID, FocusSettingsRequest(enabled = true, entertainmentGroupId = group))
-        assertTrue((enabled as FocusUpdateResult.Success).item.enabled)
-        assertEquals(now, enabled.item.startedAt)
+        val item = (enabled as FocusUpdateResult.Success).item
+        assertTrue(item.enabled)
+        assertFalse(item.strictBlocking)
+        assertFalse(item.grayscaleThumbnails)
+        assertEquals(now, item.startedAt)
     }
 
     @Test
@@ -117,9 +120,12 @@ class FocusServiceTest {
         val study = (groups.create(TEST_USER_ID, "Study") as SubscriptionGroupWriteResult.Success).group.id
         focus.update(
             TEST_USER_ID,
-            FocusSettingsRequest(enabled = true, entertainmentGroupId = entertainment, studyGroupId = study, grayscaleThumbnails = false),
+            FocusSettingsRequest(enabled = true, entertainmentGroupId = entertainment, studyGroupId = study),
         )
-        assertFalse(focus.get(TEST_USER_ID).grayscaleThumbnails)
+        val defaults = focus.get(TEST_USER_ID)
+        assertFalse(defaults.grayscaleThumbnails)
+        assertFalse(defaults.strictBlocking)
+        assertFalse(requireNotNull(focus.profileFor(TEST_USER_ID)).strictBlocking)
         assertEquals(
             FocusStudyChannelResult.EntertainmentConflict,
             focus.addStudyChannel(TEST_USER_ID, channel, "Fun", ""),
@@ -138,7 +144,7 @@ class FocusServiceTest {
         assertEquals(FocusChannelAccess.PENDING_STUDY, pendingProfile.accessFor(newStudy))
         assertEquals(FocusStudyChannelRemoveResult.Success, focus.removeStudyChannel(TEST_USER_ID, newStudy))
         assertFalse(subscriptions.getAll(TEST_USER_ID).any { it.channelUrl == newStudy })
-        assertEquals(FocusChannelAccess.CHALLENGE_REQUIRED, requireNotNull(focus.profileFor(TEST_USER_ID)).accessFor(newStudy))
+        assertEquals(FocusChannelAccess.OUTSIDE_STUDY, requireNotNull(focus.profileFor(TEST_USER_ID)).accessFor(newStudy))
         assertEquals(FocusStudyChannelRemoveResult.NotFound, focus.removeStudyChannel(TEST_USER_ID, newStudy))
 
         val preSubscribed = "https://www.youtube.com/channel/UCexisting"
@@ -151,6 +157,25 @@ class FocusServiceTest {
         now += FocusService.STUDY_ADD_DELAY_MS
         val activeProfile = requireNotNull(focus.profileFor(TEST_USER_ID))
         assertEquals(FocusChannelAccess.ALLOW_STUDY, activeProfile.accessFor(newStudy))
+    }
+
+    @Test
+    fun `strict blocking and monochrome thumbnails are opt-in and locked once enabled`() = runTest {
+        val group = entertainmentGroup()
+        val optedIn = focus.update(
+            TEST_USER_ID,
+            FocusSettingsRequest(enabled = true, entertainmentGroupId = group, strictBlocking = true, grayscaleThumbnails = true),
+        ) as FocusUpdateResult.Success
+        assertTrue(optedIn.item.strictBlocking)
+        assertTrue(optedIn.item.grayscaleThumbnails)
+        assertTrue(requireNotNull(focus.profileFor(TEST_USER_ID)).strictBlocking)
+
+        val lockedAttempt = focus.update(
+            TEST_USER_ID,
+            FocusSettingsRequest(enabled = true, strictBlocking = false, grayscaleThumbnails = false),
+        ) as FocusUpdateResult.Success
+        assertTrue(lockedAttempt.item.strictBlocking)
+        assertTrue(lockedAttempt.item.grayscaleThumbnails)
     }
 
     private suspend fun entertainmentGroup(): String {

@@ -19,7 +19,7 @@ class FocusProfileTest {
     private val otherChannel = "https://www.youtube.com/channel/UCother"
     private val now = 1_800_000_000_000L
 
-    private fun profile(share: Double) = FocusProfile(
+    private fun profile(share: Double, strictBlocking: Boolean = false) = FocusProfile(
         seed = "user-1",
         entertainmentChannels = setOf(normalizeChannelKey(funChannel)),
         studyChannels = setOf(normalizeChannelKey(studyChannel)),
@@ -27,6 +27,7 @@ class FocusProfileTest {
         entertainmentShare = share,
         archiveDays = 7,
         archiveCutoffMs = now - 7 * FocusProfile.DAY_MS,
+        strictBlocking = strictBlocking,
     )
 
     @Test
@@ -71,16 +72,18 @@ class FocusProfileTest {
         val studyPage = channel(listOf(video("study", now - 30 * FocusProfile.DAY_MS, studyChannel)), "next")
         assertEquals(studyPage, studyPage.limitFocusArchive(profile(0.5), "https://www.youtube.com/@study", true))
 
+        val strict = profile(1.0, strictBlocking = true)
         val pendingPage = channel(listOf(video("p", now - FocusProfile.DAY_MS, pendingChannel)), "next")
-            .limitFocusArchive(profile(1.0), pendingChannel, true)
+            .limitFocusArchive(strict, pendingChannel, true)
         assertTrue(pendingPage.focusBlocked)
         assertEquals("focus_study_pending", pendingPage.focusBlockCode)
         assertEquals(now + FocusProfile.DAY_MS, pendingPage.focusStudyUnlockAt)
         assertTrue(pendingPage.videos.isEmpty())
         assertNull(pendingPage.nextpage)
 
-        val otherPage = channel(listOf(video("o", now - FocusProfile.DAY_MS, otherChannel)), "next")
-            .limitFocusArchive(profile(1.0), otherChannel, true)
+        val otherSource = channel(listOf(video("o", now - FocusProfile.DAY_MS, otherChannel)), "next")
+        assertEquals(otherSource, otherSource.limitFocusArchive(profile(1.0), otherChannel, true))
+        val otherPage = otherSource.limitFocusArchive(strict, otherChannel, true)
         assertTrue(otherPage.focusBlocked)
         assertEquals("focus_channel_blocked", otherPage.focusBlockCode)
         assertNull(otherPage.focusStudyUnlockAt)
@@ -90,7 +93,7 @@ class FocusProfileTest {
     }
 
     @Test
-    fun `passive feeds hide ungrouped and cooling-off channels while prioritizing study`() {
+    fun `passive feeds hide ungrouped and cooling-off channels only when strict blocking is enabled`() {
         val home = HomeRecommendationsResponse(
             items = listOf(
                 video("a", now),
@@ -101,8 +104,9 @@ class FocusProfileTest {
             nextCursor = null,
             hasMore = false,
         )
-        assertEquals(listOf("c", "a"), home.filterFocus(profile(1.0)).items.map { it.id })
-        assertEquals(listOf("c"), home.filterFocus(profile(0.0)).items.map { it.id })
+        assertEquals(listOf("c", "a", "b", "p"), home.filterFocus(profile(1.0)).items.map { it.id })
+        assertEquals(listOf("c", "a"), home.filterFocus(profile(1.0, strictBlocking = true)).items.map { it.id })
+        assertEquals(listOf("c"), home.filterFocus(profile(0.0, strictBlocking = true)).items.map { it.id })
 
         val feed = SubscriptionFeedResponse(
             videos = listOf(
@@ -114,20 +118,25 @@ class FocusProfileTest {
             ),
             nextpage = null,
         )
-        assertEquals(listOf("recent-fun", "old-study"), feed.filterFocus(profile(1.0)).videos.map { it.id })
-        assertEquals(listOf("old-study"), feed.filterFocus(profile(0.0)).videos.map { it.id })
+        assertEquals(listOf("recent-fun", "other", "pending", "old-study"), feed.filterFocus(profile(1.0)).videos.map { it.id })
+        assertEquals(listOf("recent-fun", "old-study"), feed.filterFocus(profile(1.0, strictBlocking = true)).videos.map { it.id })
+        assertEquals(listOf("old-study"), feed.filterFocus(profile(0.0, strictBlocking = true)).videos.map { it.id })
 
         val playlist = PublicPlaylistResponse(
             playlist = PublicPlaylistItem("pl", "Playlist", "https://www.youtube.com/playlist?list=1", "", "User", 3L, "NORMAL"),
             videos = listOf(video("a", now), video("b", now, otherChannel), video("c", now, studyChannel)),
             nextpage = null,
         )
-        assertEquals(listOf("a", "c"), playlist.filterFocus(profile(1.0)).videos.map { it.id })
+        assertEquals(listOf("a", "c"), playlist.filterFocus(profile(1.0, strictBlocking = true)).videos.map { it.id })
     }
 
     @Test
-    fun `playback access enforces study, entertainment fade and archive, pending, and ungrouped gates`() {
-        val full = profile(1.0)
+    fun `playback access enforces gates only when strict blocking is enabled`() {
+        val defaultProfile = profile(0.0)
+        assertNull(defaultProfile.blockReasonForPlayback("https://www.youtube.com/watch?v=1", otherChannel, now))
+        assertNull(defaultProfile.blockReasonForPlayback("https://www.youtube.com/watch?v=2", funChannel, now))
+
+        val full = profile(1.0, strictBlocking = true)
         assertNull(full.blockReasonForPlayback("https://www.youtube.com/watch?v=1", studyChannel, now - 30 * FocusProfile.DAY_MS))
         assertNull(full.blockReasonForPlayback("https://www.youtube.com/watch?v=2", funChannel, now - FocusProfile.DAY_MS))
         assertEquals(
@@ -136,18 +145,18 @@ class FocusProfileTest {
         )
         assertEquals(
             FocusBlockReason.Entertainment,
-            profile(0.0).blockReasonForPlayback("https://www.youtube.com/watch?v=4", funChannel, now - FocusProfile.DAY_MS),
+            profile(0.0, strictBlocking = true).blockReasonForPlayback("https://www.youtube.com/watch?v=4", funChannel, now - FocusProfile.DAY_MS),
         )
         assertEquals(
             FocusBlockReason.StudyPending(now + FocusProfile.DAY_MS),
             full.blockReasonForPlayback("https://www.youtube.com/watch?v=5", pendingChannel, now),
         )
         assertEquals(
-            FocusBlockReason.ChallengeRequired,
+            FocusBlockReason.OutsideStudy,
             full.blockReasonForPlayback("https://www.youtube.com/watch?v=6", otherChannel, now),
         )
         assertEquals(
-            FocusBlockReason.ChallengeRequired,
+            FocusBlockReason.OutsideStudy,
             full.blockReasonForPlayback("https://www.youtube.com/watch?v=7", "", now),
         )
     }
@@ -162,6 +171,7 @@ class FocusProfileTest {
             entertainmentShare = 0.0,
             archiveDays = 7,
             archiveCutoffMs = now - 7 * FocusProfile.DAY_MS,
+            strictBlocking = true,
         )
         val blankBiliVideo = video("BV1study", now, uploaderUrl = "").copy(
             url = "https://www.bilibili.com/video/BV1study",
