@@ -83,7 +83,22 @@ data class SubscriptionFeedCursorState(
     val filterKey: String,
     val selectionToken: String?,
     val oldestFirst: Boolean = false,
-)
+) {
+    internal fun matches(
+        limit: Int,
+        hideLiveStreams: Boolean,
+        hideMembersOnlyContent: Boolean,
+        filterKey: String,
+        oldestFirst: Boolean,
+    ): Boolean = this.limit == limit &&
+        this.hideLiveStreams == hideLiveStreams &&
+        this.hideMembersOnlyContent == hideMembersOnlyContent &&
+        this.filterKey == filterKey &&
+        this.oldestFirst == oldestFirst
+}
+
+internal fun SubscriptionFeedSnapshot.resolvedVideos(): List<VideoItem> =
+    videos.map(::withResolvedUploaderUrl)
 
 fun SubscriptionFeedSnapshot.hasCompleteSourceAttribution(): Boolean =
     videos.all { sourceChannelUrls.containsKey(it.subscriptionFeedKey()) }
