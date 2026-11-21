@@ -15,4 +15,7 @@ data class ChannelResponse(
     val verification: String? = null,
     val hasCourses: Boolean = false,
     val focusArchiveDays: Int? = null,
+    val focusBlocked: Boolean = false,
+    val focusStudyUnlockAt: Long? = null,
+    val focusBlockCode: String? = null,
 )

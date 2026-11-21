@@ -175,6 +175,7 @@ object DatabaseFactory {
             exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS study_group_id TEXT")
             exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS schedule TEXT NOT NULL DEFAULT 'always'")
             exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS timezone TEXT")
+            exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS grayscale_thumbnails BOOLEAN NOT NULL DEFAULT TRUE")
             DatabaseYoutubeOauthMigration.apply()
             DatabaseSessionAuthMigration.apply()
             DatabaseOidcMigration.apply()

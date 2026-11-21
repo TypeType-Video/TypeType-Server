@@ -11,7 +11,11 @@ data class FocusSettingsItem(
     val timezone: String?,
     val transitionDays: Int,
     val archiveDays: Int,
+    val grayscaleThumbnails: Boolean = true,
     val startedAt: Long?,
     val disableAt: Long?,
     val entertainmentShare: Double,
+    val active: Boolean = false,
+    val focusAiEnabled: Boolean = false,
+    val studyChannelKeys: List<String> = emptyList(),
 )

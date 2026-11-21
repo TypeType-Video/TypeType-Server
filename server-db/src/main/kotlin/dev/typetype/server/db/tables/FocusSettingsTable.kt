@@ -11,6 +11,7 @@ object FocusSettingsTable : Table("focus_settings") {
     val timezone = text("timezone").nullable()
     val transitionDays = integer("transition_days").default(60)
     val archiveDays = integer("archive_days").default(7)
+    val grayscaleThumbnails = bool("grayscale_thumbnails").default(true)
     val startedAt = long("started_at").default(0)
     val disableAt = long("disable_at").nullable()
     val updatedAt = long("updated_at")
