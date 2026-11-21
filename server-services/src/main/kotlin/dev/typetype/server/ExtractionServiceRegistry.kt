@@ -49,6 +49,7 @@ import dev.typetype.server.services.ProviderMediaSegmentTable
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.GluetunEgressRotation
+import dev.typetype.server.services.NewPipeInitializer
 import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.YoutubeEndScreenFetcher
 import dev.typetype.server.services.SabrBootstrapCache
@@ -74,6 +75,7 @@ import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
 import dev.typetype.server.services.YoutubeScopedSearchService
 import dev.typetype.server.services.YoutubeScopedStreamService
 import dev.typetype.server.services.YoutubeStreamGuards
+import dev.typetype.server.services.YoutubeEgressResetService
 import dev.typetype.server.services.YoutubeScopedSuggestionService
 import dev.typetype.server.services.YoutubeScopedTrendingService
 import dev.typetype.server.services.YoutubeSessionCrypto
@@ -177,6 +179,15 @@ internal class ExtractionServiceRegistry(
     private val youtubeStreamGuards = YoutubeStreamGuards(
         recoverSession = sabrSessionStore::recoverTokenSession,
         onRenewed = egress::evictAll,
+    )
+    val youtubeEgressResetService = YoutubeEgressResetService(
+        cache = cache,
+        clearFailureMemory = youtubeStreamGuards.failures::clearProviderBlocks,
+        evictConnections = {
+            egress.evictAll()
+            NewPipeInitializer.evictConnections()
+        },
+        recoverTokenSession = sabrSessionStore::recoverTokenSession,
     )
     val streamRequestWatch get() = youtubeStreamGuards.watch
     suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =

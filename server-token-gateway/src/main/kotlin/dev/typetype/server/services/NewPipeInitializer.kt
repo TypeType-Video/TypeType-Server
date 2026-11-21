@@ -32,5 +32,9 @@ object NewPipeInitializer {
         NewPipe.setYoutubeSessionPoTokenProvider(TypetypeYoutubeSessionPoTokenProvider)
     }
 
+    fun evictConnections(): Unit {
+        (runCatching { NewPipe.getDownloader() }.getOrNull() as? OkHttpDownloader)?.evictIdleConnections()
+    }
+
     private const val YOUTUBE_PLAYER_CLIENT = "mweb"
 }

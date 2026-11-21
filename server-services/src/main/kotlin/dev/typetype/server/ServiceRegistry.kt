@@ -128,6 +128,7 @@ class ServiceRegistry(
     val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
     val sabrSessionStore = extraction.sabrSessionStore
+    val youtubeEgressResetService = extraction.youtubeEgressResetService
     val commentVoiceAudioService = CommentVoiceAudioService(sabrSessionStore, cache)
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()

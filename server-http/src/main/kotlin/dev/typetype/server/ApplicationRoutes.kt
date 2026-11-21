@@ -23,6 +23,7 @@ import dev.typetype.server.routes.commentVoiceRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.deArrowRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
+import dev.typetype.server.routes.youtubeEgressResetRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.presenceRoutes
 import dev.typetype.server.routes.podcastRoutes
@@ -90,6 +91,7 @@ fun Application.installApplicationRoutes(
     val bilibiliShortLinks = BilibiliShortLinkResolver()
     routing {
         internalObservabilityRoutes(internalHealthService::check)
+        youtubeEgressResetRoutes(svc.youtubeEgressResetService)
         serverEventRoutes(serverNotices, authService)
         publicMetadataRoutes(instanceService::getInstance)
         rssPublicRoutes(svc.rssFeedReaderService)
