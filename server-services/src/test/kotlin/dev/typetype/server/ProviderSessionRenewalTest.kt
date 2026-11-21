@@ -5,11 +5,15 @@ import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.services.CachedStreamService
 import dev.typetype.server.services.ProviderSessionRenewal
+import dev.typetype.server.services.StreamFailureMemory
 import dev.typetype.server.services.StreamService
+import dev.typetype.server.services.YoutubeStreamGuards
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,5 +98,58 @@ class ProviderSessionRenewalTest {
         repeat(3) { service.getStreamInfo("https://youtu.be/refused$it") }
         testScheduler.advanceUntilIdle()
         assertEquals(listOf("https://youtu.be/refused2"), renewedFor)
+    }
+
+    @Test
+    fun `YoutubeStreamGuards clears provider blocks and invokes onRenewed when recovery succeeds`() = runTest {
+        val memory = StreamFailureMemory()
+        memory.remember("stream:v6:https://youtu.be/gone", ExtractionResult.Failure("gone", "gone", ExtractionFailureKind.ContentUnavailable))
+        var onRenewedCalls = 0
+        val guards = YoutubeStreamGuards(
+            recoverSession = { reason ->
+                assertEquals("bot_check", reason)
+                true
+            },
+            failures = memory,
+            onRenewed = { onRenewedCalls += 1 },
+            scope = this,
+        )
+        val provider = object : StreamService {
+            override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
+                ExtractionResult.Failure("bot", "bot_check", ExtractionFailureKind.ProviderAccessBlocked)
+        }
+        val cached = guards.cached(provider, FakeCacheService(), "stream:v6")
+
+        repeat(3) { cached.getStreamInfo("https://youtu.be/blocked$it") }
+        assertNotNull(memory.recall("stream:v6:https://youtu.be/blocked0"))
+
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, onRenewedCalls)
+        assertNull(memory.recall("stream:v6:https://youtu.be/blocked0"))
+        assertNotNull(memory.recall("stream:v6:https://youtu.be/gone"))
+    }
+
+    @Test
+    fun `YoutubeStreamGuards retains provider blocks when recovery fails`() = runTest {
+        val memory = StreamFailureMemory()
+        var onRenewedCalls = 0
+        val guards = YoutubeStreamGuards(
+            recoverSession = { false },
+            failures = memory,
+            onRenewed = { onRenewedCalls += 1 },
+            scope = this,
+        )
+        val provider = object : StreamService {
+            override suspend fun getStreamInfo(url: String): ExtractionResult<StreamResponse> =
+                ExtractionResult.Failure("bot", "bot_check", ExtractionFailureKind.ProviderAccessBlocked)
+        }
+        val cached = guards.cached(provider, FakeCacheService(), "stream:v6")
+
+        repeat(3) { cached.getStreamInfo("https://youtu.be/blocked$it") }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(0, onRenewedCalls)
+        assertNotNull(memory.recall("stream:v6:https://youtu.be/blocked0"))
     }
 }

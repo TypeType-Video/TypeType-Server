@@ -33,6 +33,12 @@ internal class YoutubeEgressClients(youtubeProxySelector: ProxySelector?) {
 
     fun tvPlayerClient(): YoutubeTvOauthPlayerClient = YoutubeTvOauthPlayerClient(youtubeApi)
 
+    fun evictAll() {
+        listOf(base, subtitle, proxy, youtubeApi).forEach { client ->
+            runCatching { client.connectionPool.evictAll() }
+        }
+    }
+
     private fun proxyDispatcher(): Dispatcher = Dispatcher().apply {
         maxRequests = 256
         maxRequestsPerHost = 64

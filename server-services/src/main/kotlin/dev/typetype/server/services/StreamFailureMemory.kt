@@ -26,6 +26,19 @@ class StreamFailureMemory(
         entries[key] = Entry(failure, now + ttlMs)
     }
 
+    fun clearProviderBlocks(): Int {
+        var cleared = 0
+        val iterator = entries.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            val failure = entry.value.result as? ExtractionResult.Failure ?: continue
+            if (failure.kind == ExtractionFailureKind.ProviderAccessBlocked) {
+                if (entries.remove(entry.key, entry.value)) cleared += 1
+            }
+        }
+        return cleared
+    }
+
     private fun ExtractionResult<*>.deterministicFailure(): ExtractionResult<Nothing>? = when (this) {
         is ExtractionResult.Success -> null
         is ExtractionResult.Failure -> takeIf { kind in DETERMINISTIC_KINDS }
