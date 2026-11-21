@@ -97,6 +97,12 @@ class OkHttpDownloader private constructor(
         private const val YOUTUBE_AUTH_USER_HEADER = "X-Goog-AuthUser"
     }
 
+    /** Evicts idle pooled HTTP connections after an outbound network or proxy change. */
+    fun evictIdleConnections(): Unit {
+        client.connectionPool.evictAll()
+        streamingClient.connectionPool.evictAll()
+    }
+
     override fun execute(request: ExtractorRequest): Response {
         refuseSubtitleText(request.url())
         val httpRequest = buildOkHttpRequest(request)
