@@ -61,4 +61,11 @@ class PublicCachePolicyTest {
         assertEquals(600L, PublicCachePolicy.commentsTtl("https://youtube.com/watch?v=id", "cursor"))
         assertEquals(300L, PublicCachePolicy.commentsTtl("https://www.bilibili.com/video/id", null))
     }
+
+    @Test
+    fun `bullet comments ttl matches provider volatility`() {
+        assertEquals(300L, PublicCachePolicy.bulletCommentsTtl("https://www.bilibili.com/video/BV1xx411c7mD", null))
+        assertEquals(300L, PublicCachePolicy.bulletCommentsTtl("https://www.nicovideo.jp/watch/sm9", null))
+        assertEquals(600L, PublicCachePolicy.bulletCommentsTtl("https://www.bilibili.com/video/BV1xx411c7mD", "cursor"))
+    }
 }
