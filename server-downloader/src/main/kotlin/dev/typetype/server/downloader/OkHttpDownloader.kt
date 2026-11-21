@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.localization.Localization
+import org.slf4j.LoggerFactory
 import java.net.ProxySelector
 import java.util.concurrent.TimeUnit
 
@@ -74,7 +75,7 @@ class OkHttpDownloader private constructor(
         @Volatile
         var onProviderRefusal: (() -> Unit)? = null
 
-        private val logger = System.getLogger(OkHttpDownloader::class.java.name)
+        private val logger = LoggerFactory.getLogger(OkHttpDownloader::class.java)
 
         /**
          * The text of a subtitle track is never asked for from here. The extractor downloads it
@@ -101,9 +102,8 @@ class OkHttpDownloader private constructor(
         val httpRequest = buildOkHttpRequest(request)
         client.newCall(httpRequest).execute().use { httpResponse ->
             if (httpResponse.code == 429) {
-                logger.log(
-                    System.Logger.Level.WARNING,
-                    "provider_http event=rate_limited method={0} path={1}",
+                logger.warn(
+                    "provider_http event=rate_limited method={} path={}",
                     request.httpMethod(),
                     httpRequest.url.encodedPath,
                 )
@@ -152,9 +152,8 @@ class OkHttpDownloader private constructor(
         val httpRequest = buildOkHttpRequest(request)
         val httpResponse = streamingClient.newCall(httpRequest).execute()
         if (httpResponse.code == 429) {
-            logger.log(
-                System.Logger.Level.WARNING,
-                "provider_http event=rate_limited method=POST path={0}",
+            logger.warn(
+                "provider_http event=rate_limited method=POST path={}",
                 httpRequest.url.encodedPath,
             )
             httpResponse.close()

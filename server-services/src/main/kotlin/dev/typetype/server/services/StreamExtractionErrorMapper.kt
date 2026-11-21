@@ -41,9 +41,8 @@ object StreamExtractionErrorMapper {
         return when {
             chain.any { it.isProviderAccessBlock() } -> {
                 logger.warn(
-                    "provider_access event=blocked provider={} area={} code={}",
+                    "provider_access event=blocked provider={} code={}",
                     inferProvider(sourceUrl, chain),
-                    inferArea(fallback),
                     PROVIDER_ACCESS_BLOCKED_CODE,
                 )
                 ExtractionResult.Failure(
@@ -54,9 +53,8 @@ object StreamExtractionErrorMapper {
             }
             chain.any { it.isProviderRateLimit() } -> {
                 logger.warn(
-                    "provider_access event=rate_limited provider={} area={} code={}",
+                    "provider_access event=rate_limited provider={} code={}",
                     inferProvider(sourceUrl, chain),
-                    inferArea(fallback),
                     PROVIDER_RATE_LIMITED_CODE,
                 )
                 ExtractionResult.Failure(
@@ -148,21 +146,8 @@ object StreamExtractionErrorMapper {
     private fun inferProvider(sourceUrl: String?, chain: List<Throwable>): String = when {
         chain.any { it is BilibiliRiskControlException } || sourceUrl?.contains("bilibili", ignoreCase = true) == true -> "bilibili"
         sourceUrl?.contains("nicovideo", ignoreCase = true) == true -> "niconico"
-        else -> "youtube"
-    }
-
-    private fun inferArea(fallback: String): String {
-        val lower = fallback.lowercase()
-        return when {
-            "trending" in lower -> "trending"
-            "channel" in lower -> "channel"
-            "search" in lower -> "search"
-            "playlist" in lower -> "playlist"
-            "comment" in lower -> "comments"
-            "suggestion" in lower -> "suggestions"
-            "podcast" in lower -> "podcast"
-            else -> "stream"
-        }
+        sourceUrl?.contains("youtube", ignoreCase = true) == true || sourceUrl?.contains("youtu.be", ignoreCase = true) == true -> "youtube"
+        else -> "unknown"
     }
 
     private const val YOUTUBE_SESSION_REJECTED_EXCEPTION =
