@@ -2,7 +2,6 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.ExtractionFailureKind
 import dev.typetype.server.models.ExtractionResult
-import dev.typetype.server.models.StreamResponse
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
@@ -32,10 +31,10 @@ class ProviderExtractionGuard(
     @Volatile
     private var pauseMs = 0L
 
-    suspend fun run(
+    suspend fun <T> run(
         nobodyWaits: Boolean,
-        load: suspend () -> ExtractionResult<StreamResponse>,
-    ): ExtractionResult<StreamResponse> {
+        load: suspend () -> ExtractionResult<T>,
+    ): ExtractionResult<T> {
         val left = pausedUntil - now()
         if (left > 0) {
             if (nobodyWaits || !probe.tryLock()) return refused(left)
@@ -54,7 +53,7 @@ class ProviderExtractionGuard(
         }
     }
 
-    private fun record(result: ExtractionResult<StreamResponse>): ExtractionResult<StreamResponse> {
+    private fun <T> record(result: ExtractionResult<T>): ExtractionResult<T> {
         when {
             result.isRefusal() -> {
                 pauseMs = if (pauseMs == 0L) firstPauseMs else (pauseMs * 2).coerceAtMost(longestPauseMs)
@@ -70,7 +69,7 @@ class ProviderExtractionGuard(
         return result
     }
 
-    private fun ExtractionResult<StreamResponse>.isRefusal(): Boolean =
+    private fun <T> ExtractionResult<T>.isRefusal(): Boolean =
         this is ExtractionResult.Failure &&
             (kind == ExtractionFailureKind.RateLimited || kind == ExtractionFailureKind.ProviderAccessBlocked) &&
             code != CachedStreamService.PACED_CODE
