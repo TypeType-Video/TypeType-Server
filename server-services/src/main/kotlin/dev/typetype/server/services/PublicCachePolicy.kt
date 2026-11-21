@@ -45,6 +45,8 @@ object PublicCachePolicy {
         }
     }
 
+    fun bulletCommentsTtl(url: String, nextpage: String?): Long = commentsTtl(url, nextpage)
+
     fun playlistTtl(nextpage: String?): Long = if (nextpage == null) 3_600L else 1_800L
 }
 

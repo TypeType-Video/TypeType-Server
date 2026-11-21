@@ -10,6 +10,7 @@ import dev.typetype.server.services.BilibiliMirrorWatch
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
+import dev.typetype.server.services.CachedBulletCommentService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedChannelVideosSource
 import dev.typetype.server.services.CachedImageProxyService
@@ -236,7 +237,10 @@ internal class ExtractionServiceRegistry(
         cache,
     )
     val commentService = CachedCommentService(YoutubeScopedCommentService(PipePipeCommentService()), cache)
-    val bulletCommentService = PipePipeBulletCommentService()
+    val bulletCommentService = CachedBulletCommentService(
+        PipePipeBulletCommentService(bilibiliGuard = ProviderExtractionGuard("bilibili-bullet-comments")),
+        cache,
+    )
     private val pipePipeChannelService = PipePipeChannelService()
     val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService), cache)
     val channelVideosSource = CachedChannelVideosSource(
