@@ -21,6 +21,12 @@ class TypetypeTokenSabrTokenClient(
 ) {
     internal val client: OkHttpClient = TypetypeTokenHttpClient.bounded(client)
 
+    @Volatile
+    private var lastFailed = false
+
+    /** True while the last token request failed: the token service is up but cannot get tokens from YouTube. */
+    val unavailable: Boolean get() = lastFailed
+
     fun fetch(videoId: String, forceRefresh: Boolean = false, refreshVideo: Boolean = false): SabrTokenBundle? =
         fetchResult(videoId, forceRefresh, refreshVideo).valueOrNull()
 
@@ -92,6 +98,7 @@ class TypetypeTokenSabrTokenClient(
         } catch (error: IOException) {
             TokenServiceResponses.failure(error)
         }
+        lastFailed = result is TokenServiceResult.Failure
         if (result is TokenServiceResult.Failure) {
             System.err.println("[TypetypeTokenSabrTokenClient] /potoken ${result.reason} status=${result.status}$target: ${result.error}")
         }

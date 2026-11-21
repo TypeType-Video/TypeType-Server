@@ -16,6 +16,9 @@ import io.ktor.server.routing.get
 private val loginPattern = Regex("^[a-zA-Z0-9_]{1,25}$")
 private val slugPattern = Regex("^[a-zA-Z0-9_-]{1,100}$")
 private val idPattern = Regex("^[0-9]{1,20}$")
+
+// Twitch tags are one word of letters and digits in any script, as TypeType-Live checks again.
+private val tagPattern = Regex("^[\\p{L}\\p{Nd}]{1,25}$")
 private val pageParams = listOf("first", "after")
 
 fun Route.twitchRoutes(
@@ -37,6 +40,10 @@ fun Route.twitchRoutes(
         val slug = call.pathParam("slug", slugPattern) ?: return@get
         call.relay("/v1/games/$slug/streams")
     }
+    get("/twitch/tags/{tag}/streams") {
+        val tag = call.pathParam("tag", tagPattern) ?: return@get
+        call.relay("/v1/tags/$tag/streams")
+    }
     get("/twitch/channels/{login}") {
         val login = call.pathParam("login", loginPattern) ?: return@get
         call.relay("/v1/channels/$login", emptyList())
@@ -57,6 +64,14 @@ fun Route.twitchRoutes(
         val id = call.pathParam("id", idPattern) ?: return@get
         call.relay("/v1/videos/$id", emptyList(), withUser = true)
     }
+    get("/twitch/videos/{id}/comments") {
+        val id = call.pathParam("id", idPattern) ?: return@get
+        call.relay("/v1/videos/$id/comments", listOf("offset", "cursor"), withUser = true)
+    }
+    get("/twitch/videos/{id}/chapters") {
+        val id = call.pathParam("id", idPattern) ?: return@get
+        call.relay("/v1/videos/$id/chapters", emptyList(), withUser = true)
+    }
     get("/twitch/clips/{slug}") {
         val slug = call.pathParam("slug", slugPattern) ?: return@get
         call.relay("/v1/clips/$slug", emptyList())
@@ -66,6 +81,10 @@ fun Route.twitchRoutes(
     get("/twitch/chat/{login}/assets") {
         val login = call.pathParam("login", loginPattern) ?: return@get
         call.relay("/v1/chat/$login/assets", emptyList())
+    }
+    get("/twitch/chat/{login}/highlights") {
+        val login = call.pathParam("login", loginPattern) ?: return@get
+        call.relay("/v1/chat/$login/highlights", emptyList())
     }
     twitchAccountRoutes(service, authService, adminSettingsService)
 }

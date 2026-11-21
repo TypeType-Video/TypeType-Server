@@ -56,23 +56,32 @@ class ProgressService {
         }
     }
 
-    suspend fun upsert(userId: String, videoUrl: String, position: Long): ProgressItem {
+    suspend fun upsert(userId: String, videoUrl: String, position: Long): ProgressItem =
+        upsertMany(userId, mapOf(videoUrl to position)).single()
+
+    suspend fun upsertMany(userId: String, positions: Map<String, Long>): List<ProgressItem> {
         val now = System.currentTimeMillis()
-        val safePosition = position.coerceAtLeast(0L)
+        val items = positions.map { (videoUrl, position) ->
+            ProgressItem(videoUrl = videoUrl, position = position.coerceAtLeast(0L), updatedAt = now)
+        }
         DatabaseFactory.query {
-            val updated = ProgressTable.update({ (ProgressTable.videoUrl eq videoUrl) and (ProgressTable.userId eq userId) }) {
-                it[ProgressTable.position] = safePosition
-                it[updatedAt] = now
-            }
-            if (updated == 0) {
-                ProgressTable.insert {
-                    it[ProgressTable.userId] = userId
-                    it[ProgressTable.videoUrl] = videoUrl
-                    it[ProgressTable.position] = safePosition
-                    it[updatedAt] = now
-                }
+            items.forEach { item -> write(userId, item) }
+        }
+        return items
+    }
+
+    private fun write(userId: String, item: ProgressItem) {
+        val updated = ProgressTable.update({ (ProgressTable.videoUrl eq item.videoUrl) and (ProgressTable.userId eq userId) }) {
+            it[position] = item.position
+            it[updatedAt] = item.updatedAt
+        }
+        if (updated == 0) {
+            ProgressTable.insert {
+                it[ProgressTable.userId] = userId
+                it[videoUrl] = item.videoUrl
+                it[position] = item.position
+                it[updatedAt] = item.updatedAt
             }
         }
-        return ProgressItem(videoUrl = videoUrl, position = safePosition, updatedAt = now)
     }
 }

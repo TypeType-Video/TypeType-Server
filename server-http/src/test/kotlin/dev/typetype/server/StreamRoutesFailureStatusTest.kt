@@ -106,6 +106,17 @@ class StreamRoutesFailureStatusTest {
     }
 
     @Test
+    fun `a token service that cannot get tokens is named instead of reported as busy`() = testApplication {
+        coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(sabrResponse())
+        install(tokenUnavailable = true) { _, _ -> null }
+
+        val response = client.get(YOUTUBE)
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertTrue(response.bodyAsText().contains("token_service_unavailable"))
+    }
+
+    @Test
     fun `media handle storage outages are retryable`() = testApplication {
         val status = mediaHandleFailureStatus(IllegalStateException("cache down"))
 
@@ -131,10 +142,17 @@ class StreamRoutesFailureStatusTest {
     }
 
     private fun ApplicationTestBuilder.install(
+        tokenUnavailable: Boolean = false,
         sabrFilter: (suspend (String, StreamResponse) -> StreamResponse?)? = null,
     ) = application {
         install(ContentNegotiation) { json() }
-        routing { streamRoutes(streamService, sabrStreamContractFilter = sabrFilter) }
+        routing {
+            streamRoutes(
+                streamService,
+                sabrStreamContractFilter = sabrFilter,
+                tokenServiceUnavailable = { tokenUnavailable },
+            )
+        }
     }
 
     private fun sabrResponse(): StreamResponse = testStreamResponse(

@@ -81,7 +81,8 @@ private suspend fun resolvePublicOrAuthenticatedStreamInfo(
         val publicLive = (publicResult as? ExtractionResult.Success)?.data?.isLive == true
         if (!authenticatedLive || !publicLive) {
             return StreamResolution(
-                authenticatedResult.withPublicStreamMetadata(publicResult),
+                authenticatedResult.withPublicStreamMetadata(publicResult)
+                    .withSponsorBlock(url, dependencies.youtubeSponsorBlock),
                 authenticated = true,
             )
         }
@@ -103,6 +104,15 @@ internal suspend fun StreamResolution.withRelatedVideos(
     if (success.data.relatedStreams.isNotEmpty() || loader == null) return this
     val related = loader(url) as? ExtractionResult.Success<List<VideoItem>> ?: return this
     return copy(result = ExtractionResult.Success(success.data.copy(relatedStreams = related.data)))
+}
+
+private suspend fun ExtractionResult<StreamResponse>.withSponsorBlock(
+    url: String,
+    fill: (suspend (String, StreamResponse) -> StreamResponse)?,
+): ExtractionResult<StreamResponse> {
+    val success = this as? ExtractionResult.Success<StreamResponse> ?: return this
+    if (fill == null || success.data.sponsorBlockSegments.isNotEmpty()) return this
+    return success.copy(data = fill(url, success.data))
 }
 
 internal fun ExtractionResult<StreamResponse>.withPublicStreamMetadata(

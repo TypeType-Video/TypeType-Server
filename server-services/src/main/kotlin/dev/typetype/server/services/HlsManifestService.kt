@@ -111,7 +111,7 @@ class HlsManifestService(
                 val request = Request.Builder()
                     .url(fetchUrl)
                     .header("User-Agent", OkHttpProxyService.BROWSER_USER_AGENT)
-                    .apply { if (domandBid != null) header("Cookie", "domand_bid=$domandBid") }
+                    .apply { if (domandBid != null) header("Cookie", nicoBidCookieHeader(fetchUrl, domandBid)) }
                     .build()
                 proxyHttp.execute(request)
             }.fold(

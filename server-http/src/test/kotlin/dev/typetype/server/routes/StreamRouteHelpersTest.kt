@@ -1,6 +1,7 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.SponsorBlockSegmentItem
 import dev.typetype.server.testStreamResponse
 import dev.typetype.server.testVideoItem
 import kotlinx.coroutines.runBlocking
@@ -38,6 +39,34 @@ class StreamRouteHelpersTest {
         assertSame(public, result.result)
         assertEquals(0, authenticatedCalls)
         assertEquals(false, result.authenticated)
+    }
+
+    @Test
+    fun signedInAgeRestrictedStreamsGetSponsorBlockSegments() = runBlocking {
+        val segment = SponsorBlockSegmentItem(12.0, 30.0, "sponsor", "skip")
+        val result = resolveStreamInfo(
+            url = "https://www.youtube.com/watch?v=age-video",
+            deliveryMode = StreamDeliveryMode.YoutubeSabr,
+            userId = "user-id",
+            publicResult = ExtractionResult.BadRequest("Age restricted", "age_restricted"),
+            dependencies = StreamRouteDependencies(
+                authService = null,
+                accessControlService = null,
+                adminSettingsService = null,
+                blockedService = null,
+                publicHlsManifestTokenService = null,
+                providerMediaHandleService = null,
+                sabrStreamContractFilter = null,
+                youtubeSessionSabrStreamInfo = { _, _ -> ExtractionResult.Success(testStreamResponse()) },
+                bilibiliSessionStreamInfo = null,
+                youtubeRelatedVideos = null,
+                youtubeSponsorBlock = { _, response -> response.copy(sponsorBlockSegments = listOf(segment)) },
+            ),
+        )
+
+        val data = (result.result as ExtractionResult.Success).data
+        assertEquals(listOf(segment), data.sponsorBlockSegments)
+        assertEquals(true, result.authenticated)
     }
 
     @Test

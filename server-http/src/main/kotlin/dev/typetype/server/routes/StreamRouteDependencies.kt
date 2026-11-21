@@ -7,6 +7,7 @@ import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.BlockedService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProviderMediaHandleService
 import dev.typetype.server.services.ProviderMediaWarmup
@@ -16,6 +17,7 @@ internal data class StreamRouteDependencies(
     val accessControlService: AccessControlService?,
     val adminSettingsService: AdminSettingsService?,
     val blockedService: BlockedService?,
+    val focusService: FocusService? = null,
     val publicHlsManifestTokenService: PublicHlsManifestTokenService?,
     val providerMediaHandleService: ProviderMediaHandleService?,
     val providerMediaWarmup: ProviderMediaWarmup? = null,
@@ -23,4 +25,6 @@ internal data class StreamRouteDependencies(
     val youtubeSessionSabrStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val bilibiliSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)?,
     val youtubeRelatedVideos: (suspend (String) -> ExtractionResult<List<VideoItem>>)?,
+    val tokenServiceUnavailable: () -> Boolean = { false },
+    val youtubeSponsorBlock: (suspend (String, StreamResponse) -> StreamResponse)? = null,
 )

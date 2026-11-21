@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.routes.twitchRoutes
+import dev.typetype.server.routes.shortLinkRoutes
 import dev.typetype.server.routes.seekbarIconFileRoutes
 import dev.typetype.server.routes.deviceAuthRoutes
 import dev.typetype.server.services.device.DeviceAuthorizationService
@@ -22,6 +23,7 @@ import dev.typetype.server.routes.commentVoiceRoutes
 import dev.typetype.server.routes.downloaderGatewayRoutes
 import dev.typetype.server.routes.deArrowRoutes
 import dev.typetype.server.routes.internalObservabilityRoutes
+import dev.typetype.server.routes.youtubeEgressResetRoutes
 import dev.typetype.server.routes.oidcAuthRoutes
 import dev.typetype.server.routes.presenceRoutes
 import dev.typetype.server.routes.podcastRoutes
@@ -32,12 +34,14 @@ import dev.typetype.server.routes.pushNotificationRoutes
 import dev.typetype.server.routes.rssPublicRoutes
 import dev.typetype.server.routes.sabrRoutes
 import dev.typetype.server.routes.searchRoutes
+import dev.typetype.server.routes.serverEventRoutes
 import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
+import dev.typetype.server.services.BilibiliShortLinkResolver
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthSessionConfig
 import dev.typetype.server.services.AvatarService
@@ -53,6 +57,7 @@ import dev.typetype.server.services.ProfileService
 import dev.typetype.server.services.ProfileAccountService
 import dev.typetype.server.services.PresenceKeyService
 import dev.typetype.server.services.PresenceService
+import dev.typetype.server.services.ServerNoticeHub
 import dev.typetype.server.services.UserAdminService
 import dev.typetype.server.portability.PortabilityEngine
 import io.ktor.server.application.Application
@@ -81,9 +86,13 @@ fun Application.installApplicationRoutes(
     restoreService: PipePipeBackupImporterService,
     portabilityEngine: PortabilityEngine,
     deviceAuthorizationService: DeviceAuthorizationService,
+    serverNotices: ServerNoticeHub,
 ) {
+    val bilibiliShortLinks = BilibiliShortLinkResolver()
     routing {
         internalObservabilityRoutes(internalHealthService::check)
+        youtubeEgressResetRoutes(svc.youtubeEgressResetService)
+        serverEventRoutes(serverNotices, authService)
         publicMetadataRoutes(instanceService::getInstance)
         rssPublicRoutes(svc.rssFeedReaderService)
         installStreamRoutes(svc, authService, adminSettingsService)
@@ -91,13 +100,14 @@ fun Application.installApplicationRoutes(
         rateLimit(EXTRACTION_ZONE) {
             searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
-            trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)
+            trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService, svc.focusService)
             publicPlaylistRoutes(
                 svc.publicPlaylistService,
                 authService,
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             commentRoutes(svc.commentService, authService, adminSettingsService, svc.commentSearchService)
             commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
@@ -119,6 +129,7 @@ fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
@@ -135,6 +146,7 @@ fun Application.installApplicationRoutes(
                 svc.youtubeSessionSabrStreamService?.let { service ->
                     { userId, url -> service.getStreamInfo(userId, url) }
                 },
+                svc.focusService,
             )
         }
         downloaderGatewayRoutes(downloaderGatewayService)
@@ -161,6 +173,7 @@ fun Application.installApplicationRoutes(
         avatarRoutes(avatarService, openMojiProxyService, svc.customAvatarService)
         seekbarIconFileRoutes(svc.seekbarIconService)
         rateLimit(USER_DATA_ZONE) { twitchRoutes(svc.twitchService, authService, adminSettingsService) }
+        rateLimit(USER_DATA_ZONE) { shortLinkRoutes(bilibiliShortLinks, authService, adminSettingsService) }
         rateLimit(USER_DATA_ZONE) {
             userDataRoutes(
                 svc,

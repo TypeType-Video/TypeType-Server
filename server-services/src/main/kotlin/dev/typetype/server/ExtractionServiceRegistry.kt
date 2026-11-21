@@ -1,5 +1,7 @@
 package dev.typetype.server
 
+import dev.typetype.server.models.StreamResponse
+
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.BilibiliAggregatedSearchService
 import dev.typetype.server.services.BilibiliMirrorProber
@@ -8,6 +10,7 @@ import dev.typetype.server.services.BilibiliMirrorWatch
 import dev.typetype.server.services.BilibiliRelatedService
 import dev.typetype.server.services.BilibiliTrendingService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
+import dev.typetype.server.services.CachedBulletCommentService
 import dev.typetype.server.services.CachedChannelService
 import dev.typetype.server.services.CachedChannelVideosSource
 import dev.typetype.server.services.CachedImageProxyService
@@ -46,6 +49,7 @@ import dev.typetype.server.services.ProviderMediaSegmentTable
 import dev.typetype.server.services.ProviderMediaStartupCache
 import dev.typetype.server.services.ProviderMediaWarmup
 import dev.typetype.server.services.GluetunEgressRotation
+import dev.typetype.server.services.NewPipeInitializer
 import dev.typetype.server.services.SabrFallbackStreamService
 import dev.typetype.server.services.YoutubeEndScreenFetcher
 import dev.typetype.server.services.SabrBootstrapCache
@@ -71,6 +75,7 @@ import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
 import dev.typetype.server.services.YoutubeScopedSearchService
 import dev.typetype.server.services.YoutubeScopedStreamService
 import dev.typetype.server.services.YoutubeStreamGuards
+import dev.typetype.server.services.YoutubeEgressResetService
 import dev.typetype.server.services.YoutubeScopedSuggestionService
 import dev.typetype.server.services.YoutubeScopedTrendingService
 import dev.typetype.server.services.YoutubeSessionCrypto
@@ -171,8 +176,22 @@ internal class ExtractionServiceRegistry(
     val youtubeSessionSabrStreamService = youtubeSessionStreamService?.let {
         YoutubeSessionSabrStreamService(it, authenticatedSabrInfoService, cache)
     }
-    private val youtubeStreamGuards = YoutubeStreamGuards(sabrSessionStore::recoverTokenSession)
+    private val youtubeStreamGuards = YoutubeStreamGuards(
+        recoverSession = sabrSessionStore::recoverTokenSession,
+        onRenewed = egress::evictAll,
+    )
+    val youtubeEgressResetService = YoutubeEgressResetService(
+        cache = cache,
+        clearFailureMemory = youtubeStreamGuards.failures::clearProviderBlocks,
+        evictConnections = {
+            egress.evictAll()
+            NewPipeInitializer.evictConnections()
+        },
+        recoverTokenSession = sabrSessionStore::recoverTokenSession,
+    )
     val streamRequestWatch get() = youtubeStreamGuards.watch
+    suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
+        directPipePipeStreamService.withSponsorBlock(url, response)
     val youtubeSabrStreamService = youtubeStreamGuards.cached(
         YoutubeScopedStreamService(YoutubeLiveHlsStreamService(youtubeSabrFallbackStreamService, liveHlsStreamService)),
         cache,
@@ -229,7 +248,10 @@ internal class ExtractionServiceRegistry(
         cache,
     )
     val commentService = CachedCommentService(YoutubeScopedCommentService(PipePipeCommentService()), cache)
-    val bulletCommentService = PipePipeBulletCommentService()
+    val bulletCommentService = CachedBulletCommentService(
+        PipePipeBulletCommentService(bilibiliGuard = ProviderExtractionGuard("bilibili-bullet-comments")),
+        cache,
+    )
     private val pipePipeChannelService = PipePipeChannelService()
     val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService), cache)
     val channelVideosSource = CachedChannelVideosSource(

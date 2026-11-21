@@ -38,7 +38,13 @@ class SubscriptionFeedBuilder(private val channelVideos: ChannelVideosSource) {
         val videosByKey = linkedMapOf<String, VideoItem>()
         val sourceChannelUrls = linkedMapOf<String, MutableSet<String>>()
         outcomes.forEach { outcome ->
-            outcome.videos.forEach { video ->
+            val fallbackUploader = ChannelUrlCanonicalizer.canonicalize(outcome.channelUrl)
+            outcome.videos.forEach { rawVideo ->
+                val video = if (rawVideo.uploaderUrl.isNotBlank() || fallbackUploader.isBlank()) {
+                    rawVideo
+                } else {
+                    rawVideo.copy(uploaderUrl = fallbackUploader)
+                }
                 val key = video.subscriptionFeedKey()
                 val current = videosByKey[key]
                 if (current == null || video.isLiveContent && !current.isLiveContent) videosByKey[key] = video

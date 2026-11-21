@@ -60,6 +60,7 @@ class SabrSessionPumpLoop(
                 holder.failTerminal(error.message)
                 return
             } catch (error: ExtractionException) {
+                SabrPumpLogger.extractionFailure(holder, error)
                 holder.failTerminal(error.message)
                 return
             } catch (error: OutOfMemoryError) {

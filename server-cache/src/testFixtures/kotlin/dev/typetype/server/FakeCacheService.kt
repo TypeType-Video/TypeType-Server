@@ -33,9 +33,32 @@ class FakeCacheService : CacheService {
         values.remove(key)
     }
 
+    override suspend fun deleteMatching(pattern: String): Int {
+        val regex = globToRegex(pattern)
+        var deleted = 0
+        values.keys.toList().forEach { key ->
+            if (regex.matches(key) && values.remove(key) != null) {
+                deleted += 1
+            }
+        }
+        return deleted
+    }
+
     fun clear() {
         values.clear()
     }
 
     fun keys(): Set<String> = values.keys.toSet()
+
+    private fun globToRegex(pattern: String): Regex = buildString {
+        append('^')
+        pattern.forEach { ch ->
+            when (ch) {
+                '*' -> append(".*")
+                '?' -> append('.')
+                else -> append(Regex.escape(ch.toString()))
+            }
+        }
+        append('$')
+    }.toRegex()
 }

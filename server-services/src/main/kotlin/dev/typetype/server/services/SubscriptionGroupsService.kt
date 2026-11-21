@@ -71,7 +71,7 @@ class SubscriptionGroupsService {
                     it[SubscriptionGroupsTable.normalizedName] = normalizedName
                     it[updatedAt] = now
                 }
-                val count = membershipCount(userId, groupId)
+                val count = SubscriptionGroupQueries.membershipCount(userId, groupId)
                 SubscriptionGroupWriteResult.Success(
                     SubscriptionGroupItem(groupId, name, count, current[SubscriptionGroupsTable.createdAt], now),
                 )
@@ -111,6 +111,9 @@ class SubscriptionGroupsService {
             (SubscriptionsTable.userId eq userId) and (SubscriptionsTable.channelUrl inList channelUrls)
         }.mapTo(hashSetOf()) { it[SubscriptionsTable.channelUrl] }
         if (subscribed.size != channelUrls.size) return@query SubscriptionGroupMembershipResult.SubscriptionNotFound
+        if (SubscriptionGroupQueries.conflictsWithFocusEntertainment(userId, groupId, channelUrls)) {
+            return@query SubscriptionGroupMembershipResult.FocusEntertainmentConflict
+        }
         val existing = SubscriptionGroupMembershipsTable.selectAll().where {
             (SubscriptionGroupMembershipsTable.groupId eq groupId) and
                 (SubscriptionGroupMembershipsTable.userId eq userId) and
@@ -171,16 +174,7 @@ class SubscriptionGroupsService {
     private fun groupExists(userId: String, groupId: String): Boolean = SubscriptionGroupQueries.exists(userId, groupId)
 
     private fun nameExists(userId: String, normalizedName: String): Boolean =
-        SubscriptionGroupsTable.selectAll().where {
-            (SubscriptionGroupsTable.userId eq userId) and
-                (SubscriptionGroupsTable.normalizedName eq normalizedName)
-        }.any()
-
-    private fun membershipCount(userId: String, groupId: String): Int =
-        SubscriptionGroupMembershipsTable.selectAll().where {
-            (SubscriptionGroupMembershipsTable.userId eq userId) and
-                (SubscriptionGroupMembershipsTable.groupId eq groupId)
-        }.count().toInt()
+        SubscriptionGroupQueries.nameExists(userId, normalizedName)
 
     private fun normalizeDisplayName(value: String): String? =
         value.trim().takeIf { it.length in 1..MAX_GROUP_NAME_LENGTH }

@@ -31,15 +31,18 @@ internal fun Route.installStreamRoutes(
             accessControlService = svc.accessControlService,
             adminSettingsService = adminSettingsService,
             blockedService = svc.blockedService,
+            focusService = svc.focusService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             providerMediaHandleService = svc.providerMediaHandleService,
             providerMediaWarmup = svc.providerMediaWarmup,
             sabrStreamContractFilter = { url, data -> data.withPreparedSabrStreams(url, svc.sabrSessionStore) },
+            tokenServiceUnavailable = { svc.sabrSessionStore.tokenServiceUnavailable },
             bilibiliSessionStreamInfo = { userId, url -> svc.bilibiliSessionStreamService.getStreamInfo(userId, url) },
             youtubeSessionSabrStreamInfo = svc.youtubeSessionSabrStreamService?.let { service ->
                 { userId, url -> service.getStreamInfo(userId, url) }
             },
             youtubeRelatedVideos = { url -> svc.youtubeRelatedVideosService.related(url) },
+            youtubeSponsorBlock = svc::withYoutubeSponsorBlock,
         )
         audioOnlyContractRoutes(
             streamService = svc.streamService,
@@ -52,6 +55,7 @@ internal fun Route.installStreamRoutes(
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             proxyService = svc.proxyService,
+            focusService = svc.focusService,
         )
         manifestRoutes(
             svc.manifestService,

@@ -73,4 +73,28 @@ class ChannelResponseMappersTest {
 
         assertThrows(ExtractionException::class.java) { info.toChannelPlaylistsResponse() }
     }
+
+    @Test
+    fun `channel tab backfills blank item uploaderUrl from channel fallback`() {
+        val blankItem = mockk<StreamInfoItem>(relaxed = true)
+        every { blankItem.url } returns "https://www.bilibili.com/video/BV1test1"
+        every { blankItem.name } returns "Bilibili Lesson"
+        every { blankItem.uploaderUrl } returns ""
+        val namedItem = mockk<StreamInfoItem>(relaxed = true)
+        every { namedItem.url } returns "https://www.bilibili.com/video/BV1test2"
+        every { namedItem.name } returns "Explicit Uploader"
+        every { namedItem.uploaderUrl } returns "https://space.bilibili.com/999"
+        val info = mockk<ChannelTabInfo>()
+        every { info.relatedItems } returns listOf(blankItem, namedItem)
+        every { info.errors } returns emptyList()
+        every { info.name } returns "Study Channel"
+        every { info.nextPage } returns null
+
+        val response = info.toChannelTabResponse(fallbackUploaderUrl = "https://space.bilibili.com/23630128")
+
+        assertEquals(
+            listOf("https://space.bilibili.com/23630128", "https://space.bilibili.com/999"),
+            response.videos.map { it.uploaderUrl },
+        )
+    }
 }

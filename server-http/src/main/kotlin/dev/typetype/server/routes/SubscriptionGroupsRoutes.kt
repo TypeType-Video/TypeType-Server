@@ -129,6 +129,13 @@ private suspend fun ApplicationCall.respondMembership(result: SubscriptionGroupM
             HttpStatusCode.NotFound,
             ErrorResponse("Subscription group membership not found", "subscription_group_membership_not_found"),
         )
+        SubscriptionGroupMembershipResult.FocusEntertainmentConflict -> respond(
+            HttpStatusCode.Conflict,
+            ErrorResponse(
+                "Entertainment channels cannot be moved into the study group while Focus is active",
+                "focus_entertainment_conflict",
+            ),
+        )
     }
 }
 

@@ -75,6 +75,23 @@ class StreamFailureMemoryTest {
         assertEquals(missing, memory.recall("c"))
     }
 
+    @Test
+    fun `clearProviderBlocks removes only provider blocks and preserves content restrictions`() {
+        val memory = StreamFailureMemory(nowMs = { now })
+        val blocked = ExtractionResult.Failure("blocked", "provider_access_blocked", ExtractionFailureKind.ProviderAccessBlocked)
+        val missing = ExtractionResult.Failure("gone", "content_unavailable", ExtractionFailureKind.ContentUnavailable)
+        val geo = ExtractionResult.BadRequest("Only in Japan", "geographic_restriction")
+        memory.remember("yt:blocked", blocked)
+        memory.remember("yt:missing", missing)
+        memory.remember("yt:geo", geo)
+
+        val cleared = memory.clearProviderBlocks()
+        assertEquals(1, cleared)
+        assertEquals(null, memory.recall("yt:blocked"))
+        assertEquals(missing, memory.recall("yt:missing"))
+        assertEquals(geo, memory.recall("yt:geo"))
+    }
+
     private fun service(delegate: StreamService): CachedStreamService =
         CachedStreamService(delegate, FakeCacheService(), failures = StreamFailureMemory(nowMs = { now }))
 

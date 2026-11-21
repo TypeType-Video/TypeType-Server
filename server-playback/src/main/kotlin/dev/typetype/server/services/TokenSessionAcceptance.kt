@@ -26,6 +26,9 @@ class TokenSessionAcceptance(
 ) {
     private val running = AtomicBoolean(false)
 
+    /** True while a session on hold is being replaced: a playback started now would still get the old one. */
+    val recovering: Boolean get() = running.get()
+
     @Volatile
     private var finishedAt = Long.MIN_VALUE / 2
 

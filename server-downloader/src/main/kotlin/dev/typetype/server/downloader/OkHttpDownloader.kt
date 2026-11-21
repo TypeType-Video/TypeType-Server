@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.downloader.StreamingResponse
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.localization.Localization
+import org.slf4j.LoggerFactory
 import java.net.ProxySelector
 import java.util.concurrent.TimeUnit
 
@@ -74,6 +75,8 @@ class OkHttpDownloader private constructor(
         @Volatile
         var onProviderRefusal: (() -> Unit)? = null
 
+        private val logger = LoggerFactory.getLogger(OkHttpDownloader::class.java)
+
         /**
          * The text of a subtitle track is never asked for from here. The extractor downloads it
          * for every video it opens, only to tidy the list of tracks, and the provider guards
@@ -94,11 +97,22 @@ class OkHttpDownloader private constructor(
         private const val YOUTUBE_AUTH_USER_HEADER = "X-Goog-AuthUser"
     }
 
+    /** Evicts idle pooled HTTP connections after an outbound network or proxy change. */
+    fun evictIdleConnections(): Unit {
+        client.connectionPool.evictAll()
+        streamingClient.connectionPool.evictAll()
+    }
+
     override fun execute(request: ExtractorRequest): Response {
         refuseSubtitleText(request.url())
         val httpRequest = buildOkHttpRequest(request)
         client.newCall(httpRequest).execute().use { httpResponse ->
             if (httpResponse.code == 429) {
+                logger.warn(
+                    "provider_http event=rate_limited method={} path={}",
+                    request.httpMethod(),
+                    httpRequest.url.encodedPath,
+                )
                 runCatching { onProviderRefusal?.invoke() }
                 throw ReCaptchaException("reCaptcha required", request.url())
             }
@@ -144,7 +158,12 @@ class OkHttpDownloader private constructor(
         val httpRequest = buildOkHttpRequest(request)
         val httpResponse = streamingClient.newCall(httpRequest).execute()
         if (httpResponse.code == 429) {
+            logger.warn(
+                "provider_http event=rate_limited method=POST path={}",
+                httpRequest.url.encodedPath,
+            )
             httpResponse.close()
+            runCatching { onProviderRefusal?.invoke() }
             throw ReCaptchaException("reCaptcha required", url)
         }
         return StreamingResponse(

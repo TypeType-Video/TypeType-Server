@@ -83,6 +83,45 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `tag lives are relayed for any script and refused for anything but one word`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/tags/Speedrun/streams?first=12").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/tags/%E6%97%A5%E6%9C%AC%E8%AA%9E/streams").status)
+        assertEquals(listOf("/v1/tags/Speedrun/streams", "/v1/tags/%E6%97%A5%E6%9C%AC%E8%AA%9E/streams"), requests.map { it.url.encodedPath })
+        assertEquals("12", requests.first().url.queryParameter("first"))
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/tags/two%20words/streams").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/tags/a.b/streams").status)
+        assertEquals(2, requests.size)
+    }
+
+    @Test
+    fun `the chat of a past broadcast is relayed with its offset or cursor`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?offset=120&evil=1").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?cursor=abc").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/comments").status)
+        assertEquals("/v1/videos/2929630714/comments", requests.first().url.encodedPath)
+        assertEquals("120", requests.first().url.queryParameter("offset"))
+        assertEquals(null, requests.first().url.queryParameter("evil"))
+        assertEquals("abc", requests.last().url.queryParameter("cursor"))
+        assertEquals(2, requests.size)
+    }
+
+    @Test
+    fun `the poll and pinned message of a chat are relayed`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/chat/somechannel/highlights?evil=1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/chat/bad%20login/highlights").status)
+        assertEquals("/v1/chat/somechannel/highlights", requests.single().url.encodedPath)
+        assertEquals(null, requests.single().url.queryParameter("evil"))
+    }
+
+    @Test
+    fun `the chapters of a past broadcast are relayed`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/chapters?evil=1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.get("/twitch/videos/abc/chapters").status)
+        assertEquals("/v1/videos/2929630714/chapters", requests.single().url.encodedPath)
+        assertEquals(null, requests.single().url.queryParameter("evil"))
+    }
+
+    @Test
     fun `errors from the live service keep their status`() = withApp {
         answer = { 404 to """{"error":"offline"}""" }
         val response = client.get("/twitch/live/somechannel")
@@ -178,10 +217,59 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `the emotes of the linked account are relayed with its token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        answer = { 200 to """{"channelId":"42","emotes":[{"id":"25","name":"Kappa","type":"GLOBALS"}]}""" }
+        val response = client.get("/twitch/me/emotes/somechannel") { bearerAuth("test-jwt") }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("Kappa"))
+        assertTrue(requests.all { it.url.encodedPath == "/v1/me/emotes/somechannel" && it.header("X-Twitch-Token") == "user-token" })
+    }
+
+    @Test
     fun `follow without a linked account is a conflict`() = withApp {
         coEvery { store.get(TEST_USER_ID) } returns null
         val response = client.put("/twitch/me/follows/somechannel") { bearerAuth("test-jwt") }
         assertEquals(HttpStatusCode.Conflict, response.status)
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test
+    fun `the past broadcasts of followed channels are relayed with paging and the token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        val response = client.get("/twitch/me/videos?first=12&after=c1") { bearerAuth("test-jwt") }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val sent = requests.single()
+        assertEquals("/v1/me/videos", sent.url.encodedPath)
+        assertEquals("12", sent.url.queryParameter("first"))
+        assertEquals("c1", sent.url.queryParameter("after"))
+        assertEquals("user-token", sent.header("X-Twitch-Token"))
+    }
+
+    @Test
+    fun `a poll vote is relayed with the linked token`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        answer = { 204 to "" }
+        val response = client.post("/twitch/polls/vote") {
+            bearerAuth("test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"pollId":"p-1","choiceId":"c-2"}""")
+        }
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        val sent = requests.single()
+        assertEquals("/v1/polls/vote", sent.url.encodedPath)
+        assertEquals("user-token", sent.header("X-Twitch-Token"))
+    }
+
+    @Test
+    fun `a malformed poll vote never reaches the live service`() = withApp {
+        coEvery { store.get(TEST_USER_ID) } returns account()
+        val response = client.post("/twitch/polls/vote") {
+            bearerAuth("test-jwt")
+            contentType(ContentType.Application.Json)
+            setBody("""{"pollId":"p 1","choiceId":""}""")
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
         assertTrue(requests.isEmpty())
     }
 

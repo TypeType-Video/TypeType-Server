@@ -31,3 +31,36 @@ ProgressBatch:
           application/json:
             schema:
               $ref: ../components/common.yaml#/ErrorResponse
+  put:
+    tags: [user-data]
+    summary: Save playback progress for multiple videos
+    description: When a video appears more than once, its last position wins. Positions below zero are saved as zero.
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/progress.yaml#/ProgressBatchWriteRequest
+    responses:
+      '200':
+        description: Saved progress entries, one per distinct video.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: ../components/progress.yaml#/ProgressItem
+      '400':
+        description: Invalid request body or item list.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse
+      '401':
+        description: Authentication required.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse

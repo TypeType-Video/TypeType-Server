@@ -13,14 +13,23 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
+private val NICO_BID_COOKIES = setOf("domand_bid", "dlive_bid")
+
 fun parseNicoCookie(fragment: String): String? {
     val decoded = URLDecoder.decode(fragment, StandardCharsets.UTF_8)
     val cookieParam = decoded.split("&")
         .firstOrNull { it.startsWith("cookie=") }
         ?.removePrefix("cookie=") ?: return null
     val eqIdx = cookieParam.indexOf('=')
-    if (eqIdx < 0 || cookieParam.substring(0, eqIdx) != "domand_bid") return null
-    return cookieParam.substring(eqIdx + 1)
+    if (eqIdx < 0 || cookieParam.substring(0, eqIdx) !in NICO_BID_COOKIES) return null
+    return cookieParam.substring(eqIdx + 1).substringBefore(';').trim()
+}
+
+// Videos are served by the domand CDN and lives by the dlive CDN; each one only reads its own bid cookie.
+fun nicoBidCookieHeader(url: String, bid: String): String {
+    val host = runCatching { URI(url).host.orEmpty() }.getOrDefault("")
+    val name = if (host == "dlive.nicovideo.jp" || host.endsWith(".dlive.nicovideo.jp")) "dlive_bid" else "domand_bid"
+    return "$name=$bid"
 }
 
 fun rewriteNicoManifest(manifest: String, baseUrl: String, domandBid: String? = null, proxyPath: String = "nicovideo"): String {

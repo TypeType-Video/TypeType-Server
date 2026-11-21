@@ -70,6 +70,9 @@ class TwitchService(
     suspend fun sendChat(userId: String, login: String, json: String): TwitchLiveResponse? =
         withAccount(userId) { token -> client.post("/v1/chat/$login/messages", json, token) }
 
+    suspend fun votePoll(userId: String, json: String): TwitchLiveResponse? =
+        withAccount(userId) { token -> client.post("/v1/polls/vote", json, token) }
+
     suspend fun setFollow(userId: String, login: String, follow: Boolean): TwitchLiveResponse? =
         withAccount(userId) { token ->
             if (follow) client.put("/v1/me/follows/$login", token) else client.delete("/v1/me/follows/$login", token)

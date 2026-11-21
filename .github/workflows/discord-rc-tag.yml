@@ -1,0 +1,47 @@
+# For component repos (TypeType-Frontend, TypeType-Server, TypeType-Token, TypeType-Downloader).
+# Posts every rc tag (v1.18.0-rc.1, ...) to #🧪・releases-rc with the commits since the previous tag.
+# Needs the repo (or org) secret DISCORD_WEBHOOK_RC.
+name: Discord RC notify
+
+on:
+  push:
+    tags:
+      - "v*-rc.*"
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Post to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_RC }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [ -n "$WEBHOOK" ] || { echo "DISCORD_WEBHOOK_RC not set"; exit 0; }
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -n "$PREV" ]; then
+            RANGE="${PREV}..${TAG}"
+            COMPARE="https://github.com/${REPO}/compare/${PREV}...${TAG}"
+          else
+            RANGE="${TAG}"
+            COMPARE="https://github.com/${REPO}/tree/${TAG}"
+          fi
+          NOTES=$(git log --no-merges --pretty='- %s' "$RANGE" | head -n 25 | cut -c1-150)
+          [ -n "$NOTES" ] || NOTES="- no new commits"
+          NAME="${REPO#*/}"
+          jq -n \
+            --arg title "🧪 ${NAME} ${TAG}" \
+            --arg url "$COMPARE" \
+            --arg desc "$(printf 'Fresh RC, might break, have fun (・ω・)\n\n%s' "$NOTES" | cut -c1-3900)" \
+            '{username: "The Lab TV", embeds: [{title: $title, url: $url, description: $desc, color: 15105570}]}' \
+            > payload.json
+          curl -fsS -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"

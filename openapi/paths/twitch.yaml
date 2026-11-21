@@ -27,6 +27,15 @@ GameStreams:
       - { name: first, in: query, schema: { type: integer } }
       - { name: after, in: query, schema: { type: string } }
     responses: *relay
+TagStreams:
+  get:
+    tags: [twitch]
+    summary: Lives carrying a Twitch tag, most watched first
+    parameters:
+      - { name: tag, in: path, required: true, schema: { type: string, pattern: '^[\p{L}\p{Nd}]{1,25}$' } }
+      - { name: first, in: query, schema: { type: integer } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
 Channel:
   get: { tags: [twitch], summary: Twitch channel and its current live, parameters: [*login], responses: *relay }
 ChannelVideos:
@@ -45,6 +54,22 @@ Video:
     tags: [twitch]
     summary: Past broadcast with a signed HLS link
     parameters: [{ name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }]
+    responses: *relay
+VideoChapters:
+  get:
+    tags: [twitch]
+    summary: Game chapters of a past broadcast
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }
+    responses: *relay
+VideoComments:
+  get:
+    tags: [twitch]
+    summary: Chat of a past broadcast, from an offset in seconds or a page cursor
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9]{1,20}$' } }
+      - { name: offset, in: query, schema: { type: integer } }
+      - { name: cursor, in: query, schema: { type: string } }
     responses: *relay
 Clip:
   get:
@@ -92,16 +117,22 @@ AccountPoll:
     responses: { '200': { description: pending, slow_down or ok with the account., <<: *json }, '401': { description: Not signed in. } }
 MeLive:
   get: { tags: [twitch], summary: Live channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
+MeVideos:
+  get: { tags: [twitch], summary: Past broadcasts of the channels the linked account follows, newest first, security: *auth, parameters: *page, responses: *relay }
 MeFollows:
   get: { tags: [twitch], summary: Channels the linked account follows, security: *auth, parameters: *page, responses: *relay }
 MeFollow:
   get: { tags: [twitch], summary: Whether the linked account follows a channel, security: *auth, parameters: [*login], responses: *relay }
   put: { tags: [twitch], summary: Follow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
   delete: { tags: [twitch], summary: Unfollow a channel with the linked account, security: *auth, parameters: [*login], responses: *relay }
+MeEmotes:
+  get: { tags: [twitch], summary: Twitch emotes the linked account can use in a channel, security: *auth, parameters: [*login], responses: *relay }
 ChatAssets:
   get: { tags: [twitch], summary: Global chat badges and emotes, responses: *relay }
 ChannelChatAssets:
   get: { tags: [twitch], summary: Chat badges and 7TV, BTTV and FFZ emotes of a channel, parameters: [*login], responses: *relay }
+ChatHighlights:
+  get: { tags: [twitch], summary: The running poll and the pinned message of a live chat, parameters: [*login], responses: *relay }
 ChatEvents:
   get:
     tags: [twitch]
@@ -120,3 +151,20 @@ ChatMessages:
         application/json:
           schema: { type: object, required: [message], properties: { message: { type: string, maxLength: 500 } } }
     responses: { '204': { description: Sent. }, '409': { description: No Twitch account linked. } }
+PollVote:
+  post:
+    tags: [twitch]
+    summary: Vote in the running poll of a chat with the linked account
+    security: *auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [pollId, choiceId]
+            properties: { pollId: { type: string, maxLength: 64 }, choiceId: { type: string, maxLength: 64 } }
+    responses:
+      '204': { description: Vote counted. }
+      '403': { description: Twitch refused the vote; code says why. }
+      '409': { description: No Twitch account linked. }

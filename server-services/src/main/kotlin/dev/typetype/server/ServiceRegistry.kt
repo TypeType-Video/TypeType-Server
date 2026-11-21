@@ -1,4 +1,6 @@
 package dev.typetype.server
+
+import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.TwitchConfig
 import dev.typetype.server.services.TwitchService
@@ -90,6 +92,8 @@ class ServiceRegistry(
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
     val youtubeSabrStreamService = extraction.youtubeSabrStreamService
+    suspend fun withYoutubeSponsorBlock(url: String, response: StreamResponse): StreamResponse =
+        extraction.withYoutubeSponsorBlock(url, response)
     val youtubeLiveHlsStreamService = extraction.youtubeLiveHlsStreamService
     val youtubeSabrBootstrapStreamService = extraction.youtubeSabrBootstrapStreamService
     val nicoNicoStreamService = extraction.nicoNicoStreamService
@@ -124,6 +128,7 @@ class ServiceRegistry(
     val audioOnlyMediaTokenService = AudioOnlyMediaTokenService(jwtSecret)
     val suggestionService = extraction.suggestionService
     val sabrSessionStore = extraction.sabrSessionStore
+    val youtubeEgressResetService = extraction.youtubeEgressResetService
     val commentVoiceAudioService = CommentVoiceAudioService(sabrSessionStore, cache)
     val historyService = HistoryService()
     val subscriptionsService = SubscriptionsService()

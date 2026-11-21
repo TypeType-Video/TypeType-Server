@@ -31,6 +31,12 @@ class StreamCacheTtlResolverTest {
     }
 
     @Test
+    fun `an answer that missed SponsorBlock is kept two minutes`() {
+        val stream = response("https://example.com/video.mp4").copy(sponsorBlockAvailable = false)
+        assertEquals(120L, stream.streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
+    }
+
+    @Test
     fun `stream ttl is short when dislike count is unavailable`() {
         assertEquals(300L, response("https://example.com/video.mp4", dislikeCount = -1L).streamCacheTtlSeconds(nowEpochSeconds = 1_000L))
     }

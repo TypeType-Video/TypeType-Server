@@ -11,12 +11,15 @@ private const val SIGNED_PROVIDER_STREAM_MAX_TTL_SECONDS = 3_600L
 private const val SIGNED_STREAM_DEADLINE_SAFETY_SECONDS = 300L
 private const val MIN_CACHEABLE_STREAM_TTL_SECONDS = 60L
 private const val FINISHED_LIVE_STREAM_TTL_SECONDS = 300L
+private const val MISSING_SPONSORBLOCK_TTL_SECONDS = 120L
 private const val PER_CLIENT_HLS_MANIFEST_PREFIX = "/streams/hls-manifest?token="
 
 fun StreamResponse.streamCacheTtlSeconds(nowEpochSeconds: Long = System.currentTimeMillis() / 1000): Long {
     if (isLive || isPostLive || hlsUrl.startsWith(PER_CLIENT_HLS_MANIFEST_PREFIX)) return 0L
     val ttl = signedStreamTtlSeconds(nowEpochSeconds)
-    return if (isLiveContent) minOf(ttl, FINISHED_LIVE_STREAM_TTL_SECONDS) else ttl
+    val kept = if (isLiveContent) minOf(ttl, FINISHED_LIVE_STREAM_TTL_SECONDS) else ttl
+    // SponsorBlock was slow or paused for this answer: keep it briefly so the segments come with the next load.
+    return if (sponsorBlockAvailable) kept else minOf(kept, MISSING_SPONSORBLOCK_TTL_SECONDS)
 }
 
 private fun StreamResponse.signedStreamTtlSeconds(nowEpochSeconds: Long): Long {

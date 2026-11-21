@@ -14,5 +14,6 @@ object WatchLaterTable : Table("watch_later") {
     val channelAvatar = text("channel_avatar").default("")
     val viewCount = long("view_count").default(0L)
     val publishedAt = long("published_at").default(-1L)
+    val metadataRefreshedAt = long("metadata_refreshed_at").default(0L)
     override val primaryKey = PrimaryKey(userId, url)
 }

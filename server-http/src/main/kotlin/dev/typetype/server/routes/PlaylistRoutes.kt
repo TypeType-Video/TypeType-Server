@@ -35,7 +35,7 @@ fun Route.playlistRoutes(playlistService: PlaylistService, authService: AuthServ
         call.withJwtAuth(authService) { userId ->
             val id = call.parameters["id"] ?: return@withJwtAuth call.respond(HttpStatusCode.BadRequest, ErrorResponse("Missing id"))
             val playlist = playlistService.getById(userId, id) ?: return@withJwtAuth call.respond(HttpStatusCode.NotFound, ErrorResponse("Not found"))
-            metadataRepairService?.schedulePlaylists(call.application, userId)
+            metadataRepairService?.schedulePlaylist(call.application, userId, id)
             call.respond(playlist)
         }
     }

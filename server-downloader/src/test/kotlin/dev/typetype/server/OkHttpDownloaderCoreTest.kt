@@ -163,6 +163,20 @@ class OkHttpDownloaderCoreTest {
         assertEquals("https://example.test/x", normalizeExtractorUrl("https://example.test/x"))
     }
 
+    @Test
+    fun `evictIdleConnections completes without error after request`() {
+        val server = server(status = 200, body = "ok")
+        server.start()
+        try {
+            val downloader = OkHttpDownloader.instance()
+            val request = ExtractorRequest.newBuilder().get(urlOf(server, "/pool")).build()
+            assertEquals(200, downloader.execute(request).responseCode())
+            downloader.evictIdleConnections()
+        } finally {
+            server.stop(0)
+        }
+    }
+
     private fun waitUntilFinished(call: org.schabi.newpipe.extractor.downloader.CancellableCall): Boolean {
         repeat(50) {
             if (call.isFinished()) return true

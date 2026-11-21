@@ -1,0 +1,17 @@
+BilibiliShortLink:
+  get:
+    tags: [links]
+    summary: Resolve a b23.tv share link to its bilibili.com page
+    description: The server follows the single redirect of b23.tv and answers only when it leads to a bilibili.com page.
+    parameters:
+      - { name: code, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9]{4,16}$' } }
+    responses:
+      '200':
+        description: The bilibili.com page the link leads to
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties: { url: { type: string } }
+      '404': { description: Unknown link, or a redirect that does not lead to bilibili.com }

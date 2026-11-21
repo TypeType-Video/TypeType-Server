@@ -125,6 +125,7 @@ class SabrStreamContractFilterTest {
         assertEquals(setOf(140, 249), filtered.audioStreams.map { it.itag }.toSet())
         assertEquals("audio/webm", filtered.audioStreams.first { it.itag == 249 }.mimeType)
         assertEquals("opus", filtered.audioStreams.first { it.itag == 249 }.codec)
+        assertEquals(128, filtered.audioStreams.first { it.itag == 249 }.bitrate)
     }
 
     private fun videoFormat(itag: Int, mime: String): YoutubeSabrFormat =

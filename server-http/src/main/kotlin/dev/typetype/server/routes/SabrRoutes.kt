@@ -8,6 +8,7 @@ import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
 import dev.typetype.server.services.AuthenticatedSabrInfoService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SabrSessionStore
 import dev.typetype.server.services.StreamService
 import io.ktor.http.HttpStatusCode
@@ -26,6 +27,7 @@ internal fun Route.sabrRoutes(
     audioOnlyTokenService: AudioOnlyMediaTokenService?,
     authenticatedSabrInfoService: AuthenticatedSabrInfoService? = null,
     youtubeSessionStreamInfo: (suspend (String, String) -> ExtractionResult<StreamResponse>?)? = null,
+    focusService: FocusService? = null,
 ) {
     val sessionHandler = SabrSessionDescriptorHandler(
         sabrSessionStore,
@@ -33,6 +35,7 @@ internal fun Route.sabrRoutes(
         authService,
         accessControlService,
         adminSettingsService,
+        focusService,
     )
     val stateHandler = SabrSessionStateHandler(sabrSessionStore)
     val segmentHandler = SabrSegmentHandler(
@@ -48,6 +51,7 @@ internal fun Route.sabrRoutes(
         accessControlService,
         adminSettingsService,
         audioOnlyTokenService,
+        focusService,
     )
     val playbackHandler = SabrPlaybackHandler(
         sabrSessionStore,
@@ -57,6 +61,7 @@ internal fun Route.sabrRoutes(
         adminSettingsService,
         authenticatedSabrInfoService,
         youtubeSessionStreamInfo,
+        focusService,
     )
     val playbackStateHandler = SabrPlaybackStateHandler(sabrSessionStore)
     val playbackWindowHandler = SabrPlaybackWindowHandler(sabrSessionStore)

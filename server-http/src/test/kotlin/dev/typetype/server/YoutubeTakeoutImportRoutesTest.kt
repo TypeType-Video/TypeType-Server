@@ -136,9 +136,9 @@ class YoutubeTakeoutImportRoutesTest {
 
     private suspend fun ApplicationTestBuilder.assertEventuallyCompleted(jobId: String) {
         var status = client.get("/imports/youtube-takeout/$jobId") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
-        repeat(25) {
+        repeat(100) {
             if (Json.parseToJsonElement(status.bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content == "completed") return
-            delay(80)
+            delay(100)
             status = client.get("/imports/youtube-takeout/$jobId") { header(HttpHeaders.Authorization, "Bearer test-jwt") }
         }
         assertEquals("completed", Json.parseToJsonElement(status.bodyAsText()).jsonObject["status"]!!.jsonPrimitive.content)

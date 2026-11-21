@@ -14,4 +14,5 @@ sealed interface SubscriptionGroupMembershipResult {
     data object GroupNotFound : SubscriptionGroupMembershipResult
     data object SubscriptionNotFound : SubscriptionGroupMembershipResult
     data object MembershipNotFound : SubscriptionGroupMembershipResult
+    data object FocusEntertainmentConflict : SubscriptionGroupMembershipResult
 }

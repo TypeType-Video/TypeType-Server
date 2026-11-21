@@ -1,0 +1,74 @@
+ServerEvents:
+  get:
+    tags: [metadata]
+    summary: Stream server notices for every client
+    description: |
+      Public server-sent events stream that lets any client tell a planned restart or update from a failure
+      and resume by itself. The first event is `hello` with JSON ServerHello data: `bootId` changes on every
+      server start, and `notice` holds the active notice, if any. A `notice` event carries JSON ServerNotice
+      data when a restart, an update or a maintenance is announced. A `clear` event drops the active notice.
+      Before it stops, the server sends a `notice` of kind `restart` and ends the stream. A client that sees
+      the stream end, or a different `bootId` after reconnecting, should reconnect and reload what it shows
+      instead of reporting an error. Comment lines keep the connection alive.
+    responses:
+      '200':
+        description: Server-sent events containing server notices.
+        headers:
+          Cache-Control:
+            schema: { type: string, example: no-cache }
+        content:
+          text/event-stream:
+            schema: { type: string }
+            examples:
+              hello:
+                value: |
+                  event: hello
+                  data: {"bootId":"0b6f2c1e-6d0a-4f0e-9a43-0d0b6b7b0c55"}
+
+              notice:
+                value: |
+                  event: notice
+                  data: {"kind":"restart","resumeInSeconds":20,"issuedAt":1720000000000}
+
+AdminServerNotice:
+  post:
+    tags: [metadata]
+    summary: Announce a restart, an update or a maintenance to every client
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/ServerNoticeRequest' }
+    responses:
+      '200':
+        description: The notice sent to every connected client
+        content:
+          application/json:
+            schema: { $ref: '#/ServerNotice' }
+      '400': { description: Invalid notice }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+  delete:
+    tags: [metadata]
+    summary: Drop the active server notice
+    responses:
+      '204': { description: Notice cleared }
+      '401': { description: Missing or invalid token }
+      '403': { description: Admin role required }
+
+ServerNoticeRequest:
+  type: object
+  required: [kind]
+  properties:
+    kind: { type: string, enum: [restart, update, maintenance] }
+    message: { type: string, maxLength: 280, nullable: true }
+    resumeInSeconds: { type: integer, minimum: 0, maximum: 86400, nullable: true }
+
+ServerNotice:
+  type: object
+  required: [kind, issuedAt]
+  properties:
+    kind: { type: string, enum: [restart, update, maintenance] }
+    message: { type: string, nullable: true }
+    resumeInSeconds: { type: integer, nullable: true }
+    issuedAt: { type: integer, format: int64 }

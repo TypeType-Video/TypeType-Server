@@ -10,6 +10,8 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
+private val PLAYLIST_SERVICE_IDS = setOf(YOUTUBE_SERVICE_ID, BILIBILI_SERVICE_ID, NICONICO_SERVICE_ID)
+
 class PipePipePublicPlaylistService : PublicPlaylistService {
     override suspend fun getPlaylist(url: String, nextpage: String?): ExtractionResult<PublicPlaylistResponse> =
         withContext(Dispatchers.IO) {
@@ -19,14 +21,14 @@ class PipePipePublicPlaylistService : PublicPlaylistService {
             } else null
             val service = runCatching { NewPipe.getServiceByUrl(url) }
                 .getOrElse { return@withContext ExtractionResult.BadRequest("Unsupported playlist URL") }
-            if (service.serviceId != YOUTUBE_SERVICE_ID && service.serviceId != BILIBILI_SERVICE_ID) {
-                return@withContext ExtractionResult.BadRequest("Public playlists are only supported for YouTube and Bilibili")
+            if (service.serviceId !in PLAYLIST_SERVICE_IDS) {
+                return@withContext ExtractionResult.BadRequest("Public playlists are only supported for YouTube, Bilibili and NicoNico")
             }
 
             runExtractionCatching {
                 withExtractionRetry {
                     withTimeout(30_000L) {
-                        if (page == null) PlaylistInfo.getInfo(service, url).toPublicPlaylistResponse()
+                        if (page == null) PlaylistInfo.getInfo(service, url).toPublicPlaylistResponse(url)
                         else PlaylistInfo.getMoreItems(service, url, page).toPublicPlaylistResponse(url)
                     }
                 }
@@ -36,16 +38,29 @@ class PipePipePublicPlaylistService : PublicPlaylistService {
             )
         }
 
-    private fun PlaylistInfo.toPublicPlaylistResponse(): PublicPlaylistResponse = PublicPlaylistResponse(
-        playlist = toPublicPlaylistItem(),
-        videos = relatedItems.map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-    )
-
-    private fun InfoItemsPage<StreamInfoItem>.toPublicPlaylistResponse(url: String): PublicPlaylistResponse =
-        PublicPlaylistResponse(
-            playlist = emptyPublicPlaylistItem(url),
-            videos = items.map { it.toVideoItem() },
+    private fun PlaylistInfo.toPublicPlaylistResponse(requestUrl: String): PublicPlaylistResponse {
+        val fallbackUploader = if (recommendationServiceId(requestUrl) == BILIBILI_SERVICE_ID) {
+            bilibiliPlaylistUploaderUrl(requestUrl, uploaderUrl ?: "")
+        } else {
+            ""
+        }
+        return PublicPlaylistResponse(
+            playlist = toPublicPlaylistItem(),
+            videos = relatedItems.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploader) },
             nextpage = nextPage?.toCursor(),
         )
+    }
+
+    private fun InfoItemsPage<StreamInfoItem>.toPublicPlaylistResponse(url: String): PublicPlaylistResponse {
+        val fallbackUploader = if (recommendationServiceId(url) == BILIBILI_SERVICE_ID) {
+            bilibiliPlaylistUploaderUrl(url)
+        } else {
+            ""
+        }
+        return PublicPlaylistResponse(
+            playlist = emptyPublicPlaylistItem(url),
+            videos = items.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploader) },
+            nextpage = nextPage?.toCursor(),
+        )
+    }
 }
