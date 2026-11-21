@@ -2,6 +2,7 @@ package dev.typetype.server.services
 
 import dev.typetype.server.models.ChannelResponse
 import dev.typetype.server.models.HomeRecommendationsResponse
+import dev.typetype.server.models.SubscriptionFeedResponse
 import dev.typetype.server.models.VideoItem
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -80,6 +81,47 @@ class FocusProfileTest {
             hasMore = false,
         )
         assertEquals(listOf("c", "a", "b"), home.filterFocus(profile(1.0)).items.map { it.id })
+    }
+
+    @Test
+    fun `subscription feed applies the archive window only to entertainment channels`() {
+        val recentFun = video("recent-fun", now - FocusProfile.DAY_MS)
+        val oldFun = video("old-fun", now - 30 * FocusProfile.DAY_MS)
+        val oldStudy = video("old-study", now - 30 * FocusProfile.DAY_MS, studyChannel)
+        val oldOther = video("old-other", now - 30 * FocusProfile.DAY_MS, "https://www.youtube.com/channel/UCother")
+        val feed = SubscriptionFeedResponse(
+            videos = listOf(recentFun, oldFun, oldStudy, oldOther),
+            nextpage = null,
+        )
+        assertEquals(
+            listOf("recent-fun", "old-study", "old-other"),
+            feed.filterFocus(profile(1.0)).videos.map { it.id },
+        )
+        assertEquals(
+            listOf("old-study", "old-other"),
+            feed.filterFocus(profile(0.0)).videos.map { it.id },
+        )
+        assertEquals(feed, feed.filterFocus(null))
+    }
+
+    @Test
+    fun `subscription feed snapshot paginates after focus archive filtering`() {
+        val recentFun = video("recent-fun", now - FocusProfile.DAY_MS)
+        val oldFun = video("old-fun", now - 30 * FocusProfile.DAY_MS)
+        val oldStudy = video("old-study", now - 30 * FocusProfile.DAY_MS, studyChannel)
+        val snapshot = SubscriptionFeedSnapshot(
+            generation = 1L,
+            generatedAt = now,
+            stale = false,
+            videos = listOf(recentFun, oldFun, oldStudy),
+        )
+        val newestPage = snapshot.page(offset = 0, limit = 2, refreshing = false, focusProfile = profile(1.0))
+        assertEquals(listOf("recent-fun", "old-study"), newestPage.videos.map { it.id })
+        assertNull(newestPage.nextpage)
+
+        val oldestPage = snapshot.page(offset = 0, limit = 1, refreshing = false, oldestFirst = true, focusProfile = profile(1.0))
+        assertEquals(listOf("old-study"), oldestPage.videos.map { it.id })
+        assertTrue(oldestPage.nextpage != null)
     }
 
     private fun channel(videos: List<VideoItem>, nextpage: String?) = ChannelResponse(

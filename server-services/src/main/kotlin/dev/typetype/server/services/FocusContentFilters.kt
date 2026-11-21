@@ -11,8 +11,12 @@ fun HomeRecommendationsResponse.filterFocus(profile: FocusProfile?): HomeRecomme
             .sortedBy { if (profile.isStudy(it.uploaderUrl)) 0 else 1 },
     )
 
+fun FocusProfile.keepsFeedVideo(video: VideoItem): Boolean =
+    (!isEntertainment(video.uploaderUrl) || withinArchive(video.publishedMillis())) &&
+        keepsVideo(video.url, video.uploaderUrl)
+
 fun SubscriptionFeedResponse.filterFocus(profile: FocusProfile?): SubscriptionFeedResponse =
-    if (profile == null) this else copy(videos = videos.filter { profile.keepsVideo(it.url, it.uploaderUrl) })
+    if (profile == null) this else copy(videos = videos.filter { profile.keepsFeedVideo(it) })
 
 fun ChannelResponse.limitFocusArchive(profile: FocusProfile?, channelUrl: String, newestFirst: Boolean): ChannelResponse {
     val entertainment = profile != null &&
