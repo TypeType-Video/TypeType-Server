@@ -44,6 +44,7 @@ class SubscriptionFeedService(
         selection: SubscriptionSelection = SubscriptionSelection.All,
         requestId: String? = currentRequestId(),
         oldestFirst: Boolean = false,
+        focusProfile: FocusProfile? = null,
     ): SubscriptionFeedPageResult {
         planner.touch(userId)
         val current = store.current(userId)
@@ -53,17 +54,7 @@ class SubscriptionFeedService(
         }
         val cursorState = cursor?.let(SubscriptionFeedCursorCodec::decode)
         if (cursor != null && cursorState == null) return SubscriptionFeedPageResult.InvalidCursor
-        if (cursorState != null && cursorState.limit != limit) return SubscriptionFeedPageResult.InvalidCursor
-        if (cursorState != null && cursorState.hideLiveStreams != hideLiveStreams) {
-            return SubscriptionFeedPageResult.InvalidCursor
-        }
-        if (cursorState != null && cursorState.hideMembersOnlyContent != hideMembersOnlyContent) {
-            return SubscriptionFeedPageResult.InvalidCursor
-        }
-        if (cursorState != null && cursorState.filterKey != selection.cursorKey) {
-            return SubscriptionFeedPageResult.InvalidCursor
-        }
-        if (cursorState != null && cursorState.oldestFirst != oldestFirst) {
+        if (cursorState != null && !cursorState.matches(limit, hideLiveStreams, hideMembersOnlyContent, selection.cursorKey, oldestFirst)) {
             return SubscriptionFeedPageResult.InvalidCursor
         }
         val snapshot = when {
@@ -90,6 +81,7 @@ class SubscriptionFeedService(
             selected.channelUrls,
             selected.token,
             oldestFirst,
+            focusProfile,
         )
         if (cursorState == null && response.nextpage != null && !selections.persist(userId, selection, selected)) {
             return SubscriptionFeedPageResult.CursorCapacityReached
@@ -103,24 +95,19 @@ class SubscriptionFeedService(
             else -> SubscriptionFeedResponse(emptyList(), null, refreshing = true)
         }
 
-    suspend fun getAll(userId: String): List<VideoItem> {
-        return getAllWithAvailability(userId).videos
-    }
+    suspend fun getAll(userId: String): List<VideoItem> = getAllWithAvailability(userId).videos
 
     suspend fun getAllWithAvailability(userId: String): SubscriptionFeedAvailability {
         planner.touch(userId)
         val snapshot = store.current(userId)
         if (snapshot == null) requestColdRefresh(userId, currentRequestId())
         if (snapshot != null) {
-            return SubscriptionFeedAvailability(
-                videos = snapshot.videos,
-                available = !snapshot.stale,
-            )
+            return SubscriptionFeedAvailability(videos = snapshot.resolvedVideos(), available = !snapshot.stale)
         }
         withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
         val refreshed = store.current(userId)
         return SubscriptionFeedAvailability(
-            videos = refreshed?.videos.orEmpty(),
+            videos = refreshed?.resolvedVideos().orEmpty(),
             available = refreshed != null && !refreshed.stale,
         )
     }
@@ -133,8 +120,7 @@ class SubscriptionFeedService(
         return snapshot.page(page * limit, limit, isRefreshing(userId))
     }
 
-    suspend fun getCachedAll(userId: String): List<VideoItem>? =
-        store.current(userId)?.videos
+    suspend fun getCachedAll(userId: String): List<VideoItem>? = store.current(userId)?.resolvedVideos()
 
     suspend fun invalidate(userId: String) {
         runCatching { store.invalidate(userId, UUID.randomUUID().toString()) }

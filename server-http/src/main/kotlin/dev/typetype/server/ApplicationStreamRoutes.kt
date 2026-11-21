@@ -31,6 +31,7 @@ internal fun Route.installStreamRoutes(
             accessControlService = svc.accessControlService,
             adminSettingsService = adminSettingsService,
             blockedService = svc.blockedService,
+            focusService = svc.focusService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             providerMediaHandleService = svc.providerMediaHandleService,
             providerMediaWarmup = svc.providerMediaWarmup,
@@ -54,6 +55,7 @@ internal fun Route.installStreamRoutes(
             adminSettingsService = adminSettingsService,
             publicHlsManifestTokenService = svc.publicHlsManifestTokenService,
             proxyService = svc.proxyService,
+            focusService = svc.focusService,
         )
         manifestRoutes(
             svc.manifestService,

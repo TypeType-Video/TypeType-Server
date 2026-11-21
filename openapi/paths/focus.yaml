@@ -26,3 +26,34 @@ Focus:
             schema: { $ref: ../components/focus.yaml#/FocusSettingsItem }
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
+FocusStudyChannels:
+  post:
+    tags: [user-data]
+    summary: Subscribe to a channel if needed and add it to the profile's study group
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/focus.yaml#/FocusStudyChannelRequest }
+    responses:
+      '200':
+        description: Study channel addition status and optional cooling-off unlock timestamp.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusStudyChannelResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+  delete:
+    tags: [user-data]
+    summary: Remove a channel from the profile's study group
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+    responses:
+      '204': { description: Channel removed from study group. }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }

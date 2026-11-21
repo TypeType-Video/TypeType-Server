@@ -9,6 +9,7 @@ import dev.typetype.server.services.AudioOnlyMediaTokenResult
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AudioOnlyStreamResolver
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.PublicHlsManifestTokenService
 import dev.typetype.server.services.ProxyService
 import dev.typetype.server.services.StreamService
@@ -30,6 +31,7 @@ fun Route.audioOnlyContractRoutes(
     adminSettingsService: AdminSettingsService? = null,
     publicHlsManifestTokenService: PublicHlsManifestTokenService? = null,
     proxyService: ProxyService? = null,
+    focusService: FocusService? = null,
 ) {
     get("/streams/audio-only") {
         val url = call.request.queryParameters["url"]
@@ -50,6 +52,10 @@ fun Route.audioOnlyContractRoutes(
             is ExtractionResult.Success -> {
                 if (!access.profile.allowsUploader(result.data.response.uploaderUrl, result.data.response.uploaderName)) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
+                }
+                val focus = access.userId?.let { focusService?.profileFor(it) }
+                if (call.respondIfFocusBlocksStream(focus, url, result.data.response)) {
+                    return@get
                 }
                 call.response.headers.append(HttpHeaders.CacheControl, "no-store")
                 when (val response = result.data.toResponse(

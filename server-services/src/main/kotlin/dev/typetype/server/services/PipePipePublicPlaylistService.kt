@@ -28,7 +28,7 @@ class PipePipePublicPlaylistService : PublicPlaylistService {
             runExtractionCatching {
                 withExtractionRetry {
                     withTimeout(30_000L) {
-                        if (page == null) PlaylistInfo.getInfo(service, url).toPublicPlaylistResponse()
+                        if (page == null) PlaylistInfo.getInfo(service, url).toPublicPlaylistResponse(url)
                         else PlaylistInfo.getMoreItems(service, url, page).toPublicPlaylistResponse(url)
                     }
                 }
@@ -38,16 +38,29 @@ class PipePipePublicPlaylistService : PublicPlaylistService {
             )
         }
 
-    private fun PlaylistInfo.toPublicPlaylistResponse(): PublicPlaylistResponse = PublicPlaylistResponse(
-        playlist = toPublicPlaylistItem(),
-        videos = relatedItems.map { it.toVideoItem() },
-        nextpage = nextPage?.toCursor(),
-    )
-
-    private fun InfoItemsPage<StreamInfoItem>.toPublicPlaylistResponse(url: String): PublicPlaylistResponse =
-        PublicPlaylistResponse(
-            playlist = emptyPublicPlaylistItem(url),
-            videos = items.map { it.toVideoItem() },
+    private fun PlaylistInfo.toPublicPlaylistResponse(requestUrl: String): PublicPlaylistResponse {
+        val fallbackUploader = if (recommendationServiceId(requestUrl) == BILIBILI_SERVICE_ID) {
+            bilibiliPlaylistUploaderUrl(requestUrl, uploaderUrl ?: "")
+        } else {
+            ""
+        }
+        return PublicPlaylistResponse(
+            playlist = toPublicPlaylistItem(),
+            videos = relatedItems.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploader) },
             nextpage = nextPage?.toCursor(),
         )
+    }
+
+    private fun InfoItemsPage<StreamInfoItem>.toPublicPlaylistResponse(url: String): PublicPlaylistResponse {
+        val fallbackUploader = if (recommendationServiceId(url) == BILIBILI_SERVICE_ID) {
+            bilibiliPlaylistUploaderUrl(url)
+        } else {
+            ""
+        }
+        return PublicPlaylistResponse(
+            playlist = emptyPublicPlaylistItem(url),
+            videos = items.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploader) },
+            nextpage = nextPage?.toCursor(),
+        )
+    }
 }

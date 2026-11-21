@@ -13,7 +13,7 @@ class CachedChannelService(
     override suspend fun getChannel(url: String, nextpage: String?, sort: String?): ExtractionResult<ChannelResponse> {
         val cacheArea = if (url.isBilibiliChannelUrl()) BILIBILI_CHANNEL_CACHE_AREA else "channel"
         val ttlSeconds = PublicCachePolicy.channelTtl(url, nextpage, sort)
-        return PublicExtractionCache.getOrLoad(
+        val result = PublicExtractionCache.getOrLoad(
             cache = cache,
             area = PublicCacheArea(
                 cacheArea,
@@ -23,6 +23,11 @@ class CachedChannelService(
             ),
             key = PublicCacheKey.of(cacheArea, url, nextpage, sort),
         ) { delegate.getChannel(url, nextpage, sort) }
+        return if (result is ExtractionResult.Success) {
+            ExtractionResult.Success(result.data.withFallbackUploaderUrl(url))
+        } else {
+            result
+        }
     }
 
     override suspend fun getPlaylists(url: String, nextpage: String?): ExtractionResult<ChannelPlaylistsResponse> {

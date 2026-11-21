@@ -1,11 +1,11 @@
 package dev.typetype.server.routes
 
 import dev.typetype.server.models.ErrorResponse
-import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.services.AccessControlService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.AudioOnlyMediaTokenService
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.SabrManifestBuilder
 import dev.typetype.server.services.SabrPreparedInfo
 import dev.typetype.server.services.SabrSessionHolder
@@ -27,18 +27,17 @@ internal class SabrManifestHandler(
     private val accessControlService: AccessControlService?,
     private val adminSettingsService: AdminSettingsService?,
     private val audioOnlyTokenService: AudioOnlyMediaTokenService?,
+    private val focusService: FocusService? = null,
 ) {
     private val accessResolver = SabrManifestAccessResolver(audioOnlyTokenService)
     private val responder = SabrManifestResponder(sabrSessionStore)
 
     suspend fun handle(call: ApplicationCall, videoId: String, download: Boolean = false) {
         val audioOnly = call.request.queryParameters["audioOnly"].equals("true", ignoreCase = true)
-        val downloadRange = if (download) {
+        val downloadRange = if (!download) null else {
             call.sabrDownloadRange().getOrElse {
                 return call.respond(HttpStatusCode.BadRequest, ErrorResponse(it.message ?: "Invalid download range"))
             }
-        } else {
-            null
         }
         val hls = call.request.queryParameters["format"].equals("hls", ignoreCase = true)
         val playlist = call.request.queryParameters["playlist"]
@@ -61,18 +60,11 @@ internal class SabrManifestHandler(
                 call.accessProfileOrRespond(authService, accessControlService, adminSettingsService) ?: return
         }
         val url = "https://www.youtube.com/watch?v=$videoId"
-        if (access?.profile?.enabled == true) {
-            when (val result = streamService.getStreamInfo(url)) {
-                is ExtractionResult.Success -> {
-                    if (!access.profile.allowsUploader(result.data.uploaderUrl, result.data.uploaderName)) {
-                        return call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
-                    }
-                }
-                is ExtractionResult.Failure ->
-                    return call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse(result.message, result.code))
-                is ExtractionResult.BadRequest ->
-                    return call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message, result.code))
+        if (call.respondIfStreamGuardBlocks(access?.profile, access?.userId, focusService, url) {
+                streamService.getStreamInfo(url)
             }
+        ) {
+            return
         }
         val requestedStartTimeMs = call.request.queryParameters["playerTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
             ?: call.request.queryParameters["startTimeMs"]?.toLongOrNull()?.coerceAtLeast(0L)
@@ -113,15 +105,7 @@ internal class SabrManifestHandler(
         val holder = createHolder(videoId, userId, prepared, audio, video, startTimeMs, purpose, audioOnly)
         if (download) {
             holder.setActiveTracks(videoActive = !audioOnly, audioActive = true)
-            return responder.respond(
-                call,
-                holder,
-                videoId,
-                audioOnly,
-                hls = false,
-                download = true,
-                downloadRange = downloadRange,
-            )
+            return responder.respond(call, holder, videoId, audioOnly, hls = false, download = true, downloadRange = downloadRange)
         }
         if (audioOnly) {
             holder.setActiveTracks(videoActive = false, audioActive = true)

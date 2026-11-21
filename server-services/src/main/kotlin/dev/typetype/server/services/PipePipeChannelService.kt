@@ -75,25 +75,36 @@ class PipePipeChannelService : ChannelService, ChannelVideosSource {
         val tab = service.toChannelTab(url, sort)
         if (tab != null) {
             val channelUrl = url.toBaseChannelUrl(tab)
+            val fallbackUploader = ChannelUrlCanonicalizer.canonicalize(channelUrl)
             val extractor = service.channelTabExtractor(url, channelId(channelUrl, service), tab, sort)
             extractor.fetchPage()
             val tabInfo = ChannelTabInfo.getInfo(extractor)
-            val videos = tabInfo.toChannelTabResponse()
+            val videos = tabInfo.toChannelTabResponse(fallbackUploaderUrl = fallbackUploader)
             if (!withMetadata) return videos
             val metadata = runCatching { ChannelInfo.getInfo(channelUrl) }.getOrNull() ?: return videos.copy(name = "")
-            return tabInfo.toChannelTabResponse(metadata)
+            val resolvedUploader = metadata.url?.takeIf { it.isNotBlank() }
+                ?.let(ChannelUrlCanonicalizer::canonicalize)
+                ?: fallbackUploader
+            return tabInfo.toChannelTabResponse(metadata, fallbackUploaderUrl = resolvedUploader)
         }
-        return ChannelInfo.getInfo(url).toChannelResponse()
+        val info = ChannelInfo.getInfo(url)
+        val fallbackUploader = ChannelUrlCanonicalizer.canonicalize(info.url?.takeIf { it.isNotBlank() } ?: url)
+        return info.toChannelResponse(fallbackUploaderUrl = fallbackUploader)
     }
 
     private fun extractMorePage(url: String, page: Page, sort: String?): ChannelResponse {
         val service = NewPipe.getServiceByUrl(url)
         val tab = service.toChannelTab(url, sort)
         if (tab != null) {
-            val extractor = service.channelTabExtractor(url, channelId(url.toBaseChannelUrl(tab), service), tab, sort)
-            return extractor.getPage(page).toChannelTabResponse()
+            val channelUrl = url.toBaseChannelUrl(tab)
+            val extractor = service.channelTabExtractor(url, channelId(channelUrl, service), tab, sort)
+            return extractor.getPage(page).toChannelTabResponse(
+                fallbackUploaderUrl = ChannelUrlCanonicalizer.canonicalize(channelUrl),
+            )
         }
-        return ChannelInfo.getMoreItems(service, url, page).toChannelResponse()
+        return ChannelInfo.getMoreItems(service, url, page).toChannelResponse(
+            fallbackUploaderUrl = ChannelUrlCanonicalizer.canonicalize(url),
+        )
     }
 
     private fun extractPlaylistFirstPage(url: String): ChannelPlaylistsResponse {

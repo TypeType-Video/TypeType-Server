@@ -1,5 +1,6 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.SubscriptionGroupMembershipsTable
 import dev.typetype.server.db.tables.SubscriptionGroupsTable
 import dev.typetype.server.models.SubscriptionGroupItem
@@ -32,4 +33,27 @@ internal object SubscriptionGroupQueries {
     fun exists(userId: String, groupId: String): Boolean = SubscriptionGroupsTable.selectAll().where {
         (SubscriptionGroupsTable.id eq groupId) and (SubscriptionGroupsTable.userId eq userId)
     }.any()
+
+    fun nameExists(userId: String, normalizedName: String): Boolean = SubscriptionGroupsTable.selectAll().where {
+        (SubscriptionGroupsTable.userId eq userId) and (SubscriptionGroupsTable.normalizedName eq normalizedName)
+    }.any()
+
+    fun membershipCount(userId: String, groupId: String): Int = SubscriptionGroupMembershipsTable.selectAll().where {
+        (SubscriptionGroupMembershipsTable.userId eq userId) and (SubscriptionGroupMembershipsTable.groupId eq groupId)
+    }.count().toInt()
+
+    fun conflictsWithFocusEntertainment(userId: String, groupId: String, channelUrls: Set<String>): Boolean {
+        val focusRow = FocusSettingsTable.selectAll().where { FocusSettingsTable.userId eq userId }.singleOrNull()
+            ?: return false
+        if (!focusRow[FocusSettingsTable.enabled] || focusRow[FocusSettingsTable.studyGroupId] != groupId) return false
+        val entertainmentGroupId = focusRow[FocusSettingsTable.entertainmentGroupId] ?: return false
+        val entertainmentKeys = SubscriptionGroupMembershipsTable
+            .select(SubscriptionGroupMembershipsTable.channelUrl)
+            .where {
+                (SubscriptionGroupMembershipsTable.groupId eq entertainmentGroupId) and
+                    (SubscriptionGroupMembershipsTable.userId eq userId)
+            }
+            .mapTo(hashSetOf()) { normalizeChannelKey(it[SubscriptionGroupMembershipsTable.channelUrl]) }
+        return channelUrls.any { normalizeChannelKey(it) in entertainmentKeys }
+    }
 }

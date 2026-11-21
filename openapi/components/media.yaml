@@ -79,6 +79,9 @@ ChannelResponse:
     nextpage: { type: string, nullable: true }
     hasCourses: { type: boolean, default: false, description: The channel has a Courses tab. }
     focusArchiveDays: { type: integer, nullable: true, description: Set when the focus mode limits this channel to its recent videos. }
+    focusBlocked: { type: boolean, default: false, description: Set when focus blocks this channel's videos until added to the active study group. }
+    focusStudyUnlockAt: { type: integer, format: int64, nullable: true, description: Epoch millis when a pending study channel finishes cooling off. }
+    focusBlockCode: { type: string, nullable: true, description: Machine-readable focus restriction code for this channel. }
 ChannelPageRequest:
   type: object
   required: [url]

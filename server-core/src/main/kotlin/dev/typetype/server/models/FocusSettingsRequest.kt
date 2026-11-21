@@ -11,4 +11,6 @@ data class FocusSettingsRequest(
     val timezone: String? = null,
     val transitionDays: Int? = null,
     val archiveDays: Int? = null,
+    val strictBlocking: Boolean? = null,
+    val grayscaleThumbnails: Boolean? = null,
 )

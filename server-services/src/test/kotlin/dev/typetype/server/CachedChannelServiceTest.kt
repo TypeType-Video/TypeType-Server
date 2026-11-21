@@ -88,6 +88,26 @@ class CachedChannelServiceTest {
         assertEquals(ExtractionResult.Success(complete), service.getChannel(url, null))
     }
 
+    @Test
+    fun `cached bilibili channel entries backfill blank uploaderUrl on read`() = runBlocking {
+        val url = "https://space.bilibili.com/23630128"
+        val cache = RecordingCache()
+        val blankVideo = testVideoItem().copy(uploaderUrl = "")
+        cache.set(
+            PublicCacheKey.of("channel-bilibili-v3", url, null, null),
+            CacheJson.encodeToString(ChannelResponse.serializer(), channel(listOf(blankVideo))),
+            3_600,
+        )
+        val service = CachedChannelService(
+            channelService { _, _, _ -> error("should serve from cache") },
+            cache,
+        )
+
+        val result = service.getChannel(url, null) as ExtractionResult.Success
+
+        assertEquals(listOf(url), result.data.videos.map { it.uploaderUrl })
+    }
+
     private fun channelService(
         handler: suspend (String, String?, String?) -> ExtractionResult<ChannelResponse>,
     ) = object : ChannelService {

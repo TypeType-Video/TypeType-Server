@@ -98,13 +98,14 @@ fun Application.installApplicationRoutes(
         rateLimit(EXTRACTION_ZONE) {
             searchRoutes(svc.searchService, authService, svc.accessControlService, adminSettingsService, svc.blockedService)
             suggestionRoutes(svc.suggestionService, authService, adminSettingsService)
-            trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService)
+            trendingRoutes(svc.trendingService, authService, svc.accessControlService, adminSettingsService, svc.focusService)
             publicPlaylistRoutes(
                 svc.publicPlaylistService,
                 authService,
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             commentRoutes(svc.commentService, authService, adminSettingsService, svc.commentSearchService)
             commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
@@ -126,6 +127,7 @@ fun Application.installApplicationRoutes(
                 svc.accessControlService,
                 adminSettingsService,
                 svc.blockedService,
+                svc.focusService,
             )
             podcastRoutes(svc.podcastService, authService, adminSettingsService)
         }
@@ -142,6 +144,7 @@ fun Application.installApplicationRoutes(
                 svc.youtubeSessionSabrStreamService?.let { service ->
                     { userId, url -> service.getStreamInfo(userId, url) }
                 },
+                svc.focusService,
             )
         }
         downloaderGatewayRoutes(downloaderGatewayService)

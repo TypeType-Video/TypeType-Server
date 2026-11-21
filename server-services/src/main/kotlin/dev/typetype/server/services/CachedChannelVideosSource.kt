@@ -11,7 +11,7 @@ class CachedChannelVideosSource(
 ) : ChannelVideosSource {
     override suspend fun firstPage(url: String): ExtractionResult<ChannelResponse> {
         if (url.toChannelTab(null) == null) return channelService.getChannel(url, null)
-        return PublicExtractionCache.getOrLoad(
+        val result = PublicExtractionCache.getOrLoad(
             cache = cache,
             area = PublicCacheArea(
                 CACHE_AREA,
@@ -20,6 +20,11 @@ class CachedChannelVideosSource(
             ),
             key = PublicCacheKey.of(CACHE_AREA, url),
         ) { tabVideos.firstPage(url) }
+        return if (result is ExtractionResult.Success) {
+            ExtractionResult.Success(result.data.withFallbackUploaderUrl(url))
+        } else {
+            result
+        }
     }
 
     private companion object {
