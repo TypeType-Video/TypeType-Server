@@ -103,7 +103,7 @@ fun SubscriptionFeedSnapshot.page(
     val visibleVideos = projectedVideos(selection, selectedChannelUrls).filterNot { video ->
         (hideLiveStreams && video.isLiveContentOrUpcomingAt(generatedAt)) ||
             (hideMembersOnlyContent && video.requiresMembership) ||
-            (focusProfile != null && !focusProfile.keepsFeedVideo(video))
+            (focusProfile != null && !keepsFocusVideo(video, focusProfile))
     }
     val projectedVideos = if (oldestFirst) visibleVideos.asReversed() else visibleVideos
     val from = offset.coerceAtMost(projectedVideos.size)
@@ -123,12 +123,31 @@ fun SubscriptionFeedSnapshot.page(
         null
     }
     return SubscriptionFeedResponse(
-        videos = projectedVideos.subList(from, to),
+        videos = projectedVideos.subList(from, to).map(::withResolvedUploaderUrl),
         nextpage = nextpage,
         generation = generation,
         generatedAt = generatedAt,
         refreshing = refreshing,
     )
+}
+
+internal fun SubscriptionFeedSnapshot.withResolvedUploaderUrl(video: VideoItem): VideoItem {
+    if (video.uploaderUrl.isNotBlank()) return video
+    val fallback = sourceChannelUrls[video.subscriptionFeedKey()]
+        ?.firstOrNull { it.isNotBlank() }
+        ?.let(ChannelUrlCanonicalizer::canonicalize)
+        ?: return video
+    return video.copy(uploaderUrl = fallback)
+}
+
+private fun SubscriptionFeedSnapshot.keepsFocusVideo(video: VideoItem, profile: FocusProfile): Boolean {
+    if (video.uploaderUrl.isNotBlank()) return profile.keepsFeedVideo(video)
+    val sources = sourceChannelUrls[video.subscriptionFeedKey()].orEmpty()
+    if (sources.isEmpty()) return profile.keepsFeedVideo(video)
+    val publishedAt = video.publishedAt ?: video.uploaded.takeIf { it > 0 }
+    return sources.any { source ->
+        profile.keepsFeedVideo(video.url, ChannelUrlCanonicalizer.canonicalize(source), publishedAt)
+    }
 }
 
 private fun SubscriptionFeedSnapshot.projectedVideos(

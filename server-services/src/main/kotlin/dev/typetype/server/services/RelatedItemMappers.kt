@@ -34,7 +34,10 @@ fun List<SponsorBlockSegmentItem>.toSponsorBlockSegments(): Array<SponsorBlockSe
         }.getOrNull()
     }.toTypedArray()
 
-fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem {
+fun StreamInfoItem.toVideoItem(
+    fallbackAvatarUrl: String = "",
+    fallbackUploaderUrl: String = "",
+): VideoItem {
     val uploaded = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: -1L
     val apiStreamType = streamType.toApiStreamType("video")
     return VideoItem(
@@ -43,7 +46,7 @@ fun StreamInfoItem.toVideoItem(fallbackAvatarUrl: String = ""): VideoItem {
         url = url ?: "",
         thumbnailUrl = thumbnailUrl.toAbsoluteUrl(),
         uploaderName = uploaderName ?: "",
-        uploaderUrl = uploaderUrl ?: "",
+        uploaderUrl = uploaderUrl?.takeIf { it.isNotBlank() } ?: fallbackUploaderUrl,
         uploaderAvatarUrl = (uploaderAvatarUrl?.takeIf { it.isNotEmpty() } ?: fallbackAvatarUrl).replace("httpss://", "https://"),
         duration = duration,
         viewCount = viewCount,

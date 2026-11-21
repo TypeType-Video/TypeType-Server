@@ -152,6 +152,46 @@ class FocusProfileTest {
         )
     }
 
+    @Test
+    fun `focus snapshot and bilibili playlists preserve study videos when item uploaderUrl is blank`() {
+        val biliStudy = "https://space.bilibili.com/23630128"
+        val biliProfile = FocusProfile(
+            seed = "user-1",
+            entertainmentChannels = setOf(normalizeChannelKey(funChannel)),
+            studyChannels = setOf(normalizeChannelKey(biliStudy)),
+            entertainmentShare = 0.0,
+            archiveDays = 7,
+            archiveCutoffMs = now - 7 * FocusProfile.DAY_MS,
+        )
+        val blankBiliVideo = video("BV1study", now, uploaderUrl = "").copy(
+            url = "https://www.bilibili.com/video/BV1study",
+        )
+        val snapshot = SubscriptionFeedSnapshot(
+            generation = 1L,
+            generatedAt = now,
+            stale = false,
+            videos = listOf(blankBiliVideo, video("fun-1", now, funChannel)),
+            sourceChannelUrls = mapOf(
+                "https://www.bilibili.com/video/BV1study" to listOf(biliStudy),
+                "https://www.youtube.com/watch?v=fun-1" to listOf(funChannel),
+            ),
+        )
+
+        val feedPage = snapshot.page(0, 30, refreshing = false, focusProfile = biliProfile)
+
+        assertEquals(listOf("BV1study"), feedPage.videos.map { it.id })
+        assertEquals(listOf(biliStudy), feedPage.videos.map { it.uploaderUrl })
+
+        val biliCollectionUrl = "https://www.bilibili.com/medialist/play/23630128?business=space_collection&business_id=55"
+        val playlist = PublicPlaylistResponse(
+            playlist = PublicPlaylistItem("pl", "Course", biliCollectionUrl, "", "UP", 1L, "collection"),
+            videos = listOf(blankBiliVideo),
+            nextpage = null,
+        ).withFallbackUploaderUrl(biliCollectionUrl)
+
+        assertEquals(listOf(biliStudy), playlist.filterFocus(biliProfile).videos.map { it.uploaderUrl })
+    }
+
     private fun video(id: String, publishedAt: Long, uploaderUrl: String = funChannel) = VideoItem(
         id = id, title = id, url = "https://www.youtube.com/watch?v=$id", thumbnailUrl = "", uploaderName = "Fun",
         uploaderUrl = uploaderUrl, uploaderAvatarUrl = "", duration = 60, viewCount = 1, uploadDate = "", streamType = "video_stream",

@@ -12,7 +12,7 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 
-fun ChannelInfo.toChannelResponse(): ChannelResponse {
+fun ChannelInfo.toChannelResponse(fallbackUploaderUrl: String = ""): ChannelResponse {
     requireItems(relatedItems.isEmpty(), errors, "Channel")
     return ChannelResponse(
         name = name ?: "",
@@ -22,7 +22,9 @@ fun ChannelInfo.toChannelResponse(): ChannelResponse {
         subscriberCount = subscriberCount,
         isVerified = isVerified,
         verification = verification.toApiValue(),
-        videos = relatedItems.map { it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "") },
+        videos = relatedItems.map {
+            it.toVideoItem(fallbackAvatarUrl = avatarUrl ?: "", fallbackUploaderUrl = fallbackUploaderUrl)
+        },
         nextpage = nextPage?.toCursor(),
         hasCourses = hasCoursesTab(),
     )
@@ -31,12 +33,15 @@ fun ChannelInfo.toChannelResponse(): ChannelResponse {
 fun ChannelInfo.hasCoursesTab(): Boolean =
     tabs.any { tab -> tab.contentFilters.any { it.name == ChannelTabs.COURSES } }
 
-fun InfoItemsPage<StreamInfoItem>.toChannelResponse(): ChannelResponse {
+fun InfoItemsPage<StreamInfoItem>.toChannelResponse(fallbackUploaderUrl: String = ""): ChannelResponse {
     requireItems(items.isEmpty(), errors, "Channel")
-    return channelPage(items.map { it.toVideoItem() }, nextPage?.toCursor())
+    return channelPage(items.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploaderUrl) }, nextPage?.toCursor())
 }
 
-fun ChannelTabInfo.toChannelTabResponse(metadata: ChannelInfo? = null): ChannelResponse {
+fun ChannelTabInfo.toChannelTabResponse(
+    metadata: ChannelInfo? = null,
+    fallbackUploaderUrl: String = "",
+): ChannelResponse {
     val videoItems = relatedItems.filterIsInstance<StreamInfoItem>()
     requireItems(videoItems.isEmpty(), errors, "Channel")
     return ChannelResponse(
@@ -47,16 +52,29 @@ fun ChannelTabInfo.toChannelTabResponse(metadata: ChannelInfo? = null): ChannelR
         subscriberCount = metadata?.subscriberCount ?: -1L,
         isVerified = metadata?.isVerified ?: false,
         verification = metadata?.verification.toApiValue(),
-        videos = videoItems.map { it.toVideoItem(fallbackAvatarUrl = metadata?.avatarUrl ?: "") },
+        videos = videoItems.map {
+            it.toVideoItem(fallbackAvatarUrl = metadata?.avatarUrl ?: "", fallbackUploaderUrl = fallbackUploaderUrl)
+        },
         nextpage = nextPage?.toCursor(),
         hasCourses = metadata?.hasCoursesTab() ?: false,
     )
 }
 
-fun InfoItemsPage<InfoItem>.toChannelTabResponse(): ChannelResponse {
+fun InfoItemsPage<InfoItem>.toChannelTabResponse(fallbackUploaderUrl: String = ""): ChannelResponse {
     val videoItems = items.filterIsInstance<StreamInfoItem>()
     requireItems(videoItems.isEmpty(), errors, "Channel")
-    return channelPage(videoItems.map { it.toVideoItem() }, nextPage?.toCursor())
+    return channelPage(videoItems.map { it.toVideoItem(fallbackUploaderUrl = fallbackUploaderUrl) }, nextPage?.toCursor())
+}
+
+/**
+ * Backfills blank video uploader URLs on channel pages/caches (e.g. Bilibili search/client fallbacks
+ * whose archive items omit per-item mid) with the canonicalized channel URL.
+ */
+fun ChannelResponse.withFallbackUploaderUrl(channelUrl: String): ChannelResponse {
+    val base = channelUrl.toChannelTab(null)?.let { channelUrl.toBaseChannelUrl(it) } ?: channelUrl
+    val canonical = ChannelUrlCanonicalizer.canonicalize(base)
+    if (canonical.isBlank() || videos.all { it.uploaderUrl.isNotBlank() }) return this
+    return copy(videos = videos.map { if (it.uploaderUrl.isNotBlank()) it else it.copy(uploaderUrl = canonical) })
 }
 
 fun ChannelTabInfo.toChannelPlaylistsResponse(): ChannelPlaylistsResponse {

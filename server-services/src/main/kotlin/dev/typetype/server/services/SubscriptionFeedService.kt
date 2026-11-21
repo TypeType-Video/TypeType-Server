@@ -115,14 +115,14 @@ class SubscriptionFeedService(
         if (snapshot == null) requestColdRefresh(userId, currentRequestId())
         if (snapshot != null) {
             return SubscriptionFeedAvailability(
-                videos = snapshot.videos,
+                videos = snapshot.videos.map { snapshot.withResolvedUploaderUrl(it) },
                 available = !snapshot.stale,
             )
         }
         withTimeoutOrNull(INTERNAL_COLD_WAIT_MS) { awaitRefresh(userId) }
         val refreshed = store.current(userId)
         return SubscriptionFeedAvailability(
-            videos = refreshed?.videos.orEmpty(),
+            videos = refreshed?.let { snap -> snap.videos.map { snap.withResolvedUploaderUrl(it) } }.orEmpty(),
             available = refreshed != null && !refreshed.stale,
         )
     }
@@ -136,7 +136,7 @@ class SubscriptionFeedService(
     }
 
     suspend fun getCachedAll(userId: String): List<VideoItem>? =
-        store.current(userId)?.videos
+        store.current(userId)?.let { snap -> snap.videos.map { snap.withResolvedUploaderUrl(it) } }
 
     suspend fun invalidate(userId: String) {
         runCatching { store.invalidate(userId, UUID.randomUUID().toString()) }
