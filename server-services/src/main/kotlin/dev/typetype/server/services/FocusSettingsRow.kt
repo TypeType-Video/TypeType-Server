@@ -24,6 +24,8 @@ internal data class FocusSettingsRow(
         now: Long,
         active: Boolean = false,
         studyChannelKeys: List<String> = emptyList(),
+        allowOnceRemainingToday: Int = FocusAllowOnceService.DAILY_LIMIT,
+        allowOnceDailyLimit: Int = FocusAllowOnceService.DAILY_LIMIT,
     ): FocusSettingsItem = FocusSettingsItem(
         enabled = enabled,
         entertainmentGroupId = entertainmentGroupId,
@@ -39,8 +41,13 @@ internal data class FocusSettingsRow(
         entertainmentShare = if (enabled) FocusProfile.share(startedAt, transitionDays, now) else 1.0,
         active = active,
         studyChannelKeys = studyChannelKeys,
+        allowOnceRemainingToday = allowOnceRemainingToday,
+        allowOnceDailyLimit = allowOnceDailyLimit,
     )
 }
+
+internal fun isActiveFocusRow(row: FocusSettingsRow, now: Long): Boolean =
+    row.enabled && row.entertainmentGroupId != null && FocusSchedule.isActive(row.schedule, row.timezone, now)
 
 internal fun readSettledFocusRow(userId: String, now: Long): FocusSettingsRow {
     val row = FocusSettingsTable.selectAll().where { FocusSettingsTable.userId eq userId }.singleOrNull()
