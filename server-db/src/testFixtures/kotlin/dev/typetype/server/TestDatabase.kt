@@ -9,6 +9,7 @@ import dev.typetype.server.db.tables.BlockedKeywordsTable
 import dev.typetype.server.db.tables.BlockedVideosTable
 import dev.typetype.server.db.tables.BugReportsTable
 import dev.typetype.server.db.tables.FavoritesTable
+import dev.typetype.server.db.tables.FocusAllowOnceGrantsTable
 import dev.typetype.server.db.tables.FocusSettingsTable
 import dev.typetype.server.db.tables.HistoryTable
 import dev.typetype.server.db.tables.AdminSettingsTable
@@ -122,6 +123,7 @@ object TestDatabase {
         value?.takeIf { it.isNotBlank() } ?: fallback
 
     fun truncateAll() = transaction {
+        FocusAllowOnceGrantsTable.deleteAll()
         FocusSettingsTable.deleteAll()
         RecommenderUserSettingsTable.deleteAll()
         RecommenderFeedbackTable.deleteAll()
