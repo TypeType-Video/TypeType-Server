@@ -56,7 +56,7 @@ object SettingsTable : Table("settings") {
     val accessModeAdminManagedAt = long("access_mode_admin_managed_at").default(0)
     val seekbarIcon = text("seekbar_icon").default("typetype")
     val seekbarIconUrl = text("seekbar_icon_url").default("")
-    val playerEngine = text("player_engine").default("vidstack")
+    val playerEngine = text("player_engine").default("videojs")
     val hideWatchedSubscriptionVideos = bool("hide_watched_subscription_videos").default(false)
     val watchedThresholdPercent = integer("watched_threshold_percent").default(0)
     val miniPlayerEnabled = bool("mini_player_enabled").default(true)

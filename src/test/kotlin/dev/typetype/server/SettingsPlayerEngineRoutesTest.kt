@@ -53,14 +53,14 @@ class SettingsPlayerEngineRoutesTest {
     }
 
     @Test
-    fun `vidstack stays the default player engine`() = withSettings {
+    fun `video js is the default player engine`() = withSettings {
         val body = client.get("/settings") { headers.append(HttpHeaders.Authorization, "Bearer test-jwt") }.bodyAsText()
-        assertTrue(body.contains("\"playerEngine\":\"vidstack\""))
+        assertTrue(body.contains("\"playerEngine\":\"videojs\""))
     }
 
     @Test
-    fun `video js can be chosen and unknown engines fall back`() = withSettings {
-        assertTrue(save("""{"playerEngine":"videojs"}""").contains("\"playerEngine\":\"videojs\""))
-        assertTrue(save("""{"playerEngine":"flash"}""").contains("\"playerEngine\":\"vidstack\""))
+    fun `vidstack can be chosen and unknown engines fall back`() = withSettings {
+        assertTrue(save("""{"playerEngine":"vidstack"}""").contains("\"playerEngine\":\"vidstack\""))
+        assertTrue(save("""{"playerEngine":"flash"}""").contains("\"playerEngine\":\"videojs\""))
     }
 }

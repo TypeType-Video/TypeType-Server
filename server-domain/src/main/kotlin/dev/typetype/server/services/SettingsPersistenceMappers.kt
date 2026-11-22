@@ -151,7 +151,7 @@ fun SettingsItem.normalized(): SettingsItem = copy(
     deArrowThumbnailMode = deArrowThumbnailMode.takeIf { it in DEARROW_THUMBNAIL_MODES } ?: "dearrow_or_random",
     deArrowTrustMode = deArrowTrustMode.takeIf { it in DEARROW_TRUST_MODES } ?: "accepted",
     seekbarIcon = seekbarIcon.takeIf { it in SEEKBAR_ICONS } ?: "typetype",
-    playerEngine = playerEngine.takeIf { it in PLAYER_ENGINES } ?: "vidstack",
+    playerEngine = playerEngine.takeIf { it in PLAYER_ENGINES } ?: "videojs",
     watchedThresholdPercent = watchedThresholdPercent.takeIf { it == 0 || it in WATCHED_THRESHOLD_PERCENTS } ?: 0,
 )
 
