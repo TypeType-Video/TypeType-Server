@@ -108,6 +108,7 @@ class ServiceRegistry(
     val commentService = extraction.commentService
     val commentSearchService = CommentSearchService(commentService)
     val bulletCommentService = extraction.bulletCommentService
+    val videoTitleService = extraction.videoTitleService
     val youtubeLiveChatService = PipePipeYoutubeLiveChatService(TypetypeTokenSabrTokenClient(subtitleServiceUrl))
     val channelService = extraction.channelService
     val podcastService = extraction.podcastService

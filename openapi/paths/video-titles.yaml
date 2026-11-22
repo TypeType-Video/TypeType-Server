@@ -1,0 +1,34 @@
+VideoTitles:
+  get:
+    tags: [content]
+    summary: Titles of Bilibili and NicoNico videos named by their id
+    description: >
+      Resolves bare video ids as written in comments and danmaku (BV and av ids for Bilibili, sm, so and nm ids for
+      NicoNico). At most 30 ids are read per request. Unknown ids and ids whose title could not be read are left out.
+    parameters:
+      - name: ids
+        in: query
+        required: true
+        description: Comma-separated video ids.
+        schema:
+          type: string
+          example: BV1xx411c7mD,av170001,sm9
+    responses:
+      '200':
+        description: Titles keyed by normalized id.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titles]
+              properties:
+                titles:
+                  type: object
+                  additionalProperties:
+                    type: string
+      '400':
+        description: The ids parameter is missing.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/common.yaml#/ErrorResponse

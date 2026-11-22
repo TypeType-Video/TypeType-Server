@@ -39,6 +39,7 @@ import dev.typetype.server.routes.sessionActivityRoutes
 import dev.typetype.server.routes.suggestionRoutes
 import dev.typetype.server.routes.trendingRoutes
 import dev.typetype.server.routes.userDataRoutes
+import dev.typetype.server.routes.videoTitleRoutes
 import dev.typetype.server.services.ActiveSessionService
 import dev.typetype.server.services.AdminSettingsService
 import dev.typetype.server.services.BilibiliShortLinkResolver
@@ -112,6 +113,7 @@ fun Application.installApplicationRoutes(
             commentRoutes(svc.commentService, authService, adminSettingsService, svc.commentSearchService)
             commentVoiceRoutes(svc.commentVoiceAudioService, authService, adminSettingsService)
             bulletCommentRoutes(svc.bulletCommentService, authService, adminSettingsService)
+            videoTitleRoutes(svc.videoTitleService, authService, adminSettingsService)
             youtubeLiveChatRoutes(svc.youtubeLiveChatService, authService, adminSettingsService)
         }
         rateLimit(CHANNEL_ZONE) {

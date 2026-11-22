@@ -88,6 +88,7 @@ paths:
   /rss/feeds/{id}.xml: { $ref: ./openapi/paths/rss.yaml#/RssFeedDocument }
   /settings: { $ref: ./openapi/paths/access-control.yaml#/Settings }
   /progress/batch: { $ref: ./openapi/paths/progress.yaml#/ProgressBatch }
+  /videos/titles: { $ref: ./openapi/paths/video-titles.yaml#/VideoTitles }
   /presence/keys: { $ref: ./openapi/paths/presence.yaml#/PresenceKeys }
   /presence/keys/{id}: { $ref: ./openapi/paths/presence.yaml#/PresenceKeyRoute }
   /presence/now-playing: { $ref: ./openapi/paths/presence.yaml#/PresenceNowPlaying }

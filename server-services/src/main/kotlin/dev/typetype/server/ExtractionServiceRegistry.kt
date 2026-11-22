@@ -64,6 +64,7 @@ import dev.typetype.server.services.YouTubeSubtitleDeliveryService
 import dev.typetype.server.services.OkHttpYouTubeSubtitleContentFetcher
 import dev.typetype.server.services.StreamYouTubeSubtitleResolver
 import dev.typetype.server.services.TokenYouTubeSubtitleContentFetcher
+import dev.typetype.server.services.VideoTitleService
 import dev.typetype.server.services.YoutubePlayerClient
 import dev.typetype.server.services.YoutubePlayerClientStreamService
 import dev.typetype.server.services.YoutubeLiveHlsStreamService
@@ -252,6 +253,7 @@ internal class ExtractionServiceRegistry(
         PipePipeBulletCommentService(bilibiliGuard = ProviderExtractionGuard("bilibili-bullet-comments")),
         cache,
     )
+    val videoTitleService = VideoTitleService()
     private val pipePipeChannelService = PipePipeChannelService()
     val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService), cache)
     val channelVideosSource = CachedChannelVideosSource(
