@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.localization.Localization
 import dev.typetype.server.sabr.SabrMediaSegment
 import dev.typetype.server.sabr.SabrRecoverableException
+import dev.typetype.server.sabr.SabrReloadException
 import dev.typetype.server.sabr.SabrSegmentRequest
 import dev.typetype.server.sabr.YoutubeSabrSession
 import java.io.IOException
@@ -58,6 +59,12 @@ class SabrSessionPumpLoop(
             } catch (error: SabrProtectedNoMediaException) {
                 SabrPumpLogger.protectedNoMedia(holder, error)
                 holder.failTerminal(error.message)
+                return
+            } catch (error: SabrReloadException) {
+                // YouTube asked for a player reload and then refused it: a refusal the client retries
+                // with a new session after Retry-After, not a broken session it keeps polling.
+                SabrPumpLogger.extractionFailure(holder, error)
+                holder.failTerminal(error.message, SabrFailureKind.UPSTREAM_REFUSED)
                 return
             } catch (error: ExtractionException) {
                 SabrPumpLogger.extractionFailure(holder, error)
