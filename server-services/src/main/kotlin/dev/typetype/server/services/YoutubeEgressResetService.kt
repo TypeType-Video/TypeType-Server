@@ -57,7 +57,7 @@ class YoutubeEgressResetService(
         val clearedFailureEntries = clearFailureMemory()
         evictConnections()
         val clearedBackoffKeys = try {
-            cache.deleteMatching(YOUTUBE_ONLY_BACKOFF_PATTERN)
+            BACKOFF_PATTERNS.sumOf { cache.deleteMatching(it) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -100,7 +100,9 @@ class YoutubeEgressResetService(
         const val TOKEN_ENV = "YOUTUBE_EGRESS_RESET_TOKEN"
         const val DEFAULT_REASON = "egress_reset"
         const val DEFAULT_REST_MS = 120_000L
-        private const val YOUTUBE_ONLY_BACKOFF_PATTERN = "youtube-related:v1:*:backoff"
+        // Public browsing backoffs (search, channels, playlists...) are keyed by hash, not by provider, so a
+        // reset clears them all: a Bilibili or NicoNico entry only gets asked once more.
+        private val BACKOFF_PATTERNS = listOf("youtube-related:v1:*:backoff", "*:v2:*:backoff")
         private val logger = LoggerFactory.getLogger(YoutubeEgressResetService::class.java)
     }
 }

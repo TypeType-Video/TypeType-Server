@@ -3,10 +3,13 @@ package dev.typetype.server.services
 import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.VideoItem
 
-class YoutubeScopedTrendingService(private val delegate: TrendingService) : TrendingService {
+class YoutubeScopedTrendingService(
+    private val delegate: TrendingService,
+    private val recovery: YoutubeEgressRecovery? = null,
+) : TrendingService {
     override suspend fun getTrending(serviceId: Int): ExtractionResult<List<VideoItem>> =
         if (serviceId == YOUTUBE_SERVICE_ID) {
-            YoutubeSessionTokenScope.withoutCredentials { delegate.getTrending(serviceId) }
+            recovery.retrying("trending") { YoutubeSessionTokenScope.withoutCredentials { delegate.getTrending(serviceId) } }
         } else {
             delegate.getTrending(serviceId)
         }

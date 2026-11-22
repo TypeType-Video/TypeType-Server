@@ -76,6 +76,7 @@ import dev.typetype.server.services.YoutubeScopedPublicPlaylistService
 import dev.typetype.server.services.YoutubeScopedSearchService
 import dev.typetype.server.services.YoutubeScopedStreamService
 import dev.typetype.server.services.YoutubeStreamGuards
+import dev.typetype.server.services.YoutubeEgressRecovery
 import dev.typetype.server.services.YoutubeEgressResetService
 import dev.typetype.server.services.YoutubeScopedSuggestionService
 import dev.typetype.server.services.YoutubeScopedTrendingService
@@ -108,6 +109,12 @@ internal class ExtractionServiceRegistry(
     private val tokenYoutubeSessionClient = TypetypeTokenYoutubeSessionClient(subtitleServiceUrl, egress.token)
     private val sabrTokenClient = TypetypeTokenSabrTokenClient(subtitleServiceUrl, egress.token)
     private val egressRotation = GluetunEgressRotation.fromEnvironment()
+    private val egressRecovery = egressRotation?.let { rotation ->
+        YoutubeEgressRecovery(
+            rotate = { reason -> rotation.refused(reason) },
+            reset = { reason -> youtubeEgressResetService.reset(reason) },
+        )
+    }
     val sabrSessionStore = SabrSessionStore(
         subtitleServiceUrl,
         tokenClient = sabrTokenClient,
@@ -241,11 +248,15 @@ internal class ExtractionServiceRegistry(
     val searchService = CachedSearchService(
         YoutubeScopedSearchService(
             BilibiliAggregatedSearchService(PipePipeSearchService()),
+            egressRecovery,
         ),
         cache,
     )
     val trendingService = CachedTrendingService(
-        YoutubeScopedTrendingService(PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient))),
+        YoutubeScopedTrendingService(
+            PipePipeTrendingService(BilibiliTrendingService(), NicoNicoTrendingService(httpClient)),
+            egressRecovery,
+        ),
         cache,
     )
     val commentService = CachedCommentService(YoutubeScopedCommentService(PipePipeCommentService()), cache)
@@ -255,16 +266,16 @@ internal class ExtractionServiceRegistry(
     )
     val videoTitleService = VideoTitleService()
     private val pipePipeChannelService = PipePipeChannelService()
-    val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService), cache)
+    val channelService = CachedChannelService(YoutubeScopedChannelService(pipePipeChannelService, egressRecovery), cache)
     val channelVideosSource = CachedChannelVideosSource(
         channelService,
-        YoutubeScopedChannelVideosSource(pipePipeChannelService),
+        YoutubeScopedChannelVideosSource(pipePipeChannelService, egressRecovery),
         cache,
     )
     val podcastService = CachedPodcastService(PipePipePodcastService(), cache)
     val channelPostsService = CachedChannelPostsService(PipePipeChannelPostsService(), cache)
     val publicPlaylistService = CachedPublicPlaylistService(
-        YoutubeScopedPublicPlaylistService(PipePipePublicPlaylistService()),
+        YoutubeScopedPublicPlaylistService(PipePipePublicPlaylistService(), egressRecovery),
         cache,
     )
     val providerMediaHandleService = ProviderMediaHandleService(cache)

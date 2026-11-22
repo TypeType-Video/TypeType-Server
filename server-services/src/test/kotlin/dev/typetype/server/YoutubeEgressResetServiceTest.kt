@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 
 class YoutubeEgressResetServiceTest {
     @Test
-    fun `reset clears only YouTube-only backoff keys, failure blocks, connections, and triggers session recovery`() = runTest {
+    fun `reset clears backoff keys, failure blocks, connections, and triggers session recovery`() = runTest {
         val cache = FakeCacheService()
         cache.set("youtube-related:v1:dQw4w9WgXcQ:backoff", "{}", 60)
         cache.set("youtube-related:v1:jNQXAC9IVRw:backoff", "{}", 60)
@@ -49,7 +49,7 @@ class YoutubeEgressResetServiceTest {
             YoutubeEgressResetResult.Completed(
                 YoutubeEgressResetResponse(
                     clearedFailureEntries = 1,
-                    clearedBackoffKeys = 2,
+                    clearedBackoffKeys = 6,
                     tokenSessionRecoveryTriggered = true,
                 ),
             ),
@@ -62,10 +62,10 @@ class YoutubeEgressResetServiceTest {
         assertNull(cache.get("youtube-related:v1:dQw4w9WgXcQ:backoff"))
         assertNull(cache.get("youtube-related:v1:jNQXAC9IVRw:backoff"))
         assertNotNull(cache.get("youtube-related:v1:dQw4w9WgXcQ"))
-        assertNotNull(cache.get("channel:v2:abc:backoff"))
-        assertNotNull(cache.get("comments-media:v2:def:backoff"))
-        assertNotNull(cache.get("search-v4:v2:ghi:backoff"))
-        assertNotNull(cache.get("channel-bilibili-v3:v2:bili:backoff"))
+        assertNull(cache.get("channel:v2:abc:backoff"))
+        assertNull(cache.get("comments-media:v2:def:backoff"))
+        assertNull(cache.get("search-v4:v2:ghi:backoff"))
+        assertNull(cache.get("channel-bilibili-v3:v2:bili:backoff"))
     }
 
     @Test
