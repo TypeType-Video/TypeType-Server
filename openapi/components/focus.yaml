@@ -16,6 +16,8 @@ FocusSettingsItem:
     entertainmentShare: { type: number, minimum: 0, maximum: 1, description: Share of the group's videos still shown. }
     active: { type: boolean, default: false, description: True when focus is enabled and active under the current schedule. }
     studyChannelKeys: { type: array, items: { type: string }, default: [], description: Normalized channel keys currently active in the study group. }
+    allowOnceRemainingToday: { type: integer, minimum: 0, default: 3, description: Remaining single-video allow-once passes for today. }
+    allowOnceDailyLimit: { type: integer, minimum: 1, default: 3, description: Daily maximum of single-video allow-once passes. }
 FocusSettingsRequest:
   type: object
   required: [enabled]
@@ -43,3 +45,33 @@ FocusStudyChannelResponse:
     channelUrl: { type: string }
     status: { type: string, enum: [active, pending] }
     unlockAt: { type: integer, format: int64, nullable: true }
+FocusAllowOnceChallengeRequest:
+  type: object
+  required: [videoUrl]
+  properties:
+    videoUrl: { type: string }
+    timezone: { type: string, nullable: true }
+FocusAllowOnceChallengeResponse:
+  type: object
+  required: [challengeId, challengeText, expiresAt, remainingToday, dailyLimit]
+  properties:
+    challengeId: { type: string }
+    challengeText: { type: string, description: Exact verification string the user must type identically. }
+    expiresAt: { type: integer, format: int64 }
+    remainingToday: { type: integer, minimum: 0 }
+    dailyLimit: { type: integer, minimum: 1 }
+FocusAllowOnceVerifyRequest:
+  type: object
+  required: [challengeId, videoUrl, code]
+  properties:
+    challengeId: { type: string }
+    videoUrl: { type: string }
+    code: { type: string }
+    timezone: { type: string, nullable: true }
+FocusAllowOnceVerifyResponse:
+  type: object
+  required: [remainingToday, dailyLimit, expiresAt]
+  properties:
+    remainingToday: { type: integer, minimum: 0 }
+    dailyLimit: { type: integer, minimum: 1 }
+    expiresAt: { type: integer, format: int64 }

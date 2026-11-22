@@ -63,6 +63,8 @@ paths:
   /subscriptions/feed: { $ref: ./openapi/paths/subscriptions.yaml#/SubscriptionFeed }
   /focus: { $ref: ./openapi/paths/focus.yaml#/Focus }
   /focus/study-channels: { $ref: ./openapi/paths/focus.yaml#/FocusStudyChannels }
+  /focus/allow-once/challenge: { $ref: ./openapi/paths/focus.yaml#/FocusAllowOnceChallenge }
+  /focus/allow-once/verify: { $ref: ./openapi/paths/focus.yaml#/FocusAllowOnceVerify }
   /auth/device/start: { $ref: ./openapi/paths/device-auth.yaml#/DeviceStart }
   /auth/device/lookup: { $ref: ./openapi/paths/device-auth.yaml#/DeviceLookup }
   /auth/device/approve: { $ref: ./openapi/paths/device-auth.yaml#/DeviceApprove }
