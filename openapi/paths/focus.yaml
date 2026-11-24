@@ -2,6 +2,11 @@ Focus:
   get:
     tags: [user-data]
     summary: Read the focus mode of the current profile
+    parameters:
+      - name: timezone
+        in: query
+        required: false
+        schema: { type: string }
     responses:
       '200':
         description: Focus settings and progress.
@@ -57,3 +62,39 @@ FocusStudyChannels:
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
       '404': { $ref: ../components/common.yaml#/JsonError }
+FocusAllowOnceChallenge:
+  post:
+    tags: [user-data]
+    summary: Issue a one-time verification string challenge to temporarily allow playback of one blocked video
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/focus.yaml#/FocusAllowOnceChallengeRequest }
+    responses:
+      '200':
+        description: One-time verification string and remaining daily allow-once quota.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusAllowOnceChallengeResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
+FocusAllowOnceVerify:
+  post:
+    tags: [user-data]
+    summary: Verify a focus allow-once string challenge and unlock playback for that single video
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/focus.yaml#/FocusAllowOnceVerifyRequest }
+    responses:
+      '200':
+        description: Updated remaining daily quota and temporary video unlock expiry.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusAllowOnceVerifyResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }

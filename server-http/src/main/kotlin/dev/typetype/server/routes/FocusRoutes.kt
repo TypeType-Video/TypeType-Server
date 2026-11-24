@@ -25,7 +25,10 @@ fun Route.focusRoutes(
     warmupService: HomeRecommendationWarmup = NoopHomeRecommendationWarmup,
 ) {
     get("/focus") {
-        call.withJwtAuth(authService) { userId -> call.respond(focusService.get(userId)) }
+        call.withJwtAuth(authService) { userId ->
+            val timezone = call.request.queryParameters["timezone"]?.takeIf { it.isNotBlank() }
+            call.respond(focusService.get(userId, timezone))
+        }
     }
     put("/focus") {
         call.withJwtAuth(authService) { userId ->
@@ -111,4 +114,5 @@ fun Route.focusRoutes(
             }
         }
     }
+    focusAllowOnceRoutes(focusService, authService)
 }

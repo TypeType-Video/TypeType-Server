@@ -18,4 +18,6 @@ data class FocusSettingsItem(
     val entertainmentShare: Double,
     val active: Boolean = false,
     val studyChannelKeys: List<String> = emptyList(),
+    val allowOnceRemainingToday: Int = 3,
+    val allowOnceDailyLimit: Int = 3,
 )

@@ -138,7 +138,7 @@ class ServiceRegistry(
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)
     val subscriptionGroupsService = SubscriptionGroupsService()
-    val focusService = FocusService()
+    val focusService = FocusService(cache = cache)
     val subscriptionFeedService = SubscriptionFeedService(
         subscriptionsService,
         channelService,

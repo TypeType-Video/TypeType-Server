@@ -24,6 +24,7 @@ data class FocusProfile(
     val archiveDays: Int,
     val archiveCutoffMs: Long,
     val strictBlocking: Boolean = false,
+    val temporaryAllowedVideos: Set<String> = emptySet(),
 ) {
     fun isEntertainment(channelUrl: String): Boolean =
         channelUrl.isNotBlank() && normalizeChannelKey(channelUrl) in entertainmentChannels
@@ -63,17 +64,26 @@ data class FocusProfile(
             -> !strictBlocking
         }
 
+    fun isTemporaryAllowed(url: String): Boolean =
+        url.isNotBlank() && normalizeBlockedVideoKey(url) in temporaryAllowedVideos
+
+    fun blockReasonForPlayback(uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? =
+        blockReasonForPlayback(url = "", uploaderUrl = uploaderUrl, publishedAt = publishedAt)
+
     // The fade only thins the passive feeds: a recent video the user opens from the channel page, which lists the whole
     // archive window, stays playable.
-    fun blockReasonForPlayback(uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? {
+    fun blockReasonForPlayback(url: String, uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? {
         if (!strictBlocking) return null
-        if (uploaderUrl.isBlank()) return FocusBlockReason.OutsideStudy
+        if (uploaderUrl.isBlank()) {
+            return if (isTemporaryAllowed(url)) null else FocusBlockReason.OutsideStudy
+        }
         return when (accessFor(uploaderUrl)) {
             FocusChannelAccess.ALLOW_STUDY -> null
             FocusChannelAccess.ENTERTAINMENT -> if (withinArchive(publishedAt)) null else FocusBlockReason.Entertainment
             FocusChannelAccess.PENDING_STUDY ->
-                FocusBlockReason.StudyPending(requireNotNull(pendingUnlockAt(uploaderUrl)))
-            FocusChannelAccess.OUTSIDE_STUDY -> FocusBlockReason.OutsideStudy
+                if (isTemporaryAllowed(url)) null else FocusBlockReason.StudyPending(requireNotNull(pendingUnlockAt(uploaderUrl)))
+            FocusChannelAccess.OUTSIDE_STUDY ->
+                if (isTemporaryAllowed(url)) null else FocusBlockReason.OutsideStudy
         }
     }
 

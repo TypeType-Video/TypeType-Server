@@ -1,9 +1,14 @@
 package dev.typetype.server.db
 
+import dev.typetype.server.db.tables.FocusAllowOnceGrantsTable
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 
 object DatabaseFocusMigration {
     fun apply(): Unit {
+        SchemaUtils.create(FocusAllowOnceGrantsTable)
+        exec("CREATE INDEX IF NOT EXISTS idx_focus_allow_once_user_day ON focus_allow_once_grants (user_id, day_key)")
+        exec("CREATE INDEX IF NOT EXISTS idx_focus_allow_once_user_expires ON focus_allow_once_grants (user_id, expires_at)")
         exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS study_group_id TEXT")
         exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS schedule TEXT NOT NULL DEFAULT 'always'")
         exec("ALTER TABLE focus_settings ADD COLUMN IF NOT EXISTS timezone TEXT")
