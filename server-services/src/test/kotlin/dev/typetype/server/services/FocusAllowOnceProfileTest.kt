@@ -39,6 +39,16 @@ class FocusAllowOnceProfileTest {
             FocusBlockReason.OutsideStudy,
             profile.blockReasonForPlayback("https://www.youtube.com/watch?v=vidOther8", otherChannel, now),
         )
+        assertNull(
+            profile.blockReasonForPlayback("https://www.youtube.com/watch?v=vidRecentFun", funChannel, now - FocusProfile.DAY_MS, alreadyWatched = false),
+        )
+        assertEquals(
+            FocusBlockReason.EntertainmentRewatch,
+            profile.blockReasonForPlayback("https://www.youtube.com/watch?v=vidRecentFun", funChannel, now - FocusProfile.DAY_MS, alreadyWatched = true),
+        )
+        assertNull(
+            profile.blockReasonForPlayback("https://www.youtube.com/watch?v=vidFun4", funChannel, now - FocusProfile.DAY_MS, alreadyWatched = true),
+        )
         assertFalse(profile.keepsFeedVideo("https://www.youtube.com/watch?v=vidOther6", otherChannel, now))
     }
 }

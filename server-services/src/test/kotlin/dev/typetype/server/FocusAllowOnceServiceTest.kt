@@ -2,7 +2,9 @@ package dev.typetype.server
 
 import dev.typetype.server.models.FocusSettingsRequest
 import dev.typetype.server.models.SubscriptionItem
+import dev.typetype.server.services.FocusAllowOnceCancelResult
 import dev.typetype.server.services.FocusAllowOnceChallengeResult
+import dev.typetype.server.services.FocusAllowOnceKind
 import dev.typetype.server.services.FocusAllowOnceService
 import dev.typetype.server.services.FocusAllowOnceVerifyResult
 import dev.typetype.server.services.FocusService
@@ -121,6 +123,39 @@ class FocusAllowOnceServiceTest {
         assertTrue(
             focus.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=vidNextDay1", "Asia/Shanghai")
                 is FocusAllowOnceChallengeResult.Success,
+        )
+    }
+
+    @Test
+    fun `rewatch quota of 2 is separate from outside-group quota of 3`() = runTest {
+        val group = setupEntertainmentGroup()
+        focus.update(TEST_USER_ID, FocusSettingsRequest(enabled = true, entertainmentGroupId = group, strictBlocking = true))
+
+        repeat(2) { idx ->
+            val url = "https://www.youtube.com/watch?v=rewatch00$idx"
+            val ch = focus.createAllowOnceChallenge(TEST_USER_ID, url, "Asia/Shanghai", FocusAllowOnceKind.ENTERTAINMENT_REWATCH.wireName)
+                as FocusAllowOnceChallengeResult.Success
+            assertEquals(2, ch.response.dailyLimit)
+            val res = focus.verifyAllowOnceChallenge(
+                TEST_USER_ID,
+                ch.response.challengeId,
+                url,
+                "AB23CD",
+                "Asia/Shanghai",
+                FocusAllowOnceKind.ENTERTAINMENT_REWATCH.wireName,
+            ) as FocusAllowOnceVerifyResult.Success
+            assertEquals(1 - idx, res.response.remainingToday)
+        }
+
+        assertEquals(0, focus.get(TEST_USER_ID, "Asia/Shanghai").rewatchAllowOnceRemainingToday)
+        assertEquals(3, focus.get(TEST_USER_ID, "Asia/Shanghai").allowOnceRemainingToday)
+        assertEquals(
+            FocusAllowOnceChallengeResult.Exhausted,
+            focus.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=rewatch009", "Asia/Shanghai", FocusAllowOnceKind.ENTERTAINMENT_REWATCH.wireName),
+        )
+        assertEquals(
+            FocusAllowOnceCancelResult.NotFound,
+            focus.cancelPendingAllowOnce(TEST_USER_ID, "https://www.youtube.com/watch?v=rewatch000", "Asia/Shanghai"),
         )
     }
 

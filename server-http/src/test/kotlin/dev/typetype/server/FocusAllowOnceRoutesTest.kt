@@ -1,6 +1,7 @@
 package dev.typetype.server
 
 import dev.typetype.server.models.ExtractionResult
+import dev.typetype.server.models.FocusAllowOnceCancelResponse
 import dev.typetype.server.models.FocusAllowOnceChallengeResponse
 import dev.typetype.server.models.FocusAllowOnceVerifyResponse
 import dev.typetype.server.models.FocusSettingsItem
@@ -8,11 +9,16 @@ import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.routes.focusRoutes
 import dev.typetype.server.routes.streamRoutes
 import dev.typetype.server.services.AuthService
+import dev.typetype.server.services.FocusAllowOnceCancelResult
 import dev.typetype.server.services.FocusAllowOnceChallengeResult
+import dev.typetype.server.services.FocusAllowOnceKind
 import dev.typetype.server.services.FocusAllowOnceVerifyResult
+import dev.typetype.server.services.FocusBlockReason
+import dev.typetype.server.services.FocusPlaybackBlockContext
 import dev.typetype.server.services.FocusProfile
 import dev.typetype.server.services.FocusService
 import dev.typetype.server.services.StreamService
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -57,21 +63,29 @@ class FocusAllowOnceRoutesTest {
             allowOnceDailyLimit = 3,
         )
         coEvery {
-            focusService.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=vidAllow001", "Asia/Shanghai")
+            focusService.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=vidAllow001", "Asia/Shanghai", "outside_group")
         } returns FocusAllowOnceChallengeResult.Success(
             FocusAllowOnceChallengeResponse("ch-1", "K7p3Mx92Qw4Nr8VlCj5Ty6Ba", 999L, 2, 3),
         )
         coEvery {
-            focusService.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=vidExhaust1", null)
+            focusService.createAllowOnceChallenge(TEST_USER_ID, "https://www.youtube.com/watch?v=vidExhaust1", null, "outside_group")
         } returns FocusAllowOnceChallengeResult.Exhausted
         coEvery {
-            focusService.verifyAllowOnceChallenge(TEST_USER_ID, "ch-1", "https://www.youtube.com/watch?v=vidAllow001", "WRONG", null)
+            focusService.verifyAllowOnceChallenge(TEST_USER_ID, "ch-1", "https://www.youtube.com/watch?v=vidAllow001", "WRONG", null, "outside_group")
         } returns FocusAllowOnceVerifyResult.InvalidChallenge
         coEvery {
-            focusService.verifyAllowOnceChallenge(TEST_USER_ID, "ch-1", "https://www.youtube.com/watch?v=vidAllow001", "K7p3Mx92Qw4Nr8VlCj5Ty6Ba", "Asia/Shanghai")
+            focusService.verifyAllowOnceChallenge(TEST_USER_ID, "ch-1", "https://www.youtube.com/watch?v=vidAllow001", "K7p3Mx92Qw4Nr8VlCj5Ty6Ba", "Asia/Shanghai", "outside_group")
         } returns FocusAllowOnceVerifyResult.Success(
             FocusAllowOnceVerifyResponse(remainingToday = 1, dailyLimit = 3, expiresAt = 2000L),
         )
+        coEvery {
+            focusService.cancelPendingAllowOnce(TEST_USER_ID, "https://www.youtube.com/watch?v=vidPending1", "Asia/Shanghai")
+        } returns FocusAllowOnceCancelResult.Success(
+            FocusAllowOnceCancelResponse("entertainment_rewatch", remainingToday = 2, dailyLimit = 2),
+        )
+        coEvery {
+            focusService.cancelPendingAllowOnce(TEST_USER_ID, "https://www.youtube.com/watch?v=vidMissing1", null)
+        } returns FocusAllowOnceCancelResult.NotFound
         coEvery { focusService.profileFor(TEST_USER_ID) } returns FocusProfile(
             seed = TEST_USER_ID,
             entertainmentChannels = setOf("https://youtube.com/channel/UCfun"),
@@ -80,6 +94,26 @@ class FocusAllowOnceRoutesTest {
             archiveCutoffMs = 0L,
             strictBlocking = true,
             temporaryAllowedVideos = setOf("youtube:video:vidAllow001"),
+        )
+        coEvery {
+            focusService.playbackBlockContext(TEST_USER_ID, "https://www.youtube.com/watch?v=vidAllow001", any())
+        } returns null
+        coEvery {
+            focusService.playbackBlockContext(TEST_USER_ID, "https://www.youtube.com/watch?v=vidOther999", any())
+        } returns FocusPlaybackBlockContext(
+            reason = FocusBlockReason.OutsideStudy,
+            allowOnceKind = FocusAllowOnceKind.OUTSIDE_GROUP,
+            aiReviewEligible = true,
+            aiRejected = true,
+            aiRejectionExpiresAt = 9_999L,
+            allowOnceCooldownMs = 600_000L,
+        )
+        coEvery {
+            focusService.playbackBlockContext(TEST_USER_ID, "https://www.youtube.com/watch?v=vidRewatch1", any())
+        } returns FocusPlaybackBlockContext(
+            reason = FocusBlockReason.EntertainmentRewatch,
+            allowOnceKind = FocusAllowOnceKind.ENTERTAINMENT_REWATCH,
+            aiReviewEligible = true,
         )
         coEvery { streamService.getStreamInfo(any()) } returns ExtractionResult.Success(sampleStream())
 
@@ -140,7 +174,26 @@ class FocusAllowOnceRoutesTest {
             header(HttpHeaders.Authorization, "Bearer test-jwt")
         }
         assertEquals(HttpStatusCode.Forbidden, blockedOther.status)
-        assertTrue(blockedOther.bodyAsText().contains("focus_channel_blocked"))
+        val blockedOtherBody = blockedOther.bodyAsText()
+        assertTrue(blockedOtherBody.contains("focus_channel_blocked"))
+        assertTrue(blockedOtherBody.contains("\"aiRejected\":true"))
+
+        val blockedRewatch = client.get("/streams/youtube/sabr?url=https://www.youtube.com/watch?v=vidRewatch1") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.Forbidden, blockedRewatch.status)
+        assertTrue(blockedRewatch.bodyAsText().contains("focus_entertainment_rewatch_blocked"))
+
+        val cancelOk = client.delete("/focus/allow-once/pending?url=https://www.youtube.com/watch?v=vidPending1&timezone=Asia/Shanghai") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.OK, cancelOk.status)
+        assertTrue(cancelOk.bodyAsText().contains("\"remainingToday\":2"))
+
+        val cancelMissing = client.delete("/focus/allow-once/pending?url=https://www.youtube.com/watch?v=vidMissing1") {
+            header(HttpHeaders.Authorization, "Bearer test-jwt")
+        }
+        assertEquals(HttpStatusCode.NotFound, cancelMissing.status)
     }
 
     private fun sampleStream(): StreamResponse = testStreamResponse(
