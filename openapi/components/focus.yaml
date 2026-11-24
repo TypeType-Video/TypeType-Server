@@ -16,8 +16,11 @@ FocusSettingsItem:
     entertainmentShare: { type: number, minimum: 0, maximum: 1, description: Share of the group's videos still shown. }
     active: { type: boolean, default: false, description: True when focus is enabled and active under the current schedule. }
     studyChannelKeys: { type: array, items: { type: string }, default: [], description: Normalized channel keys currently active in the study group. }
-    allowOnceRemainingToday: { type: integer, minimum: 0, default: 3, description: Remaining single-video allow-once passes for today. }
-    allowOnceDailyLimit: { type: integer, minimum: 1, default: 3, description: Daily maximum of single-video allow-once passes. }
+    allowOnceRemainingToday: { type: integer, minimum: 0, default: 3, description: Remaining single-video allow-once passes for non-group videos today. }
+    allowOnceDailyLimit: { type: integer, minimum: 1, default: 3, description: Daily maximum of single-video allow-once passes for non-group videos. }
+    rewatchAllowOnceRemainingToday: { type: integer, minimum: 0, default: 2, description: Remaining single-video allow-once passes for rewatching entertainment videos today. }
+    rewatchAllowOnceDailyLimit: { type: integer, minimum: 1, default: 2, description: Daily maximum of single-video allow-once passes for rewatching entertainment videos. }
+    aiReviewEnabled: { type: boolean, default: false, description: True when server-side Focus AI review is configured and enabled. }
 FocusSettingsRequest:
   type: object
   required: [enabled]
@@ -50,6 +53,7 @@ FocusAllowOnceChallengeRequest:
   required: [videoUrl]
   properties:
     videoUrl: { type: string }
+    kind: { type: string, enum: [outside_group, entertainment_rewatch], default: outside_group }
     timezone: { type: string, nullable: true }
 FocusAllowOnceChallengeResponse:
   type: object
@@ -60,6 +64,8 @@ FocusAllowOnceChallengeResponse:
     expiresAt: { type: integer, format: int64 }
     remainingToday: { type: integer, minimum: 0 }
     dailyLimit: { type: integer, minimum: 1 }
+    kind: { type: string, enum: [outside_group, entertainment_rewatch], default: outside_group }
+    cooldownMs: { type: integer, format: int64, default: 0 }
 FocusAllowOnceVerifyRequest:
   type: object
   required: [challengeId, videoUrl, code]
@@ -67,6 +73,7 @@ FocusAllowOnceVerifyRequest:
     challengeId: { type: string }
     videoUrl: { type: string }
     code: { type: string }
+    kind: { type: string, enum: [outside_group, entertainment_rewatch], default: outside_group }
     timezone: { type: string, nullable: true }
 FocusAllowOnceVerifyResponse:
   type: object
@@ -75,3 +82,27 @@ FocusAllowOnceVerifyResponse:
     remainingToday: { type: integer, minimum: 0 }
     dailyLimit: { type: integer, minimum: 1 }
     expiresAt: { type: integer, format: int64 }
+    kind: { type: string, enum: [outside_group, entertainment_rewatch], default: outside_group }
+    unlockAt: { type: integer, format: int64, default: 0 }
+FocusAllowOnceCancelResponse:
+  type: object
+  required: [kind, remainingToday, dailyLimit]
+  properties:
+    kind: { type: string, enum: [outside_group, entertainment_rewatch] }
+    remainingToday: { type: integer, minimum: 0 }
+    dailyLimit: { type: integer, minimum: 1 }
+FocusAiReviewRequest:
+  type: object
+  required: [videoUrl, reason]
+  properties:
+    videoUrl: { type: string }
+    reason: { type: string }
+    timezone: { type: string, nullable: true }
+FocusAiReviewResponse:
+  type: object
+  required: [status]
+  properties:
+    status: { type: string, enum: [approved, rejected, unavailable] }
+    cooldownMs: { type: integer, format: int64, nullable: true }
+    rejectionExpiresAt: { type: integer, format: int64, nullable: true }
+    expiresAt: { type: integer, format: int64, nullable: true }

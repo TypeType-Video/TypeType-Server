@@ -20,4 +20,7 @@ data class FocusSettingsItem(
     val studyChannelKeys: List<String> = emptyList(),
     val allowOnceRemainingToday: Int = 3,
     val allowOnceDailyLimit: Int = 3,
+    val rewatchAllowOnceRemainingToday: Int = 2,
+    val rewatchAllowOnceDailyLimit: Int = 2,
+    val aiReviewEnabled: Boolean = false,
 )

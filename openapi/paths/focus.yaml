@@ -98,3 +98,43 @@ FocusAllowOnceVerify:
       '400': { $ref: ../components/common.yaml#/JsonError }
       '401': { $ref: ../components/common.yaml#/JsonError }
       '409': { $ref: ../components/common.yaml#/JsonError }
+FocusAllowOncePending:
+  delete:
+    tags: [user-data]
+    summary: Cancel a pending allow-once cooling-off grant and restore that daily pass
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema: { type: string }
+      - name: timezone
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Updated remaining daily quota after cancellation.
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusAllowOnceCancelResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '404': { $ref: ../components/common.yaml#/JsonError }
+FocusAiReview:
+  post:
+    tags: [user-data]
+    summary: Submit a user reason for AI Focus review of a restricted or rewatched video
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/focus.yaml#/FocusAiReviewRequest }
+    responses:
+      '200':
+        description: AI review verdict (approved, rejected, or unavailable).
+        content:
+          application/json:
+            schema: { $ref: ../components/focus.yaml#/FocusAiReviewResponse }
+      '400': { $ref: ../components/common.yaml#/JsonError }
+      '401': { $ref: ../components/common.yaml#/JsonError }
+      '409': { $ref: ../components/common.yaml#/JsonError }
