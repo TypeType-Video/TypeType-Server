@@ -1,5 +1,7 @@
 package dev.typetype.server
 
+import dev.typetype.server.ai.AiKit
+import dev.typetype.server.ai.AiKitFactory
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.TwitchConfig
@@ -88,6 +90,7 @@ class ServiceRegistry(
         },
     )
     val twitchService = TwitchService(TwitchConfig.fromEnvironment())
+    val aiKit: AiKit = AiKitFactory.fromEnvironment(cache)
     val authenticatedSabrInfoService = extraction.authenticatedSabrInfoService
     val youtubeSessionStreamService = extraction.youtubeSessionStreamService
     val youtubeSessionSabrStreamService = extraction.youtubeSessionSabrStreamService
