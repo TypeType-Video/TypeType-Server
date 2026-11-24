@@ -8,6 +8,7 @@ import dev.typetype.server.services.AccessControlProfile
 import dev.typetype.server.services.BlockedContentProfile
 import dev.typetype.server.services.FocusBlockReason
 import dev.typetype.server.services.FocusChannelAccess
+import dev.typetype.server.services.FocusPlaybackBlockContext
 import dev.typetype.server.services.FocusProfile
 import dev.typetype.server.services.FocusService
 import io.ktor.http.HttpStatusCode
@@ -29,7 +30,7 @@ internal suspend fun ApplicationCall.respondIfStreamGuardBlocks(
                 respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 true
             } else {
-                respondIfFocusBlocksStream(focus, result.data)
+                respondIfFocusBlocksStream(focus, result.data, userId, focusService, url)
             }
         }
         is ExtractionResult.Failure -> {
@@ -49,6 +50,8 @@ internal suspend fun ApplicationCall.respondIfStreamResponseBlocked(
     focus: FocusProfile?,
     url: String,
     stream: StreamResponse,
+    userId: String? = null,
+    focusService: FocusService? = null,
 ): Boolean {
     if (!access.allowsUploader(stream.uploaderUrl, stream.uploaderName)) {
         respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
@@ -58,20 +61,28 @@ internal suspend fun ApplicationCall.respondIfStreamResponseBlocked(
         respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is blocked", "content_blocked"))
         return true
     }
-    return respondIfFocusBlocksStream(focus, stream)
+    return respondIfFocusBlocksStream(focus, stream, userId, focusService, url)
 }
 
 internal suspend fun ApplicationCall.respondIfFocusBlocksStream(
     focus: FocusProfile?,
     stream: StreamResponse,
+    userId: String? = null,
+    focusService: FocusService? = null,
+    url: String = "",
 ): Boolean {
     if (focus == null || !focus.strictBlocking) return false
-    val publishedAt = stream.publishedAt ?: stream.uploaded.takeIf { it > 0 }
-    val reason = focus.blockReasonForPlayback(stream.uploaderUrl, publishedAt) ?: return false
+    val context = if (userId != null && focusService != null && url.isNotBlank()) {
+        focusService.playbackBlockContext(userId, url, stream) ?: return false
+    } else {
+        val publishedAt = stream.publishedAt ?: stream.uploaded.takeIf { it > 0 }
+        val reason = focus.blockReasonForPlayback(url, stream.uploaderUrl, publishedAt) ?: return false
+        FocusPlaybackBlockContext(reason = reason)
+    }
     respond(
         HttpStatusCode.Forbidden,
         focusBlockedBody(
-            reason = reason,
+            context = context,
             channelUrl = stream.uploaderUrl,
             channelName = stream.uploaderName,
             channelAvatarUrl = stream.uploaderAvatarUrl,
@@ -98,7 +109,7 @@ internal suspend fun ApplicationCall.respondIfFocusBlocksChannel(
     respond(
         HttpStatusCode.Forbidden,
         focusBlockedBody(
-            reason = reason,
+            context = FocusPlaybackBlockContext(reason = reason),
             channelUrl = channelUrl,
             channelName = channelName,
         ),
@@ -107,35 +118,64 @@ internal suspend fun ApplicationCall.respondIfFocusBlocksChannel(
 }
 
 internal fun focusBlockedBody(
-    reason: FocusBlockReason,
+    context: FocusPlaybackBlockContext,
     channelUrl: String = "",
     channelName: String = "",
     channelAvatarUrl: String = "",
     videoTitle: String = "",
-): FocusBlockedErrorResponse = when (reason) {
-    FocusBlockReason.Entertainment -> FocusBlockedErrorResponse(
-        error = "Hidden by Focus mode",
-        code = "focus_entertainment_blocked",
-        channelUrl = channelUrl,
-        channelName = channelName,
-        channelAvatarUrl = channelAvatarUrl,
-        videoTitle = videoTitle,
-    )
-    is FocusBlockReason.StudyPending -> FocusBlockedErrorResponse(
-        error = "This channel is cooling off before joining your study group",
-        code = "focus_study_pending",
-        channelUrl = channelUrl,
-        channelName = channelName,
-        channelAvatarUrl = channelAvatarUrl,
-        videoTitle = videoTitle,
-        unlockAt = reason.unlockAt,
-    )
-    FocusBlockReason.OutsideStudy -> FocusBlockedErrorResponse(
-        error = "Focus mode restricts videos outside your study group",
-        code = "focus_channel_blocked",
-        channelUrl = channelUrl,
-        channelName = channelName,
-        channelAvatarUrl = channelAvatarUrl,
-        videoTitle = videoTitle,
-    )
+): FocusBlockedErrorResponse {
+    val kind = context.allowOnceKind?.wireName
+    return when (val reason = context.reason) {
+        FocusBlockReason.Entertainment -> FocusBlockedErrorResponse(
+            error = "Hidden by Focus mode",
+            code = "focus_entertainment_blocked",
+            channelUrl = channelUrl,
+            channelName = channelName,
+            channelAvatarUrl = channelAvatarUrl,
+            videoTitle = videoTitle,
+        )
+        FocusBlockReason.EntertainmentRewatch -> FocusBlockedErrorResponse(
+            error = "You already watched this entertainment video",
+            code = "focus_entertainment_rewatch_blocked",
+            channelUrl = channelUrl,
+            channelName = channelName,
+            channelAvatarUrl = channelAvatarUrl,
+            videoTitle = videoTitle,
+            allowOnceKind = kind,
+            aiReviewEligible = context.aiReviewEligible,
+            aiRejected = context.aiRejected,
+            aiRejectionExpiresAt = context.aiRejectionExpiresAt,
+            allowOnceCooldownMs = context.allowOnceCooldownMs,
+            allowOncePendingUnlockAt = context.allowOncePendingUnlockAt,
+        )
+        is FocusBlockReason.StudyPending -> FocusBlockedErrorResponse(
+            error = "This channel is cooling off before joining your study group",
+            code = "focus_study_pending",
+            channelUrl = channelUrl,
+            channelName = channelName,
+            channelAvatarUrl = channelAvatarUrl,
+            videoTitle = videoTitle,
+            unlockAt = reason.unlockAt,
+            allowOnceKind = kind,
+            aiReviewEligible = context.aiReviewEligible,
+            aiRejected = context.aiRejected,
+            aiRejectionExpiresAt = context.aiRejectionExpiresAt,
+            allowOnceCooldownMs = context.allowOnceCooldownMs,
+            allowOncePendingUnlockAt = context.allowOncePendingUnlockAt,
+        )
+        FocusBlockReason.OutsideStudy -> FocusBlockedErrorResponse(
+            error = "Focus mode restricts videos outside your study group",
+            code = "focus_channel_blocked",
+            channelUrl = channelUrl,
+            channelName = channelName,
+            channelAvatarUrl = channelAvatarUrl,
+            videoTitle = videoTitle,
+            allowOnceKind = kind,
+            aiReviewEligible = context.aiReviewEligible,
+            aiRejected = context.aiRejected,
+            aiRejectionExpiresAt = context.aiRejectionExpiresAt,
+            allowOnceCooldownMs = context.allowOnceCooldownMs,
+            allowOncePendingUnlockAt = context.allowOncePendingUnlockAt,
+        )
+    }
 }

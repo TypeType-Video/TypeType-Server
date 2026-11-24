@@ -115,4 +115,5 @@ fun Route.focusRoutes(
         }
     }
     focusAllowOnceRoutes(focusService, authService)
+    focusAiReviewRoutes(focusService, authService)
 }

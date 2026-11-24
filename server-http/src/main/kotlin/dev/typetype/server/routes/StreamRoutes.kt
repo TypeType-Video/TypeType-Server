@@ -131,7 +131,7 @@ private fun Route.streamRoute(
         when (val result = resolution.result) {
             is ExtractionResult.Success -> {
                 val focusProfile = access.userId?.let { dependencies.focusService?.profileFor(it) }
-                if (call.respondIfStreamResponseBlocked(accessProfile, blockedProfile, focusProfile, url, result.data)) {
+                if (call.respondIfStreamResponseBlocked(accessProfile, blockedProfile, focusProfile, url, result.data, access.userId, dependencies.focusService)) {
                     return@get
                 }
                 val selected = if (deliveryMode.isSabr()) {

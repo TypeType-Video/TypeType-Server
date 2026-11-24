@@ -54,7 +54,7 @@ fun Route.audioOnlyContractRoutes(
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 }
                 val focus = access.userId?.let { focusService?.profileFor(it) }
-                if (call.respondIfFocusBlocksStream(focus, result.data.response)) {
+                if (call.respondIfFocusBlocksStream(focus, result.data.response, access.userId, focusService, url)) {
                     return@get
                 }
                 call.response.headers.append(HttpHeaders.CacheControl, "no-store")
