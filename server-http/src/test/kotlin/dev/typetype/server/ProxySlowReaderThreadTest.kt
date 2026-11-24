@@ -36,8 +36,7 @@ class ProxySlowReaderThreadTest {
                 launch { client.prepareGet("/proxy").execute { release.await() } }
             }
             withTimeout(10_000L) { while (opened.get() < SLOW_READERS) delay(10L) }
-            delay(SETTLE_MS)
-            threadsCopyingProxyBodies().also {
+            settledCopyingThreads().also {
                 release.complete(Unit)
                 readers.forEach { reader -> reader.cancel() }
             }
@@ -56,6 +55,17 @@ class ProxySlowReaderThreadTest {
         close = {},
     )
 
+    // A writer that still fills its buffer shows up for a moment on a loaded machine; a pinned one never leaves.
+    private suspend fun settledCopyingThreads(): Int {
+        val deadline = System.nanoTime() + SETTLE_TIMEOUT_MS * 1_000_000
+        var copying = threadsCopyingProxyBodies()
+        while (copying > MAX_PINNED_THREADS && System.nanoTime() < deadline) {
+            delay(POLL_MS)
+            copying = threadsCopyingProxyBodies()
+        }
+        return copying
+    }
+
     private fun threadsCopyingProxyBodies(): Int = Thread.getAllStackTraces().values.count { frames ->
         frames.any { it.className.startsWith(PROXY_WRITER_CLASS) }
     }
@@ -72,7 +82,8 @@ class ProxySlowReaderThreadTest {
     private companion object {
         const val SLOW_READERS = 24
         const val MAX_PINNED_THREADS = 2
-        const val SETTLE_MS = 1_000L
+        const val SETTLE_TIMEOUT_MS = 10_000L
+        const val POLL_MS = 100L
         const val PROXY_WRITER_CLASS = "dev.typetype.server.routes.ProxyResponseWriterKt"
     }
 }
