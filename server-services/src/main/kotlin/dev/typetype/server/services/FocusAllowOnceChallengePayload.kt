@@ -8,4 +8,5 @@ internal data class FocusAllowOnceChallengePayload(
     val videoKey: String,
     val code: String,
     val expiresAt: Long,
+    val kind: String = FocusAllowOnceKind.OUTSIDE_GROUP.wireName,
 )

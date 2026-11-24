@@ -11,6 +11,7 @@ enum class FocusChannelAccess {
 
 sealed interface FocusBlockReason {
     data object Entertainment : FocusBlockReason
+    data object EntertainmentRewatch : FocusBlockReason
     data class StudyPending(val unlockAt: Long) : FocusBlockReason
     data object OutsideStudy : FocusBlockReason
 }
@@ -68,18 +69,27 @@ data class FocusProfile(
         url.isNotBlank() && normalizeBlockedVideoKey(url) in temporaryAllowedVideos
 
     fun blockReasonForPlayback(uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? =
-        blockReasonForPlayback(url = "", uploaderUrl = uploaderUrl, publishedAt = publishedAt)
+        blockReasonForPlayback(url = "", uploaderUrl = uploaderUrl, publishedAt = publishedAt, alreadyWatched = false)
 
-    // The fade only thins the passive feeds: a recent video the user opens from the channel page, which lists the whole
-    // archive window, stays playable.
-    fun blockReasonForPlayback(url: String, uploaderUrl: String, publishedAt: Long? = null): FocusBlockReason? {
+    // The fade only thins the passive feeds: a recent unwatched video the user opens from the channel page
+    // stays playable, while rewatching an already-watched entertainment video is gated.
+    fun blockReasonForPlayback(
+        url: String,
+        uploaderUrl: String,
+        publishedAt: Long? = null,
+        alreadyWatched: Boolean = false,
+    ): FocusBlockReason? {
         if (!strictBlocking) return null
         if (uploaderUrl.isBlank()) {
             return if (isTemporaryAllowed(url)) null else FocusBlockReason.OutsideStudy
         }
         return when (accessFor(uploaderUrl)) {
             FocusChannelAccess.ALLOW_STUDY -> null
-            FocusChannelAccess.ENTERTAINMENT -> if (withinArchive(publishedAt)) null else FocusBlockReason.Entertainment
+            FocusChannelAccess.ENTERTAINMENT -> when {
+                !withinArchive(publishedAt) -> FocusBlockReason.Entertainment
+                alreadyWatched && !isTemporaryAllowed(url) -> FocusBlockReason.EntertainmentRewatch
+                else -> null
+            }
             FocusChannelAccess.PENDING_STUDY ->
                 if (isTemporaryAllowed(url)) null else FocusBlockReason.StudyPending(requireNotNull(pendingUnlockAt(uploaderUrl)))
             FocusChannelAccess.OUTSIDE_STUDY ->

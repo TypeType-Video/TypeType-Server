@@ -1,76 +1,91 @@
 package dev.typetype.server.services
 
-import dev.typetype.server.cache.CacheJson
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.db.DatabaseFactory
-import dev.typetype.server.db.tables.FocusAllowOnceGrantsTable
+import dev.typetype.server.models.FocusAllowOnceCancelResponse
 import dev.typetype.server.models.FocusAllowOnceChallengeResponse
 import dev.typetype.server.models.FocusAllowOnceVerifyResponse
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greater
-import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import java.net.URI
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 internal class FocusAllowOnceService(
     private val clock: () -> Long = System::currentTimeMillis,
-    private val cache: CacheService? = null,
+    cache: CacheService? = null,
     private val generateCaptchaCode: () -> String = FocusCaptchaGenerator::generateCode,
 ) {
-    private val localChallenges = ConcurrentHashMap<String, FocusAllowOnceChallengePayload>()
+    private val challenges = FocusAllowOnceChallenges(cache)
 
     internal fun remainingTodayInTx(
         userId: String,
         now: Long,
         rowTimezone: String?,
         requestedTimezone: String? = null,
+        kind: FocusAllowOnceKind = FocusAllowOnceKind.OUTSIDE_GROUP,
     ): Int {
-        val dayKey = currentDayKey(now, resolveZone(rowTimezone, requestedTimezone))
-        val used = countUsedInDayTx(userId, dayKey)
-        return (DAILY_LIMIT - used).coerceAtLeast(0)
+        val dayKey = FocusAllowOnceChallenges.currentDayKey(now, rowTimezone, requestedTimezone)
+        val used = FocusAllowOnceQueries.countUsedInDayTx(userId, dayKey, kind)
+        return (kind.dailyLimit - used).coerceAtLeast(0)
     }
 
     internal fun activeVideoKeysInTx(userId: String, now: Long): Set<String> =
-        FocusAllowOnceGrantsTable.select(FocusAllowOnceGrantsTable.videoKey)
-            .where {
-                (FocusAllowOnceGrantsTable.userId eq userId) and
-                    (FocusAllowOnceGrantsTable.expiresAt greater now)
-            }
-            .mapTo(HashSet()) { it[FocusAllowOnceGrantsTable.videoKey] }
+        FocusAllowOnceQueries.activeVideoKeysInTx(userId, now)
+
+    internal fun grantAiApprovedInTx(
+        userId: String,
+        videoKey: String,
+        rowTimezone: String?,
+        requestedTimezone: String?,
+        kind: FocusAllowOnceKind,
+        now: Long,
+    ): Long {
+        val existing = FocusAllowOnceQueries.activeOrPendingGrantInTx(userId, videoKey, kind, now)
+        if (existing != null && existing.unlockAt <= now) return existing.expiresAt
+        val dayKey = FocusAllowOnceChallenges.currentDayKey(now, rowTimezone, requestedTimezone)
+        val expiresAt = now + ALLOW_ONCE_DURATION_MS
+        FocusAllowOnceQueries.insertGrantInTx(
+            userId = userId,
+            videoKey = videoKey,
+            dayKey = dayKey,
+            kind = kind,
+            source = FocusAllowOnceQueries.SOURCE_AI_APPROVED,
+            grantedAt = now,
+            unlockAt = now,
+            expiresAt = expiresAt,
+        )
+        return expiresAt
+    }
 
     suspend fun createChallenge(
         userId: String,
         rawVideoUrl: String,
         requestedTimezone: String? = null,
+        rawKind: String = FocusAllowOnceKind.OUTSIDE_GROUP.wireName,
     ): FocusAllowOnceChallengeResult {
-        val videoKey = normalizeAllowOnceVideoKey(rawVideoUrl) ?: return FocusAllowOnceChallengeResult.InvalidVideo
+        val kind = FocusAllowOnceKind.fromWire(rawKind) ?: return FocusAllowOnceChallengeResult.InvalidKind
+        val videoKey = FocusAllowOnceChallenges.normalizeVideoKey(rawVideoUrl) ?: return FocusAllowOnceChallengeResult.InvalidVideo
         val now = clock()
-        val remainingToday = DatabaseFactory.query {
+        val state = DatabaseFactory.query {
             val row = readSettledFocusRow(userId, now)
             if (!isActiveFocusRow(row, now) || !row.strictBlocking) return@query null
-            remainingTodayInTx(userId, now, row.timezone, requestedTimezone)
+            val remaining = remainingTodayInTx(userId, now, row.timezone, requestedTimezone, kind)
+            val cooldownMs = FocusAllowOnceQueries.activeRejectionInTx(userId, videoKey, now)?.cooldownMs ?: 0L
+            remaining to cooldownMs
         } ?: return FocusAllowOnceChallengeResult.NotEligible
+        val (remainingToday, cooldownMs) = state
         if (remainingToday <= 0) return FocusAllowOnceChallengeResult.Exhausted
 
         val code = generateCaptchaCode()
         val challengeId = UUID.randomUUID().toString()
         val expiresAt = now + CHALLENGE_TTL_MS
-        saveChallenge(challengeId, FocusAllowOnceChallengePayload(userId, videoKey, code, expiresAt), now)
+        challenges.save(challengeId, FocusAllowOnceChallengePayload(userId, videoKey, code, expiresAt, kind.wireName), now)
         return FocusAllowOnceChallengeResult.Success(
             FocusAllowOnceChallengeResponse(
                 challengeId = challengeId,
                 challengeText = code,
                 expiresAt = expiresAt,
                 remainingToday = remainingToday,
-                dailyLimit = DAILY_LIMIT,
+                dailyLimit = kind.dailyLimit,
+                kind = kind.wireName,
+                cooldownMs = cooldownMs,
             ),
         )
     }
@@ -81,15 +96,18 @@ internal class FocusAllowOnceService(
         rawVideoUrl: String,
         rawCode: String,
         requestedTimezone: String? = null,
+        rawKind: String = FocusAllowOnceKind.OUTSIDE_GROUP.wireName,
     ): FocusAllowOnceVerifyResult {
-        val videoKey = normalizeAllowOnceVideoKey(rawVideoUrl) ?: return FocusAllowOnceVerifyResult.InvalidVideo
+        val kind = FocusAllowOnceKind.fromWire(rawKind) ?: return FocusAllowOnceVerifyResult.InvalidKind
+        val videoKey = FocusAllowOnceChallenges.normalizeVideoKey(rawVideoUrl) ?: return FocusAllowOnceVerifyResult.InvalidVideo
         val trimmedCode = rawCode.trim()
         if (challengeId.isBlank() || trimmedCode.isBlank()) return FocusAllowOnceVerifyResult.InvalidChallenge
         val now = clock()
-        val payload = takeChallenge(challengeId)
+        val payload = challenges.take(challengeId)
         val valid = payload != null &&
             payload.userId == userId &&
             payload.videoKey == videoKey &&
+            payload.kind == kind.wireName &&
             now <= payload.expiresAt &&
             trimmedCode == payload.code
         if (!valid) return FocusAllowOnceVerifyResult.InvalidChallenge
@@ -98,96 +116,73 @@ internal class FocusAllowOnceService(
             SubscriptionMutationLock.acquire(userId)
             val row = readSettledFocusRow(userId, now)
             if (!isActiveFocusRow(row, now) || !row.strictBlocking) return@query FocusAllowOnceVerifyResult.NotEligible
-            val dayKey = currentDayKey(now, resolveZone(row.timezone, requestedTimezone))
-            val usedToday = countUsedInDayTx(userId, dayKey)
-            val existingExpiry = activeExpiryInTx(userId, videoKey, now)
-            if (existingExpiry != null) {
+            val dayKey = FocusAllowOnceChallenges.currentDayKey(now, row.timezone, requestedTimezone)
+            val usedToday = FocusAllowOnceQueries.countUsedInDayTx(userId, dayKey, kind)
+            val existing = FocusAllowOnceQueries.activeOrPendingGrantInTx(userId, videoKey, kind, now)
+            if (existing != null) {
                 return@query FocusAllowOnceVerifyResult.Success(
                     FocusAllowOnceVerifyResponse(
-                        remainingToday = (DAILY_LIMIT - usedToday).coerceAtLeast(0),
-                        dailyLimit = DAILY_LIMIT,
-                        expiresAt = existingExpiry,
+                        remainingToday = (kind.dailyLimit - usedToday).coerceAtLeast(0),
+                        dailyLimit = kind.dailyLimit,
+                        expiresAt = existing.expiresAt,
+                        kind = kind.wireName,
+                        unlockAt = existing.unlockAt,
                     ),
                 )
             }
-            if (usedToday >= DAILY_LIMIT) return@query FocusAllowOnceVerifyResult.Exhausted
-            val expiresAt = now + ALLOW_ONCE_DURATION_MS
-            FocusAllowOnceGrantsTable.insert {
-                it[id] = UUID.randomUUID().toString()
-                it[FocusAllowOnceGrantsTable.userId] = userId
-                it[FocusAllowOnceGrantsTable.videoKey] = videoKey
-                it[FocusAllowOnceGrantsTable.dayKey] = dayKey
-                it[grantedAt] = now
-                it[FocusAllowOnceGrantsTable.expiresAt] = expiresAt
-            }
+            if (usedToday >= kind.dailyLimit) return@query FocusAllowOnceVerifyResult.Exhausted
+            val cooldownMs = FocusAllowOnceQueries.activeRejectionInTx(userId, videoKey, now)?.cooldownMs ?: 0L
+            val unlockAt = now + cooldownMs
+            val expiresAt = unlockAt + ALLOW_ONCE_DURATION_MS
+            FocusAllowOnceQueries.insertGrantInTx(
+                userId = userId,
+                videoKey = videoKey,
+                dayKey = dayKey,
+                kind = kind,
+                source = FocusAllowOnceQueries.SOURCE_CAPTCHA,
+                grantedAt = now,
+                unlockAt = unlockAt,
+                expiresAt = expiresAt,
+            )
             FocusAllowOnceVerifyResult.Success(
                 FocusAllowOnceVerifyResponse(
-                    remainingToday = (DAILY_LIMIT - (usedToday + 1)).coerceAtLeast(0),
-                    dailyLimit = DAILY_LIMIT,
+                    remainingToday = (kind.dailyLimit - (usedToday + 1)).coerceAtLeast(0),
+                    dailyLimit = kind.dailyLimit,
                     expiresAt = expiresAt,
+                    kind = kind.wireName,
+                    unlockAt = unlockAt,
                 ),
             )
         }
     }
 
-    private fun countUsedInDayTx(userId: String, dayKey: String): Int =
-        FocusAllowOnceGrantsTable.selectAll()
-            .where { (FocusAllowOnceGrantsTable.userId eq userId) and (FocusAllowOnceGrantsTable.dayKey eq dayKey) }
-            .count()
-            .toInt()
-
-    private fun activeExpiryInTx(userId: String, videoKey: String, now: Long): Long? =
-        FocusAllowOnceGrantsTable.select(FocusAllowOnceGrantsTable.expiresAt)
-            .where {
-                (FocusAllowOnceGrantsTable.userId eq userId) and
-                    (FocusAllowOnceGrantsTable.videoKey eq videoKey) and
-                    (FocusAllowOnceGrantsTable.expiresAt greater now)
-            }
-            .maxOfOrNull { it[FocusAllowOnceGrantsTable.expiresAt] }
-
-    private suspend fun saveChallenge(challengeId: String, payload: FocusAllowOnceChallengePayload, now: Long) {
-        if (cache != null) {
-            val serialized = CacheJson.encodeToString(FocusAllowOnceChallengePayload.serializer(), payload)
-            cache.set("$CHALLENGE_CACHE_PREFIX$challengeId", serialized, CHALLENGE_TTL_SECONDS)
-            return
+    suspend fun cancelPendingGrant(
+        userId: String,
+        rawVideoUrl: String,
+        requestedTimezone: String? = null,
+    ): FocusAllowOnceCancelResult {
+        val videoKey = FocusAllowOnceChallenges.normalizeVideoKey(rawVideoUrl) ?: return FocusAllowOnceCancelResult.InvalidVideo
+        val now = clock()
+        return DatabaseFactory.query {
+            SubscriptionMutationLock.acquire(userId)
+            val row = readSettledFocusRow(userId, now)
+            val cancelledKind = FocusAllowOnceQueries.deletePendingCaptchaGrantsInTx(userId, videoKey, now)
+                ?: return@query FocusAllowOnceCancelResult.NotFound
+            val remaining = remainingTodayInTx(userId, now, row.timezone, requestedTimezone, cancelledKind)
+            FocusAllowOnceCancelResult.Success(
+                FocusAllowOnceCancelResponse(
+                    kind = cancelledKind.wireName,
+                    remainingToday = remaining,
+                    dailyLimit = cancelledKind.dailyLimit,
+                ),
+            )
         }
-        if (localChallenges.size >= MAX_LOCAL_CHALLENGES) {
-            localChallenges.entries.removeIf { it.value.expiresAt < now }
-        }
-        localChallenges[challengeId] = payload
     }
-
-    private suspend fun takeChallenge(challengeId: String): FocusAllowOnceChallengePayload? {
-        if (cache == null) return localChallenges.remove(challengeId)
-        val raw = cache.getAndDelete("$CHALLENGE_CACHE_PREFIX$challengeId") ?: return null
-        return runCatching { CacheJson.decodeFromString(FocusAllowOnceChallengePayload.serializer(), raw) }.getOrNull()
-    }
-
-    private fun normalizeAllowOnceVideoKey(rawUrl: String): String? {
-        val trimmed = rawUrl.trim()
-        if (trimmed.isBlank()) return null
-        val uri = runCatching { URI(trimmed) }.getOrNull() ?: return null
-        val scheme = uri.scheme?.lowercase()
-        if ((scheme != "http" && scheme != "https") || uri.host.isNullOrBlank()) return null
-        return normalizeBlockedVideoKey(trimmed).takeIf { it.isNotBlank() }
-    }
-
-    private fun resolveZone(rowTimezone: String?, requestedTimezone: String?): ZoneId =
-        requestedTimezone?.trim()?.takeIf { it.isNotEmpty() }?.let(::parseZone)
-            ?: rowTimezone?.trim()?.takeIf { it.isNotEmpty() }?.let(::parseZone)
-            ?: ZoneOffset.UTC
-
-    private fun parseZone(id: String): ZoneId? = runCatching { ZoneId.of(id) }.getOrNull()
-
-    private fun currentDayKey(now: Long, zone: ZoneId): String =
-        LocalDate.ofInstant(Instant.ofEpochMilli(now), zone).toString()
 
     companion object {
         const val DAILY_LIMIT = 3
+        const val REWATCH_DAILY_LIMIT = 2
         const val ALLOW_ONCE_DURATION_MS = 2 * 60 * 60 * 1000L
         const val CHALLENGE_TTL_MS = 5 * 60 * 1000L
-        private const val CHALLENGE_TTL_SECONDS = 300L
-        private const val MAX_LOCAL_CHALLENGES = 1000
-        private const val CHALLENGE_CACHE_PREFIX = "focus:allow-once:challenge:"
     }
 }
