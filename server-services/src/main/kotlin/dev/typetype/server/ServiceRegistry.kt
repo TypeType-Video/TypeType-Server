@@ -1,7 +1,10 @@
 package dev.typetype.server
 
 import dev.typetype.server.ai.AiKit
+import dev.typetype.server.ai.AiKitConfig
 import dev.typetype.server.ai.AiKitFactory
+import dev.typetype.server.ai.AiOutboundProxy
+import dev.typetype.server.models.ExtractionResult
 import dev.typetype.server.models.StreamResponse
 import dev.typetype.server.cache.DragonflyService
 import dev.typetype.server.services.TwitchConfig
@@ -50,7 +53,10 @@ import dev.typetype.server.services.SubscriptionShortsFeedService
 import dev.typetype.server.services.SubscriptionsService
 import dev.typetype.server.services.SubscriptionAvatarWarmupService
 import dev.typetype.server.services.SubscriptionGroupsService
+import dev.typetype.server.services.FocusAiConfig
+import dev.typetype.server.services.FocusAiThumbnailFetcher
 import dev.typetype.server.services.FocusService
+import dev.typetype.server.services.toFocusVideoSnapshot
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidation
 import dev.typetype.server.services.SubscriptionFeedCacheInvalidatorImpl
 import dev.typetype.server.services.TypeTypeBackupService
@@ -138,7 +144,16 @@ class ServiceRegistry(
     val subscriptionsService = SubscriptionsService()
     val subscriptionAvatarWarmupService = SubscriptionAvatarWarmupService(channelService)
     val subscriptionGroupsService = SubscriptionGroupsService()
-    val focusService = FocusService(cache = cache)
+    private val aiKitConfig = AiKitConfig.fromEnvironment()
+    val focusService = FocusService(
+        cache = cache,
+        aiKit = aiKit,
+        focusAiConfig = FocusAiConfig.fromEnvironment(),
+        streamMetadataResolver = { url ->
+            (streamService.getStreamInfo(url) as? ExtractionResult.Success)?.data?.toFocusVideoSnapshot()
+        },
+        thumbnailFetcher = FocusAiThumbnailFetcher(AiOutboundProxy.fromUrl(aiKitConfig.outboundProxyUrl)),
+    )
     val subscriptionFeedService = SubscriptionFeedService(
         subscriptionsService,
         channelService,

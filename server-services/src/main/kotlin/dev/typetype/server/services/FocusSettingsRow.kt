@@ -26,6 +26,9 @@ internal data class FocusSettingsRow(
         studyChannelKeys: List<String> = emptyList(),
         allowOnceRemainingToday: Int = FocusAllowOnceService.DAILY_LIMIT,
         allowOnceDailyLimit: Int = FocusAllowOnceService.DAILY_LIMIT,
+        rewatchAllowOnceRemainingToday: Int = FocusAllowOnceService.REWATCH_DAILY_LIMIT,
+        rewatchAllowOnceDailyLimit: Int = FocusAllowOnceService.REWATCH_DAILY_LIMIT,
+        aiReviewEnabled: Boolean = false,
     ): FocusSettingsItem = FocusSettingsItem(
         enabled = enabled,
         entertainmentGroupId = entertainmentGroupId,
@@ -43,6 +46,9 @@ internal data class FocusSettingsRow(
         studyChannelKeys = studyChannelKeys,
         allowOnceRemainingToday = allowOnceRemainingToday,
         allowOnceDailyLimit = allowOnceDailyLimit,
+        rewatchAllowOnceRemainingToday = rewatchAllowOnceRemainingToday,
+        rewatchAllowOnceDailyLimit = rewatchAllowOnceDailyLimit,
+        aiReviewEnabled = aiReviewEnabled,
     )
 }
 

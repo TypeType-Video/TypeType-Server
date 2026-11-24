@@ -1,31 +1,42 @@
 package dev.typetype.server.services
 
+import dev.typetype.server.ai.AiKit
 import dev.typetype.server.cache.CacheService
 import dev.typetype.server.db.DatabaseFactory
 import dev.typetype.server.models.FocusSettingsItem
 import dev.typetype.server.models.FocusSettingsRequest
+import dev.typetype.server.models.StreamResponse
 
 class FocusService(
     private val clock: () -> Long = System::currentTimeMillis,
     cache: CacheService? = null,
     captchaCodeGenerator: () -> String = FocusCaptchaGenerator::generateCode,
+    aiKit: AiKit? = null,
+    focusAiConfig: FocusAiConfig = FocusAiConfig(),
+    streamMetadataResolver: suspend (String) -> FocusVideoSnapshot? = { null },
+    thumbnailFetcher: FocusAiThumbnailFetcher = FocusAiThumbnailFetcher(),
 ) {
     private val studyChannels = FocusStudyChannelService(clock)
     private val allowOnce = FocusAllowOnceService(clock, cache, captchaCodeGenerator)
+    private val snapshotCache = FocusVideoSnapshotCache(cache)
+    private val aiReview = FocusAiReviewService(
+        clock = clock,
+        aiKit = aiKit,
+        config = focusAiConfig,
+        studyChannels = studyChannels,
+        allowOnce = allowOnce,
+        snapshotCache = snapshotCache,
+        streamMetadataResolver = streamMetadataResolver,
+        thumbnailFetcher = thumbnailFetcher,
+    )
+
+    val aiReviewEnabled: Boolean
+        get() = aiReview.enabled
 
     suspend fun get(userId: String, requestedTimezone: String? = null): FocusSettingsItem = DatabaseFactory.query {
         val now = clock()
         val row = readSettledFocusRow(userId, now)
-        val active = isActiveFocusRow(row, now)
-        val studyKeys = if (active) activeStudyKeys(userId, row, now) else emptyList()
-        val remainingToday = allowOnce.remainingTodayInTx(userId, now, row.timezone, requestedTimezone)
-        row.toItem(
-            now = now,
-            active = active,
-            studyChannelKeys = studyKeys,
-            allowOnceRemainingToday = remainingToday,
-            allowOnceDailyLimit = FocusAllowOnceService.DAILY_LIMIT,
-        )
+        buildSettingsItem(userId, row, now, requestedTimezone)
     }
 
     suspend fun update(userId: String, request: FocusSettingsRequest): FocusUpdateResult = DatabaseFactory.query {
@@ -44,49 +55,34 @@ class FocusService(
             }
         }
         writeFocusSettingsRow(userId, next, now)
-        val active = isActiveFocusRow(next, now)
-        val studyKeys = if (active) activeStudyKeys(userId, next, now) else emptyList()
-        val remainingToday = allowOnce.remainingTodayInTx(userId, now, next.timezone, request.timezone)
-        FocusUpdateResult.Success(
-            next.toItem(
-                now = now,
-                active = active,
-                studyChannelKeys = studyKeys,
-                allowOnceRemainingToday = remainingToday,
-                allowOnceDailyLimit = FocusAllowOnceService.DAILY_LIMIT,
-            ),
-        )
+        FocusUpdateResult.Success(buildSettingsItem(userId, next, now, request.timezone))
     }
 
     suspend fun profileFor(userId: String): FocusProfile? = DatabaseFactory.query {
-        val now = clock()
-        val row = readSettledFocusRow(userId, now)
-        val entertainment = row.entertainmentGroupId
-        if (!isActiveFocusRow(row, now) || entertainment == null) return@query null
-        val entertainmentChannels = studyChannels.channelsOf(userId, entertainment)
-        val partitionedStudy = studyChannels.partitionStudyChannels(userId, row, now, entertainmentChannels)
-        if (!row.strictBlocking && entertainmentChannels.isEmpty() && partitionedStudy.active.isEmpty() && partitionedStudy.pending.isEmpty()) {
-            return@query null
-        }
-        val temporaryAllowed = if (row.strictBlocking) allowOnce.activeVideoKeysInTx(userId, now) else emptySet()
-        FocusProfile(
-            seed = userId,
-            entertainmentChannels = entertainmentChannels,
-            studyChannels = partitionedStudy.active,
-            pendingStudyUnlocksAt = partitionedStudy.pending,
-            entertainmentShare = FocusProfile.share(row.startedAt, row.transitionDays, now),
-            archiveDays = row.archiveDays,
-            archiveCutoffMs = now - row.archiveDays * FocusProfile.DAY_MS,
-            strictBlocking = row.strictBlocking,
-            temporaryAllowedVideos = temporaryAllowed,
-        )
+        FocusProfileLoader.loadInTx(userId, clock(), studyChannels, allowOnce)?.profile
     }
+
+    suspend fun playbackBlockContext(
+        userId: String,
+        videoUrl: String,
+        stream: StreamResponse,
+    ): FocusPlaybackBlockContext? = FocusPlaybackEvaluator.evaluateBlockContext(
+        userId = userId,
+        videoUrl = videoUrl,
+        stream = stream,
+        clock = clock,
+        studyChannels = studyChannels,
+        allowOnce = allowOnce,
+        snapshotCache = snapshotCache,
+        aiReviewEnabled = aiReview.enabled,
+    )
 
     suspend fun createAllowOnceChallenge(
         userId: String,
         rawVideoUrl: String,
         requestedTimezone: String? = null,
-    ): FocusAllowOnceChallengeResult = allowOnce.createChallenge(userId, rawVideoUrl, requestedTimezone)
+        rawKind: String = FocusAllowOnceKind.OUTSIDE_GROUP.wireName,
+    ): FocusAllowOnceChallengeResult = allowOnce.createChallenge(userId, rawVideoUrl, requestedTimezone, rawKind)
 
     suspend fun verifyAllowOnceChallenge(
         userId: String,
@@ -94,7 +90,21 @@ class FocusService(
         rawVideoUrl: String,
         rawCode: String,
         requestedTimezone: String? = null,
-    ): FocusAllowOnceVerifyResult = allowOnce.verifyChallenge(userId, challengeId, rawVideoUrl, rawCode, requestedTimezone)
+        rawKind: String = FocusAllowOnceKind.OUTSIDE_GROUP.wireName,
+    ): FocusAllowOnceVerifyResult = allowOnce.verifyChallenge(userId, challengeId, rawVideoUrl, rawCode, requestedTimezone, rawKind)
+
+    suspend fun cancelPendingAllowOnce(
+        userId: String,
+        rawVideoUrl: String,
+        requestedTimezone: String? = null,
+    ): FocusAllowOnceCancelResult = allowOnce.cancelPendingGrant(userId, rawVideoUrl, requestedTimezone)
+
+    suspend fun reviewWithAi(
+        userId: String,
+        rawVideoUrl: String,
+        rawReason: String,
+        requestedTimezone: String? = null,
+    ): FocusAiReviewResult = aiReview.review(userId, rawVideoUrl, rawReason, requestedTimezone)
 
     suspend fun addStudyChannel(
         userId: String,
@@ -105,6 +115,32 @@ class FocusService(
 
     suspend fun removeStudyChannel(userId: String, rawChannelUrl: String): FocusStudyChannelRemoveResult =
         studyChannels.removeStudyChannel(userId, rawChannelUrl)
+
+    private fun buildSettingsItem(
+        userId: String,
+        row: FocusSettingsRow,
+        now: Long,
+        requestedTimezone: String?,
+    ): FocusSettingsItem {
+        val active = isActiveFocusRow(row, now)
+        val studyKeys = if (active) activeStudyKeys(userId, row, now) else emptyList()
+        val outsideRemaining = allowOnce.remainingTodayInTx(
+            userId, now, row.timezone, requestedTimezone, FocusAllowOnceKind.OUTSIDE_GROUP,
+        )
+        val rewatchRemaining = allowOnce.remainingTodayInTx(
+            userId, now, row.timezone, requestedTimezone, FocusAllowOnceKind.ENTERTAINMENT_REWATCH,
+        )
+        return row.toItem(
+            now = now,
+            active = active,
+            studyChannelKeys = studyKeys,
+            allowOnceRemainingToday = outsideRemaining,
+            allowOnceDailyLimit = FocusAllowOnceService.DAILY_LIMIT,
+            rewatchAllowOnceRemainingToday = rewatchRemaining,
+            rewatchAllowOnceDailyLimit = FocusAllowOnceService.REWATCH_DAILY_LIMIT,
+            aiReviewEnabled = aiReview.enabled,
+        )
+    }
 
     private fun activeStudyKeys(userId: String, row: FocusSettingsRow, now: Long): List<String> {
         val entertainment = row.entertainmentGroupId?.let { studyChannels.channelsOf(userId, it) }.orEmpty()
