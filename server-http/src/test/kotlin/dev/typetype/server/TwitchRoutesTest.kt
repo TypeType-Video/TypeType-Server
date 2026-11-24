@@ -94,6 +94,24 @@ class TwitchRoutesTest {
     }
 
     @Test
+    fun `lists of lives pass the language filter on and keep other params out`() = withApp {
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/streams?language=de,en&first=5&evil=1").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/games/chess/streams?language=de").status)
+        assertEquals(HttpStatusCode.OK, client.get("/twitch/tags/Speedrun/streams?language=fr").status)
+        assertEquals(listOf("de,en", "de", "fr"), requests.map { it.url.queryParameter("language") })
+        assertEquals("5", requests.first().url.queryParameter("first"))
+        assertEquals(null, requests.first().url.queryParameter("evil"))
+    }
+
+    @Test
+    fun `a language the live service refuses keeps its status`() = withApp {
+        answer = { 400 to """{"error":"invalid_language"}""" }
+        val response = client.get("/twitch/streams?language=xx")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("invalid_language"))
+    }
+
+    @Test
     fun `the chat of a past broadcast is relayed with its offset or cursor`() = withApp {
         assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?offset=120&evil=1").status)
         assertEquals(HttpStatusCode.OK, client.get("/twitch/videos/2929630714/comments?cursor=abc").status)
