@@ -133,32 +133,31 @@ class FocusProfileTest {
     @Test
     fun `playback access enforces gates only when strict blocking is enabled`() {
         val defaultProfile = profile(0.0)
-        assertNull(defaultProfile.blockReasonForPlayback("https://www.youtube.com/watch?v=1", otherChannel, now))
-        assertNull(defaultProfile.blockReasonForPlayback("https://www.youtube.com/watch?v=2", funChannel, now))
+        assertNull(defaultProfile.blockReasonForPlayback(otherChannel, now))
+        assertNull(defaultProfile.blockReasonForPlayback(funChannel, now))
 
         val full = profile(1.0, strictBlocking = true)
-        assertNull(full.blockReasonForPlayback("https://www.youtube.com/watch?v=1", studyChannel, now - 30 * FocusProfile.DAY_MS))
-        assertNull(full.blockReasonForPlayback("https://www.youtube.com/watch?v=2", funChannel, now - FocusProfile.DAY_MS))
-        assertEquals(
-            FocusBlockReason.Entertainment,
-            full.blockReasonForPlayback("https://www.youtube.com/watch?v=3", funChannel, now - 30 * FocusProfile.DAY_MS),
-        )
-        assertEquals(
-            FocusBlockReason.Entertainment,
-            profile(0.0, strictBlocking = true).blockReasonForPlayback("https://www.youtube.com/watch?v=4", funChannel, now - FocusProfile.DAY_MS),
-        )
+        assertNull(full.blockReasonForPlayback(studyChannel, now - 30 * FocusProfile.DAY_MS))
+        assertNull(full.blockReasonForPlayback(funChannel, now - FocusProfile.DAY_MS))
+        assertEquals(FocusBlockReason.Entertainment, full.blockReasonForPlayback(funChannel, now - 30 * FocusProfile.DAY_MS))
         assertEquals(
             FocusBlockReason.StudyPending(now + FocusProfile.DAY_MS),
-            full.blockReasonForPlayback("https://www.youtube.com/watch?v=5", pendingChannel, now),
+            full.blockReasonForPlayback(pendingChannel, now),
         )
-        assertEquals(
-            FocusBlockReason.OutsideStudy,
-            full.blockReasonForPlayback("https://www.youtube.com/watch?v=6", otherChannel, now),
-        )
-        assertEquals(
-            FocusBlockReason.OutsideStudy,
-            full.blockReasonForPlayback("https://www.youtube.com/watch?v=7", "", now),
-        )
+        assertEquals(FocusBlockReason.OutsideStudy, full.blockReasonForPlayback(otherChannel, now))
+        assertEquals(FocusBlockReason.OutsideStudy, full.blockReasonForPlayback("", now))
+    }
+
+    @Test
+    fun `strict playback of an entertainment channel follows the archive window, not the fade`() {
+        val fadedOut = profile(0.0, strictBlocking = true)
+        val recent = now - FocusProfile.DAY_MS
+        val old = now - 30 * FocusProfile.DAY_MS
+        val feed = SubscriptionFeedResponse(videos = listOf(video("recent-fun", recent)), nextpage = null)
+
+        assertEquals(emptyList<String>(), feed.filterFocus(fadedOut).videos.map { it.id })
+        assertNull(fadedOut.blockReasonForPlayback(funChannel, recent))
+        assertEquals(FocusBlockReason.Entertainment, fadedOut.blockReasonForPlayback(funChannel, old))
     }
 
     @Test

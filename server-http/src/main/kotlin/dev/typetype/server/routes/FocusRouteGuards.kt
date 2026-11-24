@@ -29,7 +29,7 @@ internal suspend fun ApplicationCall.respondIfStreamGuardBlocks(
                 respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is not allowed"))
                 true
             } else {
-                respondIfFocusBlocksStream(focus, url, result.data)
+                respondIfFocusBlocksStream(focus, result.data)
             }
         }
         is ExtractionResult.Failure -> {
@@ -58,17 +58,16 @@ internal suspend fun ApplicationCall.respondIfStreamResponseBlocked(
         respond(HttpStatusCode.Forbidden, ErrorResponse("Channel is blocked", "content_blocked"))
         return true
     }
-    return respondIfFocusBlocksStream(focus, url, stream)
+    return respondIfFocusBlocksStream(focus, stream)
 }
 
 internal suspend fun ApplicationCall.respondIfFocusBlocksStream(
     focus: FocusProfile?,
-    url: String,
     stream: StreamResponse,
 ): Boolean {
     if (focus == null || !focus.strictBlocking) return false
     val publishedAt = stream.publishedAt ?: stream.uploaded.takeIf { it > 0 }
-    val reason = focus.blockReasonForPlayback(url, stream.uploaderUrl, publishedAt) ?: return false
+    val reason = focus.blockReasonForPlayback(stream.uploaderUrl, publishedAt) ?: return false
     respond(
         HttpStatusCode.Forbidden,
         focusBlockedBody(
