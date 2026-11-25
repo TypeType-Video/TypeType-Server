@@ -20,8 +20,6 @@ private val idPattern = Regex("^[0-9]{1,20}$")
 // Twitch tags are one word of letters and digits in any script, as TypeType-Live checks again.
 private val tagPattern = Regex("^[\\p{L}\\p{Nd}]{1,25}$")
 private val pageParams = listOf("first", "after")
-
-// Browse lists of lives can be narrowed to broadcaster languages; TypeType-Live checks the values.
 private val streamListParams = pageParams + "language"
 
 fun Route.twitchRoutes(
