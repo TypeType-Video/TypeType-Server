@@ -5,6 +5,11 @@ x-json: &json
 x-page: &page
   - { name: first, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
   - { name: after, in: query, schema: { type: string } }
+x-language: &language
+  name: language
+  in: query
+  description: Broadcaster languages to list, comma separated, such as de,en. Unknown values answer 400.
+  schema: { type: string, example: 'de,en' }
 x-relay: &relay
   '200': { description: Answer of the TypeType-Live service, passed through., <<: *json }
   '400': { description: Invalid parameter. }
@@ -15,7 +20,14 @@ x-auth: &auth
   - bearerAuth: []
 
 Streams:
-  get: { tags: [twitch], summary: Most watched Twitch lives, parameters: *page, responses: *relay }
+  get:
+    tags: [twitch]
+    summary: Most watched Twitch lives
+    parameters:
+      - *language
+      - { name: first, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }
+      - { name: after, in: query, schema: { type: string } }
+    responses: *relay
 Games:
   get: { tags: [twitch], summary: Top Twitch categories, parameters: *page, responses: *relay }
 GameStreams:
@@ -24,6 +36,7 @@ GameStreams:
     summary: Lives of a Twitch category
     parameters:
       - { name: slug, in: path, required: true, schema: { type: string } }
+      - *language
       - { name: first, in: query, schema: { type: integer } }
       - { name: after, in: query, schema: { type: string } }
     responses: *relay
@@ -33,6 +46,7 @@ TagStreams:
     summary: Lives carrying a Twitch tag, most watched first
     parameters:
       - { name: tag, in: path, required: true, schema: { type: string, pattern: '^[\p{L}\p{Nd}]{1,25}$' } }
+      - *language
       - { name: first, in: query, schema: { type: integer } }
       - { name: after, in: query, schema: { type: string } }
     responses: *relay

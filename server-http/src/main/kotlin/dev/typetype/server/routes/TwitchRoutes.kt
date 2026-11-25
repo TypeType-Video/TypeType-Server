@@ -20,6 +20,7 @@ private val idPattern = Regex("^[0-9]{1,20}$")
 // Twitch tags are one word of letters and digits in any script, as TypeType-Live checks again.
 private val tagPattern = Regex("^[\\p{L}\\p{Nd}]{1,25}$")
 private val pageParams = listOf("first", "after")
+private val streamListParams = pageParams + "language"
 
 fun Route.twitchRoutes(
     service: TwitchService,
@@ -34,15 +35,15 @@ fun Route.twitchRoutes(
         respondLive(service.relay(path, query, userId))
     }
 
-    get("/twitch/streams") { call.relay("/v1/streams") }
+    get("/twitch/streams") { call.relay("/v1/streams", streamListParams) }
     get("/twitch/games") { call.relay("/v1/games") }
     get("/twitch/games/{slug}/streams") {
         val slug = call.pathParam("slug", slugPattern) ?: return@get
-        call.relay("/v1/games/$slug/streams")
+        call.relay("/v1/games/$slug/streams", streamListParams)
     }
     get("/twitch/tags/{tag}/streams") {
         val tag = call.pathParam("tag", tagPattern) ?: return@get
-        call.relay("/v1/tags/$tag/streams")
+        call.relay("/v1/tags/$tag/streams", streamListParams)
     }
     get("/twitch/channels/{login}") {
         val login = call.pathParam("login", loginPattern) ?: return@get
